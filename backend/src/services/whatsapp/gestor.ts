@@ -212,3 +212,18 @@ export async function reanudarSesionesGuardadas(): Promise<void> {
 export function apagarTodo(): void {
   for (const numeroId of sesiones.keys()) detenerSinBorrar(numeroId);
 }
+
+/**
+ * Socket activo de un numero, para que otros servicios (motor de envio,
+ * chat integrado en fases futuras) puedan usarlo directamente. null si el
+ * numero no esta conectado en este momento.
+ */
+export function obtenerSocket(numeroId: number): SesionBaileys['sock'] | null {
+  return sesiones.get(numeroId)?.sesion?.sock ?? null;
+}
+
+/** IDs de los numeros que estan conectados ahora mismo (no solo registrados). */
+export async function idsNumerosConectados(): Promise<number[]> {
+  const numeros = await repo.listar();
+  return numeros.filter((n) => n.estado === 'conectado').map((n) => n.id);
+}

@@ -1,0 +1,59 @@
+.caja {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px dashed var(--borde-control);
+  border-radius: var(--radio-boton);
+  padding: 12px 14px;
+  background: var(--fondo-sutil);
+  cursor: pointer;
+}
+
+.miniatura {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--fondo-neutro);
+  flex-shrink: 0;
+}
+
+.iconoVacio {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--fondo-neutro);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.texto {
+  font-size: var(--texto-cuerpo);
+  color: var(--texto-medio);
+}
+
+.ayuda {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  display: block;
+  margin-top: 2px;
+}
+
+.quitar {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--texto-tenue);
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.quitar:hover {
+  color: var(--peligro);
+}
+
+.inputOculto {
+  display: none;
+}

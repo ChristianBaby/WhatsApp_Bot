@@ -2,6 +2,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { MulterError } from 'multer';
 import { ErrorApp } from '../lib/errors.js';
+import { NumeroNoConectadoError } from '../services/whatsapp/envio.js';
 import { crearLogger } from '../lib/logger.js';
 
 const log = crearLogger('http');
@@ -36,6 +37,15 @@ export const manejadorErrores: ErrorRequestHandler = (err, req, res, _next) => {
         : 'No se pudo procesar el archivo subido.';
     log.warn({ err: err.message, ruta: req.path }, 'Error de subida de archivo');
     res.status(400).json({ error: mensaje, codigo: 'ARCHIVO_INVALIDO' });
+    return;
+  }
+
+  // Se lanza al intentar enviar/verificar con un numero que no esta conectado
+  // ahora mismo (prueba manual, o una condicion de carrera muy puntual con
+  // el motor de envio, que normalmente ya filtra esto antes de llegar aqui).
+  if (err instanceof NumeroNoConectadoError) {
+    log.warn({ err: err.message, ruta: req.path }, 'Intento de usar un numero desconectado');
+    res.status(409).json({ error: err.message, codigo: 'NUMERO_DESCONECTADO' });
     return;
   }
 

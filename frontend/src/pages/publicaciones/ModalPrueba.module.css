@@ -1,0 +1,45 @@
+.campo {
+  margin-bottom: 14px;
+}
+
+.etiqueta {
+  display: block;
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+  margin-bottom: 6px;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-base);
+  font-family: inherit;
+}
+
+.resultado {
+  background: var(--exito-fondo);
+  color: var(--exito);
+  border-radius: var(--radio-control);
+  padding: 10px 12px;
+  font-size: var(--texto-menor);
+  margin-bottom: 14px;
+  white-space: pre-wrap;
+}
+
+.error {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+  border-radius: var(--radio-control);
+  padding: 10px 12px;
+  font-size: var(--texto-menor);
+  margin-bottom: 14px;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+}

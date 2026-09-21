@@ -1,0 +1,83 @@
+.titulo {
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+  margin-bottom: 12px;
+}
+
+.filaValor {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--texto-cuerpo);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.filaValor:last-of-type {
+  border-bottom: none;
+}
+
+.filaValor span:last-child {
+  font-weight: 600;
+  color: var(--texto-medio);
+}
+
+.linkPersonalizar {
+  background: none;
+  border: none;
+  color: var(--acento);
+  font-size: var(--texto-menor);
+  font-weight: 600;
+  padding: 8px 0 0 0;
+}
+
+.grupo {
+  margin-bottom: 10px;
+}
+
+.grupoEtiqueta {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--texto-tenue);
+  margin-bottom: 4px;
+}
+
+.par {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.inputChico {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--borde-control);
+  border-radius: 6px;
+  font-size: var(--texto-menor);
+  font-family: inherit;
+}
+
+.divisor {
+  height: 1px;
+  background: var(--borde-fila);
+  margin: 14px 0;
+}
+
+.nota {
+  font-size: 11.5px;
+  color: var(--texto-tenue);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.link {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.accionesPrueba {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

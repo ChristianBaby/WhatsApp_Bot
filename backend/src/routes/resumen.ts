@@ -15,13 +15,16 @@ rutasResumen.get(
     const conectado = await consultarUno<{ existe: boolean }>(
       `SELECT EXISTS(SELECT 1 FROM numeros_whatsapp WHERE estado = 'conectado') AS existe`,
     );
+    const enCurso = await consultarUno<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM publicaciones WHERE estado = 'en_curso'`,
+    );
     const autoRespuestas = await consultarUno<{ valor: boolean }>(
       `SELECT valor FROM configuracion WHERE clave = 'autorespuestas_activo'`,
     );
 
     res.json({
       hayNumeroConectado: conectado?.existe ?? false,
-      publicacionesEnCurso: 0, // Fase 3
+      publicacionesEnCurso: enCurso?.total ?? 0,
       respuestasNoLeidas: 0, // Fase 4
       autoRespuestasActivas: autoRespuestas?.valor === true,
     });

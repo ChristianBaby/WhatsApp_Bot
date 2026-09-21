@@ -15,7 +15,7 @@ Maquetación de referencia: [`docs/Main-html/`](./docs/Main-html/).
 | 0 | Fundaciones (estructura, Docker, base de datos, panel navegable) | ✅ Completa |
 | 1 | Conexión de WhatsApp multi-número (QR en vivo) | ✅ Completa |
 | 2 | Leads: carga de CSV/Excel, limpieza y validación | ✅ Completa |
-| 3 | Motor de envío, anti-baneo y cola de publicaciones | ⬜ Pendiente |
+| 3 | Motor de envío, anti-baneo y cola de publicaciones | ✅ Completa |
 | 4 | Respuestas, chat integrado y mini-CRM | ⬜ Pendiente |
 | 5 | IA: clasificación de respuestas y auto-responder | ⬜ Pendiente |
 | 6 | Reportes y exportación | ⬜ Pendiente |

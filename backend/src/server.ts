@@ -6,6 +6,7 @@ import { cerrarPool } from './db/pool.js';
 import { cerrarTodos } from './lib/sse.js';
 import { logger } from './lib/logger.js';
 import * as gestorWhatsapp from './services/whatsapp/gestor.js';
+import * as motorPublicaciones from './services/publicaciones/motor.js';
 
 /**
  * Arranque del servidor:
@@ -25,6 +26,7 @@ async function iniciar(): Promise<void> {
   // en cuanto cambia de estado, no hace falta bloquear el arranque del
   // servidor por eso.
   void gestorWhatsapp.reanudarSesionesGuardadas();
+  motorPublicaciones.iniciarMotor();
 
   const app = crearApp();
   const servidor = app.listen(env.PORT, () => {
@@ -40,9 +42,8 @@ async function iniciar(): Promise<void> {
 
     cerrarTodos();
     servidor.close();
+    motorPublicaciones.detenerMotor();
     gestorWhatsapp.apagarTodo();
-
-    // TODO(Fase 3): pausar el worker de la cola de publicaciones.
 
     await cerrarPool().catch(() => undefined);
     logger.info('Apagado completo');

@@ -1,0 +1,24 @@
+.pestanas {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--fondo-neutro);
+  padding: 3px;
+  border-radius: 9px;
+  margin-bottom: 20px;
+}
+
+.pestana {
+  padding: 7px 16px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-suave);
+}
+
+.pestana.activa {
+  background: var(--fondo-panel);
+  color: var(--texto);
+  box-shadow: var(--sombra-pill);
+}

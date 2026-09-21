@@ -6,6 +6,9 @@ import { manejadorSSE } from './lib/sse.js';
 import { rutasSalud } from './routes/health.js';
 import { rutasNumeros } from './routes/numeros.js';
 import { rutasLeads } from './routes/leads.js';
+import { rutasAdjuntos } from './routes/adjuntos.js';
+import { rutasPublicaciones } from './routes/publicaciones.js';
+import { rutasConfiguracion } from './routes/configuracion.js';
 import { rutasResumen } from './routes/resumen.js';
 import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandler.js';
 import { crearLogger } from './lib/logger.js';
@@ -41,6 +44,9 @@ export function crearApp() {
   app.use('/api', rutasSalud);
   app.use('/api', rutasNumeros);
   app.use('/api', rutasLeads);
+  app.use('/api', rutasAdjuntos);
+  app.use('/api', rutasPublicaciones);
+  app.use('/api', rutasConfiguracion);
   app.use('/api', rutasResumen);
 
   // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).

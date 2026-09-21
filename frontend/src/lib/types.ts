@@ -70,3 +70,61 @@ export type LeadExcluido = {
   motivo: MotivoExclusion;
   datoReferencia: string | null;
 };
+
+// --- Publicaciones (secciones 3.3, 3.4, 3.5) ---
+
+export type EstadoPublicacion = 'borrador' | 'programada' | 'en_curso' | 'pausada' | 'completada' | 'cancelada';
+export type TipoAdjunto = 'imagen' | 'video';
+
+export type ResumenProgreso = {
+  totalDestinatarios: number;
+  enviados: number;
+  sinWhatsapp: number;
+  fallidos: number;
+  pendientes: number;
+};
+
+export type Publicacion = {
+  id: number;
+  nombre: string;
+  listaId: number;
+  variantesMensaje: string[];
+  adjuntoRuta: string | null;
+  adjuntoTipo: TipoAdjunto | null;
+  adjuntoNombreOriginal: string | null;
+  catalogoUrl: string | null;
+  numeroIds: number[];
+  programadaPara: string;
+  pausaMinSegundos: number | null;
+  pausaMaxSegundos: number | null;
+  tamanoLote: number | null;
+  pausaEntreLotesMinutos: number | null;
+  horarioInicio: string | null;
+  horarioFin: string | null;
+  maxMensajes: number | null;
+  estado: EstadoPublicacion;
+  motivoPausa: string | null;
+  enviadosLoteActual: number;
+  iniciadaEn: string | null;
+  finalizadaEn: string | null;
+  creadoEn: string;
+  actualizadoEn: string;
+};
+
+export type PublicacionConProgreso = Publicacion & {
+  nombreLista: string;
+  progreso: ResumenProgreso;
+};
+
+export type MuestraDryRun = {
+  empresa: string;
+  telefono: string;
+  numeroIdAsignado: number;
+  mensaje: string;
+};
+
+export type ResultadoDryRun = {
+  totalDestinatarios: number;
+  duracionEstimadaMinutos: number;
+  muestras: MuestraDryRun[];
+};

@@ -1,0 +1,73 @@
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.nombre {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+}
+
+.detalle {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  margin-top: 2px;
+}
+
+.derecha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.progresoFila {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--texto-menor);
+  color: var(--texto-medio);
+  margin-bottom: 5px;
+}
+
+.barraFondo {
+  height: 7px;
+  background: var(--fondo-neutro);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.barraRelleno {
+  height: 100%;
+  background: var(--acento);
+  border-radius: 20px;
+  transition: width 0.3s ease;
+}
+
+.resumenFinal {
+  display: flex;
+  gap: 18px;
+  font-size: var(--texto-menor);
+  color: var(--texto-medio);
+}
+
+.motivoPausa {
+  font-size: var(--texto-menor);
+  color: var(--peligro);
+  background: var(--peligro-fondo);
+  border-radius: 7px;
+  padding: 8px 12px;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

@@ -1,0 +1,113 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 18px;
+  align-items: start;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.etiqueta {
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+}
+
+.etiquetaAyuda {
+  font-weight: 500;
+  color: var(--texto-tenue);
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-base);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.variante {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.varianteQuitar {
+  background: none;
+  border: none;
+  color: var(--texto-tenue);
+  padding: 8px 4px;
+  flex-shrink: 0;
+}
+
+.varianteQuitar:hover {
+  color: var(--peligro);
+}
+
+.agregarVariante {
+  background: none;
+  border: none;
+  color: var(--acento);
+  font-size: var(--texto-menor);
+  font-weight: 600;
+  padding: 2px 0;
+  align-self: flex-start;
+}
+
+.numeros {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.numeroItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--texto-cuerpo);
+  padding: 6px 0;
+}
+
+.numeroItem input {
+  width: 15px;
+  height: 15px;
+}
+
+.numeroDeshabilitado {
+  color: var(--texto-tenue);
+}
+
+.parFechaHora {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.acciones {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.error {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+  border-radius: var(--radio-control);
+  padding: 10px 14px;
+  font-size: var(--texto-menor);
+}

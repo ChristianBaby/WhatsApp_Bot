@@ -82,3 +82,34 @@ export async function esperarConexion(intentos = 15, esperaMs = 2000): Promise<v
 export async function cerrarPool(): Promise<void> {
   await pool.end();
 }
+
+/**
+ * Inserta muchas filas en un solo INSERT (una tupla de placeholders por
+ * fila) en vez de una consulta por fila. Se usa al confirmar una carga de
+ * leads o al generar los destinatarios de una publicacion: cientos de
+ * round-trips uno por uno serian innecesariamente lentos para algo que el
+ * usuario espera ver terminar al tiro.
+ */
+export async function insertarEnBloque(
+  cliente: Pick<pg.PoolClient, 'query'>,
+  tabla: string,
+  columnas: string[],
+  filas: unknown[][],
+): Promise<void> {
+  if (filas.length === 0) return;
+
+  const tuplas: string[] = [];
+  const valores: unknown[] = [];
+  let contador = 1;
+
+  for (const fila of filas) {
+    const marcadores = fila.map(() => `$${contador++}`);
+    tuplas.push(`(${marcadores.join(', ')})`);
+    valores.push(...fila);
+  }
+
+  await cliente.query(
+    `INSERT INTO ${tabla} (${columnas.join(', ')}) VALUES ${tuplas.join(', ')}`,
+    valores as never[],
+  );
+}

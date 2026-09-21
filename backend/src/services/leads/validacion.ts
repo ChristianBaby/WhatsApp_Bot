@@ -1,4 +1,5 @@
 import { solicitudInvalida } from '../../lib/errors.js';
+import { normalizarTelefono } from '../../lib/telefono.js';
 import type { ArchivoParseado } from './parseo.js';
 import type { FilaInvalida, FilaValida, ResultadoValidacion } from './tipos.js';
 
@@ -26,6 +27,18 @@ function normalizarEncabezado(texto: string): string {
     .trim();
 }
 
+/**
+ * Nombre de columna -> nombre de variable de plantilla. "Contacto" y
+ * "Fecha Nacimiento" se vuelven "contacto" y "fecha_nacimiento": asi lo que
+ * el usuario escribe en su mensaje ({contacto}) SIEMPRE calza con la clave
+ * guardada en datos_extra, sin importar como venia capitalizado el Excel.
+ */
+function normalizarNombreVariable(texto: string): string {
+  return normalizarEncabezado(texto)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function encontrarColumna(encabezados: string[], candidatos: string[]): string | null {
   const normalizados = encabezados.map((h) => ({ original: h, normal: normalizarEncabezado(h) }));
   for (const candidato of candidatos) {
@@ -33,11 +46,6 @@ function encontrarColumna(encabezados: string[], candidatos: string[]): string |
     if (coincidencia) return coincidencia.original;
   }
   return null;
-}
-
-/** Deja solo digitos. Sin el "+": el resto del sistema (Fase 1) guarda telefonos asi. */
-function normalizarTelefono(crudo: string): string {
-  return crudo.replace(/\D/g, '');
 }
 
 export function validarArchivo(archivo: ArchivoParseado): ResultadoValidacion {
@@ -59,7 +67,20 @@ export function validarArchivo(archivo: ArchivoParseado): ResultadoValidacion {
   }
 
   const columnasReservadas = new Set([columnaTelefono, columnaEmpresa, columnaRubro].filter(Boolean));
-  const columnasExtra = encabezados.filter((h) => !columnasReservadas.has(h));
+  const columnasLibres = encabezados.filter((h) => !columnasReservadas.has(h));
+
+  // Encabezado original -> nombre de variable ({placeholder}). Si dos
+  // columnas distintas normalizan igual (raro, pero posible), la primera gana.
+  const variablePorColumnaOriginal = new Map<string, string>();
+  const variablesUsadas = new Set<string>();
+  const columnasExtra: string[] = [];
+  for (const columna of columnasLibres) {
+    const variable = normalizarNombreVariable(columna);
+    if (!variable || variablesUsadas.has(variable)) continue;
+    variablesUsadas.add(variable);
+    variablePorColumnaOriginal.set(columna, variable);
+    columnasExtra.push(variable);
+  }
 
   const filasValidas: FilaValida[] = [];
   const filasInvalidas: FilaInvalida[] = [];
@@ -94,9 +115,9 @@ export function validarArchivo(archivo: ArchivoParseado): ResultadoValidacion {
     telefonosVistos.add(telefono);
 
     const datosExtra: Record<string, string> = {};
-    for (const columna of columnasExtra) {
-      const valor = fila.valores[columna];
-      if (valor) datosExtra[columna] = valor;
+    for (const [columnaOriginal, variable] of variablePorColumnaOriginal) {
+      const valor = fila.valores[columnaOriginal];
+      if (valor) datosExtra[variable] = valor;
     }
 
     filasValidas.push({

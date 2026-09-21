@@ -1,5 +1,4 @@
-import type { PoolClient } from 'pg';
-import { consultar, consultarUno, transaccion } from '../../db/pool.js';
+import { consultar, consultarUno, insertarEnBloque, transaccion } from '../../db/pool.js';
 import type { FilaInvalida, FilaValida, LeadExcluido, ListaLeads, MotivoExclusion } from './tipos.js';
 
 type FilaListaLeads = {
@@ -47,6 +46,57 @@ type FilaLeadExcluido = {
   dato_referencia: string | null;
 };
 
+/** IDs de todos los leads de una lista, en orden estable (para repartir entre numeros). */
+export async function listarIdsPorLista(listaId: number): Promise<number[]> {
+  const filas = await consultar<{ id: number }>('SELECT id FROM leads WHERE lista_id = $1 ORDER BY id ASC', [
+    listaId,
+  ]);
+  return filas.map((f) => f.id);
+}
+
+export type LeadResumen = {
+  id: number;
+  telefono: string;
+  empresa: string;
+  rubro: string | null;
+  datosExtra: Record<string, string>;
+};
+
+type FilaLead = {
+  id: number;
+  telefono: string;
+  empresa: string;
+  rubro: string | null;
+  datos_extra: Record<string, string>;
+};
+
+/** Leads completos de una lista (para armar publicaciones: dry-run, envio de prueba, destinatarios). */
+export async function listarPorLista(listaId: number): Promise<LeadResumen[]> {
+  const filas = await consultar<FilaLead>(
+    'SELECT id, telefono, empresa, rubro, datos_extra FROM leads WHERE lista_id = $1 ORDER BY id ASC',
+    [listaId],
+  );
+  return filas.map((f) => ({
+    id: f.id,
+    telefono: f.telefono,
+    empresa: f.empresa,
+    rubro: f.rubro,
+    datosExtra: f.datos_extra,
+  }));
+}
+
+/**
+ * Etapa automatica del mini-CRM (seccion 3.9): al enviarle una campana, un
+ * lead nuevo pasa a "contactado". Solo avanza desde 'nuevo' — si ya esta
+ * mas adelante en el pipeline (por una campana anterior), no lo retrocede.
+ */
+export async function marcarContactado(leadId: number): Promise<void> {
+  await consultarUno(
+    `UPDATE leads SET etapa_pipeline = 'contactado' WHERE id = $1 AND etapa_pipeline = 'nuevo'`,
+    [leadId],
+  );
+}
+
 export async function obtenerExcluidos(listaId: number): Promise<LeadExcluido[]> {
   const filas = await consultar<FilaLeadExcluido>(
     'SELECT * FROM leads_excluidos WHERE lista_id = $1 ORDER BY fila_numero ASC',
@@ -58,35 +108,6 @@ export async function obtenerExcluidos(listaId: number): Promise<LeadExcluido[]>
     motivo: f.motivo,
     datoReferencia: f.dato_referencia,
   }));
-}
-
-/**
- * Inserta en bloque: arma un solo INSERT con multiples tuplas de
- * placeholders en vez de una consulta por fila (200 filas = 200 round-trips
- * seria innecesariamente lento para algo que el usuario espera ver al tiro).
- */
-async function insertarEnBloque(
-  cliente: PoolClient,
-  tabla: string,
-  columnas: string[],
-  filas: unknown[][],
-): Promise<void> {
-  if (filas.length === 0) return;
-
-  const tuplas: string[] = [];
-  const valores: unknown[] = [];
-  let contador = 1;
-
-  for (const fila of filas) {
-    const marcadores = fila.map(() => `$${contador++}`);
-    tuplas.push(`(${marcadores.join(', ')})`);
-    valores.push(...fila);
-  }
-
-  await cliente.query(
-    `INSERT INTO ${tabla} (${columnas.join(', ')}) VALUES ${tuplas.join(', ')}`,
-    valores as never[],
-  );
 }
 
 type DatosCreacionLista = {

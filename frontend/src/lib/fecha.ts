@@ -21,12 +21,21 @@ export function formatearRelativo(iso: string | null): string {
   return meses === 1 ? 'hace 1 mes' : `hace ${meses} meses`;
 }
 
-/** dd/mm/aaaa, como las fechas de la maquetacion (listas, reportes...). */
+/** dd/mm/aaaa, como las fechas de la maquetacion (listas, reportes...). Hora local del navegador. */
 export function formatearFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-PE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    timeZone: 'UTC',
   });
+}
+
+/** HH:MM, hora local del navegador. */
+export function formatearHora(iso: string): string {
+  return new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/** dd/mm/aaaa · HH:MM, para fechas de envio de publicaciones (importa la hora exacta). */
+export function formatearFechaHora(iso: string): string {
+  return `${formatearFecha(iso)} · ${formatearHora(iso)}`;
 }
