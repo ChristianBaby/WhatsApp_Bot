@@ -1,0 +1,90 @@
+.encabezado {
+  display: grid;
+  grid-template-columns: 1fr 110px 90px 90px 120px;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: var(--texto-nano);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 1fr 110px 90px 90px 120px;
+  gap: 8px;
+  align-items: center;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--borde-fila);
+  font-size: var(--texto-cuerpo);
+}
+
+.fila:last-child {
+  border-bottom: none;
+}
+
+.nombre {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fecha {
+  color: var(--texto-suave);
+}
+
+.validas {
+  color: var(--exito);
+  font-weight: 600;
+}
+
+.invalidas {
+  color: var(--texto-medio-2);
+  font-weight: 600;
+}
+
+.detalle {
+  padding: 4px 16px 16px 16px;
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.tituloDetalle {
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+  margin-bottom: 8px;
+}
+
+.filaExcluida {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: var(--texto-menor);
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.filaExcluida:last-child {
+  border-bottom: none;
+}
+
+.numeroFila {
+  color: var(--texto-tenue-2);
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.datoReferencia {
+  color: var(--texto-medio);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sinExcluidos {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+}

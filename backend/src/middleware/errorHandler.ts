@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
+import { MulterError } from 'multer';
 import { ErrorApp } from '../lib/errors.js';
 import { crearLogger } from '../lib/logger.js';
 
@@ -23,6 +24,18 @@ export const manejadorErrores: ErrorRequestHandler = (err, req, res, _next) => {
       codigo: err.codigo,
       ...(err.detalles ? { detalles: err.detalles } : {}),
     });
+    return;
+  }
+
+  // multer llama a next(err) directo (no pasa por manejarAsync) cuando el
+  // archivo supera el limite de tamano, viene mal formado, etc.
+  if (err instanceof MulterError) {
+    const mensaje =
+      err.code === 'LIMIT_FILE_SIZE'
+        ? 'El archivo es demasiado grande (maximo 8MB).'
+        : 'No se pudo procesar el archivo subido.';
+    log.warn({ err: err.message, ruta: req.path }, 'Error de subida de archivo');
+    res.status(400).json({ error: mensaje, codigo: 'ARCHIVO_INVALIDO' });
     return;
   }
 

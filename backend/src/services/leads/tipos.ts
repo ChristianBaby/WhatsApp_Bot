@@ -1,23 +1,7 @@
 /**
- * Tipos compartidos del panel. Reflejan las formas que expone el backend
- * (backend/src/services/whatsapp/repositorio.ts es la fuente de verdad
- * para NumeroWhatsapp).
+ * Tipos compartidos por todo el flujo de carga de leads: parseo del
+ * archivo -> validacion/normalizacion -> persistencia.
  */
-
-export type EstadoNumero = 'esperando_qr' | 'conectado' | 'desconectado' | 'pausado_error';
-
-export type NumeroWhatsapp = {
-  id: number;
-  etiqueta: string;
-  telefono: string | null;
-  estado: EstadoNumero;
-  ultimoError: string | null;
-  conectadoEn: string | null;
-  creadoEn: string;
-  actualizadoEn: string;
-};
-
-// --- Leads (seccion 3.2) ---
 
 export type MotivoExclusion = 'sin_telefono' | 'telefono_invalido' | 'sin_empresa' | 'duplicado';
 
@@ -42,9 +26,7 @@ export type ResumenValidacion = {
   duplicadas: number;
 };
 
-/** Respuesta de POST /listas-leads/previsualizar: nada se guardo todavia. */
-export type PrevisualizacionLista = {
-  nombreArchivoOriginal: string;
+export type ResultadoValidacion = {
   resumen: ResumenValidacion;
   columnasExtra: string[];
   filasValidas: FilaValida[];

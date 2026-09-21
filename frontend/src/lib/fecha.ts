@@ -20,3 +20,13 @@ export function formatearRelativo(iso: string | null): string {
   const meses = Math.floor(dias / 30);
   return meses === 1 ? 'hace 1 mes' : `hace ${meses} meses`;
 }
+
+/** dd/mm/aaaa, como las fechas de la maquetacion (listas, reportes...). */
+export function formatearFecha(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-PE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
