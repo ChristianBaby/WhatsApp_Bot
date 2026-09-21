@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useSSE } from './useSSE';
 import type { IndicadoresSidebar } from '../layout/Sidebar';
-
-/**
- * Estado transversal que alimenta los indicadores del sidebar.
- *
- * Arranca en cero y se va llenando a medida que las fases conectan sus
- * endpoints. Preferimos mostrar cero real antes que un numero inventado:
- * un badge que miente es peor que un badge vacio.
- */
 
 type ResumenPanel = {
   hayNumeroConectado: boolean;
@@ -24,32 +17,29 @@ const INICIAL: ResumenPanel = {
   autoRespuestasActivas: false,
 };
 
+/** Estado transversal que alimenta los indicadores del sidebar. */
 export function useEstadoPanel(): IndicadoresSidebar {
   const [resumen, setResumen] = useState<ResumenPanel>(INICIAL);
 
+  const cargar = () => {
+    api
+      .get<ResumenPanel>('/resumen')
+      .then(setResumen)
+      .catch(() => {
+        /* Si /api aun no responde (ej. arrancando), se queda en el valor inicial. */
+      });
+  };
+
   useEffect(() => {
-    let vigente = true;
-
-    // TODO(Fase 1): reemplazar este sondeo por el canal SSE /api/eventos,
-    // que ya avisa de cambios de estado sin tener que preguntar.
-    const cargar = () =>
-      api
-        .get<ResumenPanel>('/resumen')
-        .then((datos) => {
-          if (vigente) setResumen(datos);
-        })
-        .catch(() => {
-          /* El endpoint llega en la Fase 1; hasta entonces, cero. */
-        });
-
-    void cargar();
-    const intervalo = setInterval(cargar, 15_000);
-
-    return () => {
-      vigente = false;
-      clearInterval(intervalo);
-    };
+    cargar();
   }, []);
+
+  // Los numeros cambian de estado en vivo (QR escaneado, sesion caida...).
+  // En vez de duplicar esa logica aqui, simplemente volvemos a pedir el
+  // resumen cuando algo cambia — un solo lugar calcula "hay conectado".
+  useSSE(['numeros'], {
+    'numero:actualizado': cargar,
+  });
 
   return {
     ...resumen,

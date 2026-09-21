@@ -1,0 +1,79 @@
+.panel {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--borde-fila);
+}
+
+.marco {
+  width: 160px;
+  height: 160px;
+  border-radius: 10px;
+  background: var(--fondo-sutil);
+  border: 1px solid var(--borde);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 10px;
+}
+
+.imagen {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cargando {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  text-align: center;
+}
+
+.instrucciones {
+  padding-top: 4px;
+  min-width: 0;
+}
+
+.titulo {
+  font-size: var(--texto-base);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.pasos {
+  margin: 0 0 12px 0;
+  padding-left: 18px;
+  font-size: var(--texto-cuerpo);
+  color: var(--texto-medio);
+  line-height: 1.6;
+}
+
+.esperando {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+}
+
+.puntoPulso {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--alerta-punto);
+  flex-shrink: 0;
+  animation: pulso 1.4s ease-in-out infinite;
+}
+
+@keyframes pulso {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}

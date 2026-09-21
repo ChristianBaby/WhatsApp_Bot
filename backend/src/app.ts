@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import { manejadorSSE } from './lib/sse.js';
 import { rutasSalud } from './routes/health.js';
+import { rutasNumeros } from './routes/numeros.js';
+import { rutasResumen } from './routes/resumen.js';
 import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandler.js';
 import { crearLogger } from './lib/logger.js';
 
@@ -36,6 +38,8 @@ export function crearApp() {
 
   // --- API ---
   app.use('/api', rutasSalud);
+  app.use('/api', rutasNumeros);
+  app.use('/api', rutasResumen);
 
   // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).
   app.get('/api/eventos', manejadorSSE);

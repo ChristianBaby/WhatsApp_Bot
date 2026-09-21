@@ -57,8 +57,12 @@ export const env = {
   ...cfg,
   esProd: cfg.NODE_ENV === 'production',
   esDev: cfg.NODE_ENV === 'development',
-  rutaSesiones: path.resolve(cfg.AUTH_SESSIONS_PATH),
-  rutaSubidas: path.resolve(cfg.UPLOADS_PATH),
+  // Relativas a la raiz del proyecto (no al cwd): asi da igual si el
+  // proceso arranca desde ./backend (npm run dev) o desde la raiz (Docker).
+  // Si la ruta ya es absoluta (como en produccion, /datos/...), path.resolve
+  // la respeta tal cual y raizProyecto se ignora.
+  rutaSesiones: path.resolve(raizProyecto, cfg.AUTH_SESSIONS_PATH),
+  rutaSubidas: path.resolve(raizProyecto, cfg.UPLOADS_PATH),
   urlBaseDatos: `postgres://${encodeURIComponent(cfg.POSTGRES_USER)}:${encodeURIComponent(
     cfg.POSTGRES_PASSWORD,
   )}@${cfg.POSTGRES_HOST}:${cfg.POSTGRES_PORT}/${cfg.POSTGRES_DB}`,

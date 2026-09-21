@@ -1,0 +1,62 @@
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.icono {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.nombre {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+}
+
+.telefono {
+  font-weight: 500;
+  color: var(--texto-tenue-2);
+}
+
+.detalle {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  margin-top: 2px;
+}
+
+.inputEtiqueta {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+  font-family: inherit;
+  border: 1px solid var(--acento);
+  border-radius: 6px;
+  padding: 3px 8px;
+  width: 200px;
+  max-width: 100%;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

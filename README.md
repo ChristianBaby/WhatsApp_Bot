@@ -13,7 +13,7 @@ Maquetación de referencia: [`docs/Main-html/`](./docs/Main-html/).
 | Fase | Alcance | Estado |
 |---|---|---|
 | 0 | Fundaciones (estructura, Docker, base de datos, panel navegable) | ✅ Completa |
-| 1 | Conexión de WhatsApp multi-número (QR en vivo) | ⬜ Pendiente |
+| 1 | Conexión de WhatsApp multi-número (QR en vivo) | ✅ Completa |
 | 2 | Leads: carga de CSV/Excel, limpieza y validación | ⬜ Pendiente |
 | 3 | Motor de envío, anti-baneo y cola de publicaciones | ⬜ Pendiente |
 | 4 | Respuestas, chat integrado y mini-CRM | ⬜ Pendiente |

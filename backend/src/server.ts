@@ -5,6 +5,7 @@ import { migrar } from './db/migrate.js';
 import { cerrarPool } from './db/pool.js';
 import { cerrarTodos } from './lib/sse.js';
 import { logger } from './lib/logger.js';
+import * as gestorWhatsapp from './services/whatsapp/gestor.js';
 
 /**
  * Arranque del servidor:
@@ -20,6 +21,11 @@ async function iniciar(): Promise<void> {
 
   await migrar();
 
+  // No se espera a que terminen de reconectar: cada numero avisa por SSE
+  // en cuanto cambia de estado, no hace falta bloquear el arranque del
+  // servidor por eso.
+  void gestorWhatsapp.reanudarSesionesGuardadas();
+
   const app = crearApp();
   const servidor = app.listen(env.PORT, () => {
     logger.info(`Servidor escuchando en http://localhost:${env.PORT} [${env.NODE_ENV}]`);
@@ -34,8 +40,8 @@ async function iniciar(): Promise<void> {
 
     cerrarTodos();
     servidor.close();
+    gestorWhatsapp.apagarTodo();
 
-    // TODO(Fase 1): cerrar las sesiones de Baileys.
     // TODO(Fase 3): pausar el worker de la cola de publicaciones.
 
     await cerrarPool().catch(() => undefined);
