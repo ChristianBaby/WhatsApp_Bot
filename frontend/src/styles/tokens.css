@@ -1,0 +1,85 @@
+/* ============================================================
+   Design tokens — extraidos valor por valor de la maquetacion
+   (docs/Main-html/Main.dc.html). Esta es la unica fuente de
+   verdad del estilo: ningun componente escribe un color o un
+   tamano a mano.
+   ============================================================ */
+
+:root {
+  /* --- Marca --- */
+  --acento: #2b6cd4;
+  /* El mockup usa accent + '1a' (10% alfa) para el fondo del nav activo. */
+  --acento-suave: #2b6cd41a;
+
+  /* --- Superficies --- */
+  --fondo-app: #f5f6f8;
+  --fondo-panel: #ffffff;
+  --fondo-sutil: #fafbfc;
+  --fondo-sutil-2: #f8f9fb;
+  --fondo-neutro: #eef0f3;
+
+  /* --- Bordes --- */
+  --borde: #e6e8ec;
+  --borde-control: #e2e4e9;
+  --borde-fila: #f1f2f5;
+
+  /* --- Texto --- */
+  --texto: #1e2532;
+  --texto-fuerte: #0b1120;
+  --texto-medio: #374151;
+  --texto-medio-2: #4b5563;
+  --texto-suave: #6b7280;
+  --texto-tenue: #8b93a1;
+  --texto-tenue-2: #9aa1ac;
+  --texto-nav: #475269;
+  --texto-placeholder: #94a3b8;
+
+  /* --- Estados (fondo / texto) --- */
+  --exito: #16a34a;
+  --exito-fondo: #ecfdf3;
+  --exito-fuerte: #15803d;
+  --exito-punto: #22c55e;
+
+  --alerta: #b45309;
+  --alerta-fondo: #fffbeb;
+  --alerta-punto: #f59e0b;
+
+  --info: #4338ca;
+  --info-fondo: #eef2ff;
+
+  --peligro: #dc2626;
+  --peligro-fondo: #fef2f2;
+  --peligro-borde: #fecaca;
+  --peligro-punto: #ef4444;
+
+  --inactivo: #c6cad3;
+  --apagado: #d7dae1;
+
+  /* --- Tipografia --- */
+  --fuente-titulo: 'Sora', system-ui, sans-serif;
+  --fuente-cuerpo: 'Manrope', system-ui, sans-serif;
+
+  --texto-h1: 21px;
+  --texto-seccion: 14.5px;
+  --texto-base: 13.5px;
+  --texto-cuerpo: 13px;
+  --texto-control: 12.5px;
+  --texto-menor: 12px;
+  --texto-micro: 11.5px;
+  --texto-nano: 10.5px;
+
+  /* --- Geometria --- */
+  --radio-tarjeta: 12px;
+  --radio-boton: 8px;
+  --radio-control: 7px;
+  --radio-nav: 9px;
+  --radio-chip: 20px;
+
+  --ancho-sidebar: 240px;
+  --padding-contenido: 28px 36px 60px 36px;
+  --padding-tarjeta: 20px 22px;
+
+  /* --- Sombras --- */
+  --sombra-pill: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --sombra-modal: 0 20px 60px rgba(11, 17, 32, 0.22);
+}

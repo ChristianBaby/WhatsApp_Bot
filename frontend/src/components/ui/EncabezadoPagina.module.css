@@ -1,0 +1,25 @@
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.titulo {
+  font-size: var(--texto-h1);
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.descripcion {
+  font-size: var(--texto-base);
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

@@ -1,0 +1,57 @@
+.base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  border: none;
+  font-weight: 700;
+  transition: filter 0.12s ease, background 0.12s ease;
+}
+
+.base:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+/* --- Variantes --- */
+
+.primario {
+  background: var(--acento);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radio-boton);
+  font-size: var(--texto-cuerpo);
+}
+
+.secundario {
+  background: var(--fondo-panel);
+  color: var(--texto-medio);
+  border: 1px solid var(--borde-control);
+  padding: 8px 14px;
+  border-radius: var(--radio-control);
+  font-size: var(--texto-control);
+  font-weight: 600;
+}
+
+.peligro {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+  border: 1px solid var(--peligro-borde);
+  padding: 8px 14px;
+  border-radius: var(--radio-control);
+  font-size: var(--texto-control);
+  font-weight: 600;
+}
+
+.texto {
+  background: transparent;
+  color: var(--acento);
+  padding: 6px 4px;
+  border-radius: var(--radio-control);
+  font-size: var(--texto-control);
+  font-weight: 600;
+}
+
+.ancho {
+  width: 100%;
+}

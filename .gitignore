@@ -1,0 +1,37 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+frontend/dist/
+backend/dist/
+
+# Entorno
+.env
+.env.local
+.env.*.local
+
+# Datos persistentes (NUNCA versionar: contienen credenciales de sesión)
+auth_sessions/
+uploads/
+postgres_data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Caché
+.vite/
+coverage/
+*.tsbuildinfo

@@ -1,0 +1,22 @@
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.titulo {
+  font-size: var(--texto-base);
+  font-weight: 700;
+  color: var(--texto-medio);
+}
+
+.detalle {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue-2);
+  max-width: 420px;
+  line-height: 1.5;
+}

@@ -1,0 +1,125 @@
+.sidebar {
+  width: var(--ancho-sidebar);
+  min-width: var(--ancho-sidebar);
+  background: var(--fondo-panel);
+  border-right: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+}
+
+.marca {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2px 8px 20px 8px;
+}
+
+.logo {
+  height: 50px;
+  width: auto;
+  display: block;
+}
+
+.subtitulo {
+  font-size: var(--texto-nano);
+  color: var(--texto-tenue);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radio-nav);
+  border: none;
+  background: transparent;
+  color: var(--texto-nav);
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+}
+
+.item:hover {
+  background: var(--fondo-sutil-2);
+}
+
+.item.activo,
+.item.activo:hover {
+  background: var(--acento-suave);
+  color: var(--acento);
+  font-weight: 700;
+}
+
+.etiqueta {
+  font-family: var(--fuente-titulo);
+  font-size: var(--texto-base);
+}
+
+/* --- Indicadores a la derecha de cada item --- */
+
+.punto {
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.contador {
+  margin-left: auto;
+  font-size: var(--texto-nano);
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radio-chip);
+}
+
+.noLeidos {
+  margin-left: auto;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radio-chip);
+  background: var(--peligro-punto);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Pie: estado de conexion --- */
+
+.pie {
+  margin-top: auto;
+  padding: 12px 10px;
+  border-radius: 10px;
+  background: var(--fondo-sutil-2);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.piePunto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pieTexto {
+  font-size: var(--texto-micro);
+  color: #5b6472;
+  font-weight: 600;
+}

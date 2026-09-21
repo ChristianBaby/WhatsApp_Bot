@@ -1,0 +1,949 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
+  <script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Manrope', system-ui, sans-serif; color: #1e2532; }
+    h1, h2, h3, .brand, .navlabel { font-family: 'Sora', system-ui, sans-serif; }
+    a { color: inherit; text-decoration: none; }
+    a:hover { opacity: 0.85; }
+    button { font-family: inherit; cursor: pointer; }
+    input, select, textarea { font-family: inherit; }
+    ::placeholder { color: #94a3b8; }
+    .scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scroll::-webkit-scrollbar-thumb { background: #d8dce3; border-radius: 8px; }
+  </style>
+</helmet>
+
+<div style="display:flex; width:100%; height:100vh; background:#f5f6f8; overflow:hidden;">
+
+  <!-- ===== SIDEBAR ===== -->
+  <div style="width:240px; min-width:240px; background:#ffffff; border-right:1px solid #e6e8ec; display:flex; flex-direction:column; padding:20px 14px;">
+
+    <div style="display:flex; flex-direction:column; align-items:flex-start; padding:2px 8px 20px 8px;">
+      <img src="logo.png" alt="Universoft Systems" style="height:50px; width:auto; display:block;"/>
+      <span style="font-size:10.5px; color:#8b93a1; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-top:6px;">Bot de WhatsApp</span>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <button onClick="{{nav.conexion.onClick}}" style="{{nav.conexion.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M9 12h6M9 9h.01M15 9h.01M4 6h16v9a2 2 0 0 1-2 2H8l-4 4V6Z" stroke="{{nav.conexion.iconColor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Conexión</span>
+        <sc-if value="{{isConnected}}" hint-placeholder-val="{{true}}">
+          <span style="margin-left:auto; width:7px; height:7px; border-radius:50%; background:#22c55e;"></span>
+        </sc-if>
+      </button>
+
+      <button onClick="{{nav.leads.onClick}}" style="{{nav.leads.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="{{nav.leads.iconColor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Leads</span>
+      </button>
+
+      <button onClick="{{nav.publicaciones.onClick}}" style="{{nav.publicaciones.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="{{nav.publicaciones.iconColor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Publicaciones</span>
+        <span style="margin-left:auto; font-size:10.5px; font-weight:700; background:{{pubBadgeBg}}; color:{{pubBadgeColor}}; padding:1px 6px; border-radius:20px;">{{pubEnCursoCount}}</span>
+      </button>
+
+      <button onClick="{{nav.reportes.onClick}}" style="{{nav.reportes.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4" stroke="{{nav.reportes.iconColor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Reportes</span>
+      </button>
+
+      <button onClick="{{nav.respuestas.onClick}}" style="{{nav.respuestas.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" stroke="{{nav.respuestas.iconColor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Respuestas</span>
+        <sc-if value="{{hasUnread}}" hint-placeholder-val="{{true}}">
+          <span style="margin-left:auto; min-width:16px; height:16px; padding:0 4px; border-radius:20px; background:#ef4444; color:white; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center;">{{unreadCount}}</span>
+        </sc-if>
+      </button>
+
+      <button onClick="{{nav.auto.onClick}}" style="{{nav.auto.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" stroke="{{nav.auto.iconColor}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.4 7.8 9.6 12.6h2.8L11.6 16.4l3.9-4.9h-2.8L13.4 7.8Z" fill="{{nav.auto.iconColor}}" stroke="none"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Auto-respuestas</span>
+        <span style="margin-left:auto; width:7px; height:7px; border-radius:50%; background:{{autoDotColor}};"></span>
+      </button>
+
+      <button onClick="{{nav.config.onClick}}" style="{{nav.config.style}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="{{nav.config.iconColor}}" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="{{nav.config.iconColor}}" stroke-width="1.6"/></svg>
+        <span class="navlabel" style="font-size:13.5px;">Configuración</span>
+      </button>
+    </div>
+
+    <div style="margin-top:auto; padding:12px 10px; border-radius:10px; background:#f8f9fb; display:flex; align-items:center; gap:9px;">
+      <span style="width:8px; height:8px; border-radius:50%; background:{{connDotColor}}; flex-shrink:0;"></span>
+      <span style="font-size:11.5px; color:#5b6472; font-weight:600;">{{connFooterText}}</span>
+    </div>
+  </div>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <div class="scroll" style="flex:1; overflow-y:auto; padding:28px 36px 60px 36px;">
+
+    <!-- ============ CONEXIÓN ============ -->
+    <sc-if value="{{showConexion}}" hint-placeholder-val="{{true}}">
+      <div style="max-width:680px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px;">
+          <div>
+            <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Conexión de WhatsApp</h1>
+            <p style="font-size:13.5px; color:#6b7280; margin:0;">Puedes vincular varios números y repartir tus campañas entre ellos.</p>
+          </div>
+          <button onClick="{{toggleAddingNumber}}" style="padding:10px 16px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:700; white-space:nowrap;">+ Vincular número</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+          <sc-for list="{{numeros}}" as="num" hint-placeholder-count="2">
+            <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:20px 22px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div style="width:44px; height:44px; border-radius:50%; background:{{num.iconBg}}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <sc-if value="{{num.conectado}}" hint-placeholder-val="{{true}}">
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </sc-if>
+                  <sc-if value="{{num.desconectado}}" hint-placeholder-val="{{false}}">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#f59e0b;"></span>
+                  </sc-if>
+                </div>
+                <div>
+                  <div style="font-size:14.5px; font-weight:700;">{{num.etiqueta}} <span style="font-weight:500; color:#9aa1ac;">· {{num.telefono}}</span></div>
+                  <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{num.detalle}}</div>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; flex-shrink:0;">
+                <button style="padding:8px 14px; border-radius:7px; border:1px solid #e2e4e9; background:white; font-size:12.5px; font-weight:600; color:#374151;">Renombrar</button>
+                <button onClick="{{num.actionClick}}" style="{{num.actionStyle}}">{{num.actionLabel}}</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{addingNumber}}" hint-placeholder-val="{{false}}">
+          <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:32px; display:flex; gap:32px; align-items:flex-start;">
+            <div style="width:184px; height:184px; background:#0b1120; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative;">
+              <svg width="140" height="140" viewBox="0 0 100 100" fill="#f5f6f8">
+                <rect x="4" y="4" width="26" height="26"/><rect x="10" y="10" width="14" height="14" fill="#0b1120"/><rect x="14" y="14" width="6" height="6"/>
+                <rect x="70" y="4" width="26" height="26"/><rect x="76" y="10" width="14" height="14" fill="#0b1120"/><rect x="80" y="14" width="6" height="6"/>
+                <rect x="4" y="70" width="26" height="26"/><rect x="10" y="76" width="14" height="14" fill="#0b1120"/><rect x="14" y="80" width="6" height="6"/>
+                <rect x="40" y="4" width="6" height="6"/><rect x="52" y="4" width="6" height="6"/><rect x="40" y="16" width="6" height="6"/><rect x="58" y="16" width="6" height="6"/>
+                <rect x="40" y="40" width="6" height="6"/><rect x="52" y="40" width="6" height="6"/><rect x="64" y="40" width="6" height="6"/><rect x="40" y="52" width="6" height="6"/>
+                <rect x="58" y="52" width="6" height="6"/><rect x="70" y="52" width="6" height="6"/><rect x="82" y="52" width="6" height="6"/><rect x="40" y="64" width="6" height="6"/>
+                <rect x="52" y="64" width="6" height="6"/><rect x="76" y="64" width="6" height="6"/><rect x="88" y="64" width="6" height="6"/><rect x="40" y="76" width="6" height="6"/>
+                <rect x="64" y="76" width="6" height="6"/><rect x="76" y="82" width="6" height="6"/><rect x="52" y="88" width="6" height="6"/><rect x="64" y="88" width="6" height="6"/>
+                <rect x="82" y="88" width="6" height="6"/>
+              </svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:15px; font-weight:700; margin-bottom:10px;">Escanea este código para vincular un nuevo número</div>
+              <ol style="margin:0; padding-left:18px; font-size:13px; color:#4b5563; line-height:1.9;">
+                <li>Abre WhatsApp en el teléfono que quieres conectar</li>
+                <li>Ve a Ajustes → Dispositivos vinculados</li>
+                <li>Toca "Vincular un dispositivo" y apunta la cámara aquí</li>
+              </ol>
+              <div style="margin-top:16px; display:flex; align-items:center; gap:8px; font-size:12.5px; color:#9a6b00; background:#fffbeb; border:1px solid #fde68a; padding:8px 12px; border-radius:8px; width:fit-content;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#f59e0b;"></span>
+                Esperando escaneo… el código se renueva automáticamente
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ LEADS ============ -->
+    <sc-if value="{{showLeads}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px;">
+          <div>
+            <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Leads</h1>
+            <p style="font-size:13.5px; color:#6b7280; margin:0;">Sube y administra tus listas de contactos.</p>
+          </div>
+        </div>
+
+        <div style="background:white; border:2px dashed #d7dae1; border-radius:12px; padding:34px; text-align:center; margin-bottom:26px;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="margin:0 auto 10px auto; display:block;"><path d="M12 16V4M12 4 7 9M12 4l5 5M5 20h14" stroke="#8b93a1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="font-size:14px; font-weight:600; color:#374151;">Arrastra tu archivo aquí o haz clic para subir</div>
+          <div style="font-size:12px; color:#9aa1ac; margin-top:4px;">Formatos aceptados: .csv, .xlsx — columnas obligatorias: teléfono, empresa</div>
+          <button style="margin-top:16px; padding:9px 18px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:600;">Seleccionar archivo</button>
+        </div>
+
+        <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:10px;">Listas cargadas</div>
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns: 2.4fr 1fr 1fr 1fr 1.2fr; padding:11px 18px; background:#fafbfc; border-bottom:1px solid #eef0f3; font-size:11.5px; font-weight:700; color:#8b93a1; text-transform:uppercase; letter-spacing:.03em;">
+            <div>Nombre</div><div>Fecha</div><div>Válidas</div><div>Inválidas</div><div></div>
+          </div>
+          <sc-for list="{{leadsLists}}" as="lista" hint-placeholder-count="2">
+            <div>
+              <div style="display:grid; grid-template-columns: 2.4fr 1fr 1fr 1fr 1.2fr; padding:15px 18px; align-items:center; border-bottom:1px solid #f1f2f5; font-size:13px;">
+                <div style="font-weight:600; color:#1e2532;">{{lista.nombre}}</div>
+                <div style="color:#6b7280;">{{lista.fecha}}</div>
+                <div style="color:#16a34a; font-weight:700;">{{lista.validas}}</div>
+                <div style="color:#dc2626; font-weight:700;">{{lista.invalidas}}</div>
+                <div><button onClick="{{lista.toggle}}" style="padding:6px 12px; border-radius:7px; border:1px solid #e2e4e9; background:white; font-size:12px; font-weight:600; color:#374151;">{{lista.toggleLabel}}</button></div>
+              </div>
+              <sc-if value="{{lista.isOpen}}" hint-placeholder-val="{{false}}">
+                <div style="background:#fafbfc; padding:16px 18px 20px 18px; border-bottom:1px solid #f1f2f5;">
+                  <div style="font-size:11.5px; font-weight:700; color:#8b93a1; text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px;">Filas excluidas y motivo</div>
+                  <sc-for list="{{lista.invalidRows}}" as="inv" hint-placeholder-count="3">
+                    <div style="display:flex; gap:14px; font-size:12.5px; padding:6px 0; border-bottom:1px dashed #e9ebef;">
+                      <span style="color:#9aa1ac; width:56px; flex-shrink:0;">Fila {{inv.fila}}</span>
+                      <span style="color:#dc2626; flex-shrink:0;">{{inv.motivo}}</span>
+                      <span style="color:#9aa1ac;">{{inv.dato}}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ PUBLICACIONES ============ -->
+    <sc-if value="{{showPublicaciones}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px;">
+          <div>
+            <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Publicaciones</h1>
+            <p style="font-size:13.5px; color:#6b7280; margin:0;">Crea campañas y revisa la cola de envíos.</p>
+          </div>
+          <button onClick="{{goNueva}}" style="padding:10px 18px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:700;">+ Nueva publicación</button>
+        </div>
+
+        <div style="display:flex; gap:6px; margin-bottom:20px; background:#eceef2; padding:4px; border-radius:9px; width:fit-content;">
+          <button onClick="{{goCola}}" style="{{tabColaStyle}}">Cola de campañas</button>
+          <button onClick="{{goNueva}}" style="{{tabNuevaStyle}}">Nueva publicación</button>
+        </div>
+
+        <!-- COLA -->
+        <sc-if value="{{isPubCola}}" hint-placeholder-val="{{true}}">
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <sc-for list="{{campanas}}" as="camp" hint-placeholder-count="3">
+              <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:18px 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:14.5px; font-weight:700; margin-bottom:3px;">{{camp.nombre}}</div>
+                    <div style="font-size:12px; color:#8b93a1;">Lista: {{camp.lista}} · {{camp.fechaLabel}}</div>
+                  </div>
+                  <span style="font-size:11.5px; font-weight:700; padding:4px 11px; border-radius:20px; background:{{camp.badgeBg}}; color:{{camp.badgeColor}};">{{camp.estado}}</span>
+                </div>
+                <sc-if value="{{camp.enCurso}}" hint-placeholder-val="{{false}}">
+                  <div style="margin-top:14px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:#6b7280; margin-bottom:6px;">
+                      <span>{{camp.progresoTexto}}</span><span>{{camp.progresoPct}}%</span>
+                    </div>
+                    <div style="height:7px; background:#eef0f3; border-radius:20px; overflow:hidden;">
+                      <div style="height:100%; width:{{camp.progresoPct}}%; background:{{accent}}; border-radius:20px;"></div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{camp.completada}}" hint-placeholder-val="{{false}}">
+                  <div style="margin-top:12px; display:flex; gap:18px; font-size:12px; color:#6b7280;">
+                    <span>✅ {{camp.enviados}} enviados</span>
+                    <span>🚫 {{camp.sinWhatsapp}} sin WhatsApp</span>
+                    <span>❌ {{camp.fallidos}} fallidos</span>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- NUEVA -->
+        <sc-if value="{{isPubNueva}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex; gap:22px; align-items:flex-start;">
+            <div style="flex:1.4; background:white; border:1px solid #e6e8ec; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:18px;">
+
+              <div>
+                <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Nombre de la campaña</label>
+                <input type="text" value="Promo planos octubre" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+              </div>
+
+              <div>
+                <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Lista de leads</label>
+                <select style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px; background:white;">
+                  <option>Clientes Lima — Setiembre 2026 (174 válidas)</option>
+                  <option>Prospectos Feria Construye 2026 (61 válidas)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Variantes del mensaje <span style="font-weight:500; color:#9aa1ac;">(se elige una al azar por contacto)</span></label>
+                <textarea rows="2" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px; margin-bottom:8px; resize:vertical;">Hola {contacto}, le escribimos de Universoft para compartirle esta publicación de {empresa} 👇</textarea>
+                <textarea rows="2" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px; resize:vertical;">Buenas {contacto}, desde Universoft le enviamos esta novedad para {empresa}.</textarea>
+                <button style="margin-top:8px; font-size:12.5px; font-weight:700; color:{{accent}}; background:none; border:none; padding:0;">+ Agregar otra variante</button>
+              </div>
+
+              <div>
+                <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Adjunto</label>
+                <div style="border:2px dashed #d7dae1; border-radius:8px; padding:16px; display:flex; align-items:center; gap:12px;">
+                  <div style="width:44px; height:44px; border-radius:8px; background:#eef0f3; flex-shrink:0;"></div>
+                  <div style="font-size:12.5px; color:#6b7280;">planos-octubre.jpg — imagen, 340 KB<br/><span style="color:#9aa1ac;">o arrastra una imagen o video corto</span></div>
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Link al catálogo de WhatsApp <span style="font-weight:500; color:#9aa1ac;">(opcional)</span></label>
+                <input type="text" value="https://wa.me/c/51987654321" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+              </div>
+
+              <div style="display:flex; gap:14px;">
+                <div style="flex:1;">
+                  <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Fecha de envío</label>
+                  <input type="text" value="18/09/2026" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Hora</label>
+                  <input type="text" value="09:00" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:10px; padding-top:6px;">
+                <button style="padding:10px 18px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:13px; font-weight:600; color:#374151;">Guardar como borrador</button>
+                <button style="padding:10px 18px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:700;">Programar campaña</button>
+              </div>
+            </div>
+
+            <div style="width:300px; background:white; border:1px solid #e6e8ec; border-radius:12px; padding:22px;">
+              <div style="font-size:12.5px; font-weight:700; color:#374151; margin-bottom:14px;">Ritmo de envío</div>
+
+              <div style="display:flex; flex-direction:column; gap:14px; font-size:12.5px; color:#4b5563;">
+                <div style="display:flex; justify-content:space-between;"><span>Pausa entre mensajes</span><span style="font-weight:700; color:#1e2532;">45–150 seg</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Tamaño de lote</span><span style="font-weight:700; color:#1e2532;">25 contactos</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Pausa entre lotes</span><span style="font-weight:700; color:#1e2532;">20 min</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Horario permitido</span><span style="font-weight:700; color:#1e2532;">09:00–19:00</span></div>
+              </div>
+
+              <div style="height:1px; background:#eef0f3; margin:18px 0;"></div>
+              <div style="font-size:12px; color:#8b93a1; line-height:1.6;">Estos valores vienen de tu configuración por defecto. Puedes ajustarlos para esta campaña en <span style="color:{{accent}}; font-weight:600;">Configuración</span>.</div>
+
+              <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+                <button style="padding:9px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:12.5px; font-weight:600; color:#374151;">🧪 Probar (dry-run)</button>
+                <button style="padding:9px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:12.5px; font-weight:600; color:#374151;">📤 Enviar prueba a un número</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ REPORTES ============ -->
+    <sc-if value="{{showReportes}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px; gap:14px; flex-wrap:wrap;">
+          <div>
+            <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Reportes</h1>
+            <p style="font-size:13.5px; color:#6b7280; margin:0;">Resultados de campañas, del pipeline y del auto-responder.</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <select style="padding:8px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:12.5px; background:white; color:#374151;"><option>Últimos 30 días</option><option>Este mes</option><option>Todo</option></select>
+            <select style="padding:8px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:12.5px; background:white; color:#374151;"><option>Todos los rubros</option><option>Construcción</option><option>Comercio</option><option>Inversiones</option></select>
+            <button style="padding:8px 14px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:12.5px; font-weight:600; color:#374151;">⬇ Exportar Excel</button>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:14px; margin-bottom:22px;">
+          <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:18px 20px;">
+            <div style="font-size:12px; color:#8b93a1; font-weight:600; margin-bottom:8px;">Mensajes enviados (mes)</div>
+            <div style="font-size:24px; font-weight:700;">412</div>
+          </div>
+          <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:18px 20px;">
+            <div style="font-size:12px; color:#8b93a1; font-weight:600; margin-bottom:8px;">Tasa de respuesta</div>
+            <div style="font-size:24px; font-weight:700; color:#16a34a;">9.0%</div>
+          </div>
+          <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:18px 20px;">
+            <div style="font-size:12px; color:#8b93a1; font-weight:600; margin-bottom:8px;">Ventas concretadas (mes)</div>
+            <div style="font-size:24px; font-weight:700; color:#15803d;">6</div>
+          </div>
+          <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:18px 20px;">
+            <div style="font-size:12px; color:#8b93a1; font-weight:600; margin-bottom:8px;">Tasa de conversión</div>
+            <div style="font-size:24px; font-weight:700;">4.2%</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:22px;">
+          <div style="flex:1.3; background:white; border:1px solid #e6e8ec; border-radius:12px; padding:22px;">
+            <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:14px;">Embudo del pipeline</div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <sc-for list="{{embudo}}" as="e" hint-placeholder-count="5">
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:12.5px; color:#4b5563; margin-bottom:4px;"><span>{{e.label}}</span><span style="font-weight:700; color:#1e2532;">{{e.valor}}</span></div>
+                  <div style="height:9px; background:#eef0f3; border-radius:20px; overflow:hidden;">
+                    <div style="height:100%; width:{{e.pct}}%; background:{{e.color}}; border-radius:20px;"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+            <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:20px 22px;">
+              <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px;">Leads por rubro</div>
+              <sc-for list="{{porRubro}}" as="pr" hint-placeholder-count="3">
+                <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:6px 0; border-bottom:1px dashed #eef0f3;">
+                  <span style="color:#4b5563;">{{pr.rubro}}</span>
+                  <span style="color:#6b7280;">{{pr.leads}} leads · <span style="color:#15803d; font-weight:700;">{{pr.ventas}} ventas</span></span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:20px 22px;">
+              <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px;">Auto-responder</div>
+              <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0;"><span style="color:#4b5563;">🤖 Atendidas por el bot</span><span style="font-weight:700;">152</span></div>
+              <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0;"><span style="color:#4b5563;">🙋 Escaladas a un asesor</span><span style="font-weight:700;">27</span></div>
+              <div style="font-size:11.5px; color:#9aa1ac; margin-top:8px;">Palabra clave más usada: "asesor" (16 veces)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns: 1.8fr 1fr 0.8fr 0.9fr 0.8fr 0.9fr 1fr; padding:11px 18px; background:#fafbfc; border-bottom:1px solid #eef0f3; font-size:11.5px; font-weight:700; color:#8b93a1; text-transform:uppercase; letter-spacing:.03em;">
+            <div>Campaña</div><div>Fecha</div><div>Enviados</div><div>Sin WhatsApp</div><div>Fallidos</div><div>Tasa resp.</div><div></div>
+          </div>
+          <sc-for list="{{reportesCampanas}}" as="rc" hint-placeholder-count="3">
+            <div style="display:grid; grid-template-columns: 1.8fr 1fr 0.8fr 0.9fr 0.8fr 0.9fr 1fr; padding:14px 18px; align-items:center; border-bottom:1px solid #f1f2f5; font-size:13px;">
+              <div style="font-weight:600;">{{rc.nombre}}</div>
+              <div style="color:#6b7280;">{{rc.fecha}}</div>
+              <div style="color:#16a34a; font-weight:700;">{{rc.enviados}}</div>
+              <div style="color:#9a6b00; font-weight:700;">{{rc.sinWhatsapp}}</div>
+              <div style="color:#dc2626; font-weight:700;">{{rc.fallidos}}</div>
+              <div style="color:#374151; font-weight:700;">{{rc.tasaRespuesta}}</div>
+              <div><button style="padding:6px 12px; border-radius:7px; border:1px solid #e2e4e9; background:white; font-size:12px; font-weight:600; color:#374151;">Descargar log</button></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ RESPUESTAS ============ -->
+    <sc-if value="{{showRespuestas}}" hint-placeholder-val="{{false}}">
+      <div>
+        <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Respuestas</h1>
+        <p style="font-size:13.5px; color:#6b7280; margin:0 0 20px 0;">Leads que contestaron tus campañas.</p>
+
+        <div style="display:flex; gap:18px; align-items:flex-start;">
+          <div style="width:340px; background:white; border:1px solid #e6e8ec; border-radius:12px; overflow:hidden;">
+            <sc-for list="{{respuestas}}" as="r" hint-placeholder-count="4">
+              <button onClick="{{r.select}}" style="{{r.rowStyle}}">
+                <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                  <span style="font-size:13.5px; font-weight:{{r.nameWeight}}; color:#1e2532;">{{r.empresa}}</span>
+                  <span style="display:flex; align-items:center; gap:5px;">
+                    <span style="width:7px; height:7px; border-radius:50%; background:{{r.modoDotColor}}; flex-shrink:0;"></span>
+                    <span style="font-size:11px; color:#9aa1ac;">{{r.hace}}</span>
+                  </span>
+                </div>
+                <div style="font-size:12.5px; color:#6b7280; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{r.preview}}</div>
+                <span style="display:inline-block; margin-top:7px; font-size:10.5px; font-weight:700; padding:2px 9px; border-radius:20px; background:{{r.etapa.bg}}; color:{{r.etapa.color}};">{{r.etapa.label}}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="flex:1; background:white; border:1px solid #e6e8ec; border-radius:12px; padding:26px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+              <div>
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <span style="font-size:15.5px; font-weight:700;">{{seleccionada.empresa}}</span>
+                  <span style="font-size:10.5px; font-weight:700; padding:2px 9px; border-radius:20px; background:{{seleccionada.etapa.bg}}; color:{{seleccionada.etapa.color}};">{{seleccionada.etapa.label}}</span>
+                </div>
+                <div style="font-size:12.5px; color:#8b93a1; margin-top:4px;">{{seleccionada.contacto}} · {{seleccionada.telefono}} · Rubro: {{seleccionada.rubro}}</div>
+              </div>
+              <span style="font-size:11px; color:#9aa1ac;">Campaña: {{seleccionada.campana}}</span>
+            </div>
+
+            <sc-if value="{{seleccionada.modoEsBot}}" hint-placeholder-val="{{true}}">
+              <div style="margin-bottom:16px; background:#eff5ff; border:1px solid #d7e6fb; border-radius:10px; padding:11px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px;">
+                <span style="font-size:12.5px; color:#1d4ed8; font-weight:600;">🤖 El bot está respondiendo automáticamente en esta conversación</span>
+                <button onClick="{{seleccionada.toggleModo}}" style="padding:6px 14px; border-radius:7px; border:1px solid #bcd3f7; background:white; font-size:12px; font-weight:700; color:#1d4ed8; flex-shrink:0;">Responder yo mismo</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{seleccionada.modoEsManual}}" hint-placeholder-val="{{false}}">
+              <div style="margin-bottom:16px; background:#fbf8ef; border:1px solid #ece2c2; border-radius:10px; padding:11px 16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:14px;">
+                  <span style="font-size:12.5px; color:#92702c; font-weight:600;">🙋 La estás atendiendo tú, el bot está pausado aquí</span>
+                  <button onClick="{{seleccionada.toggleModo}}" style="padding:6px 14px; border-radius:7px; border:1px solid #e7dfc3; background:white; font-size:12px; font-weight:700; color:#92702c; flex-shrink:0;">Reactivar bot</button>
+                </div>
+                <sc-if value="{{seleccionada.escaladoPorAsesor}}" hint-placeholder-val="{{false}}">
+                  <div style="font-size:11.5px; color:#a68a4a; margin-top:6px;">El lead pidió hablar con un asesor.</div>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <div class="scroll" style="display:flex; flex-direction:column; gap:10px; max-height:260px; overflow-y:auto; padding:4px 2px 10px 2px;">
+              <sc-for list="{{seleccionada.historial}}" as="m" hint-placeholder-count="3">
+                <div style="display:flex; {{m.alignStyle}}">
+                  <div style="{{m.bubbleStyle}}">
+                    <sc-if value="{{m.esBot}}" hint-placeholder-val="{{false}}">
+                      <div style="font-size:10px; font-weight:700; color:#6b8fd6; margin-bottom:3px;">🤖 Bot</div>
+                    </sc-if>
+                    {{m.texto}}
+                    <div style="font-size:10.5px; color:{{m.horaColor}}; margin-top:5px;">{{m.hora}}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{tieneSugerenciaIA}}" hint-placeholder-val="{{false}}">
+              <div style="margin-top:14px; background:#f5f8ff; border:1px solid #dbe6fb; border-radius:10px; padding:13px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px;">
+                <div style="font-size:12.5px; color:#374151;"><span style="font-weight:700;">IA sugiere:</span> {{seleccionada.iaSugerencia}} — según el texto de su respuesta</div>
+                <div style="display:flex; gap:8px; flex-shrink:0;">
+                  <button style="padding:6px 12px; border-radius:7px; border:none; background:{{accent}}; color:white; font-size:12px; font-weight:700;">Confirmar</button>
+                  <button style="padding:6px 12px; border-radius:7px; border:1px solid #d7dee9; background:white; font-size:12px; font-weight:600; color:#374151;">Corregir</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="margin-top:16px; display:flex; gap:8px; align-items:center; background:#f5f6f8; border-radius:10px; padding:6px 6px 6px 14px;">
+              <span style="flex:1; font-size:13px; color:#374151;">{{seleccionada.chatDraft}}</span>
+              <button onClick="{{seleccionada.enviarMensaje}}" style="padding:9px 16px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:12.5px; font-weight:700; flex-shrink:0;">Enviar ➤</button>
+            </div>
+            <div style="font-size:11px; color:#9aa1ac; margin-top:6px;">Escribe y envía directo desde aquí — usa la sesión de WhatsApp del número correspondiente. Al responder, esta conversación pasa a modo manual (🙋).</div>
+
+            <div style="margin-top:18px; display:flex; gap:10px;">
+              <button style="padding:9px 16px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:13px; font-weight:600; color:#374151;">Abrir en WhatsApp ↗</button>
+              <button onClick="{{abrirFicha}}" style="padding:9px 16px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:13px; font-weight:600; color:#374151;">Ver ficha del lead</button>
+              <button style="padding:9px 16px; border-radius:8px; border:1px solid #bbf0d3; background:#f0fdf6; font-size:13px; font-weight:700; color:#15803d;">🏆 Marcar venta concretada</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ AUTO-RESPUESTAS ============ -->
+    <sc-if value="{{showAuto}}" hint-placeholder-val="{{false}}">
+      <div style="max-width:700px;">
+        <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Auto-respuestas</h1>
+        <p style="font-size:13.5px; color:#6b7280; margin:0 0 22px 0;">Configura cómo responde el bot a quienes te escriben, y cuándo pasa la conversación a un asesor humano.</p>
+
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:20px 22px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;">
+          <div>
+            <div style="font-size:14px; font-weight:700;">Auto-responder {{autoEstadoTexto}}</div>
+            <div style="font-size:12.5px; color:#6b7280; margin-top:3px;">Cuando está desactivado, nadie recibe respuesta automática — tú atiendes todos los mensajes entrantes manualmente.</div>
+          </div>
+          <button onClick="{{toggleAutoActivado}}" style="width:46px; height:26px; min-width:46px; border-radius:20px; border:none; padding:2px; background:{{autoToggleBg}}; position:relative; flex-shrink:0;">
+            <span style="display:block; width:22px; height:22px; border-radius:50%; background:white; box-shadow:0 1px 2px rgba(0,0,0,0.25); margin-left:{{autoToggleMargin}}px;"></span>
+          </button>
+        </div>
+
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:22px; margin-bottom:16px;">
+          <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Mensaje de bienvenida</label>
+          <div style="font-size:11.5px; color:#9aa1ac; margin-bottom:8px;">Se envía en el primer mensaje de cualquier conversación nueva.</div>
+          <textarea rows="2" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px; resize:vertical;">¡Hola! 👋 Gracias por escribirnos a Universoft Systems. Soy el asistente virtual y puedo ayudarte con información sobre nuestros servicios. ¿En qué puedo ayudarte hoy?</textarea>
+        </div>
+
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:22px; margin-bottom:16px;">
+          <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Base de conocimiento</label>
+          <div style="font-size:11.5px; color:#9aa1ac; margin-bottom:8px;">Información de tus servicios que el bot usa para responder preguntas. Entre más completa, mejores respuestas da.</div>
+          <textarea rows="5" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px; resize:vertical; line-height:1.5;">Universoft Systems ofrece servicios de gestión de trámites, planos y documentación para proyectos de construcción en Lima. Trabajamos con constructoras, inmobiliarias y negocios del rubro. Horario de atención: lunes a viernes de 9:00 a 18:00. Para cotizaciones detalladas, un asesor debe confirmar precio según el proyecto.</textarea>
+        </div>
+
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:22px; margin-bottom:20px;">
+          <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Palabras que piden un asesor humano</label>
+          <div style="font-size:11.5px; color:#9aa1ac; margin-bottom:10px;">Si el lead escribe alguna de estas, la conversación pasa a modo manual de inmediato.</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+            <span style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#374151; background:#f1f2f5; padding:6px 10px 6px 12px; border-radius:20px;">asesor <span style="color:#9aa1ac; font-weight:700;">×</span></span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#374151; background:#f1f2f5; padding:6px 10px 6px 12px; border-radius:20px;">hablar con alguien <span style="color:#9aa1ac; font-weight:700;">×</span></span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#374151; background:#f1f2f5; padding:6px 10px 6px 12px; border-radius:20px;">persona real <span style="color:#9aa1ac; font-weight:700;">×</span></span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#374151; background:#f1f2f5; padding:6px 10px 6px 12px; border-radius:20px;">humano <span style="color:#9aa1ac; font-weight:700;">×</span></span>
+            <button style="font-size:12px; font-weight:700; color:{{accent}}; background:none; border:1px dashed #d7dae1; border-radius:20px; padding:6px 12px;">+ Agregar palabra</button>
+          </div>
+          <div style="font-size:11.5px; color:#9aa1ac; background:#fafbfc; border-radius:8px; padding:10px 12px;">Además de estas palabras, la IA también deriva la conversación a un asesor cuando detecta que no puede responder con confianza.</div>
+        </div>
+
+        <div style="font-size:11.5px; color:#9aa1ac; margin-bottom:16px;">Si tienes varios números conectados (ver Conexión), esta configuración aplica a todos por igual — puedes desactivarlo en un número puntual desde su tarjeta.</div>
+
+        <button style="padding:10px 20px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:700;">Guardar cambios</button>
+      </div>
+    </sc-if>
+
+    <!-- ============ CONFIGURACIÓN ============ -->
+    <sc-if value="{{showConfig}}" hint-placeholder-val="{{false}}">
+      <div style="max-width:640px;">
+        <h1 style="font-size:21px; font-weight:700; margin:0 0 4px 0;">Configuración</h1>
+        <p style="font-size:13.5px; color:#6b7280; margin:0 0 22px 0;">Valores por defecto para tus campañas y reportes.</p>
+
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:18px;">
+          <div>
+            <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Tu número (recibe reportes y alertas)</label>
+            <input type="text" value="+51 987 654 321" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+          </div>
+
+          <div style="display:flex; gap:14px;">
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Horario laboral — inicio</label>
+              <input type="text" value="09:00" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Horario laboral — fin</label>
+              <input type="text" value="19:00" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:14px;">
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Pausa mínima (seg)</label>
+              <input type="text" value="45" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Pausa máxima (seg)</label>
+              <input type="text" value="150" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:14px;">
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Tamaño de lote</label>
+              <input type="text" value="25" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Pausa entre lotes (min)</label>
+              <input type="text" value="20" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Link de catálogo por defecto</label>
+            <input type="text" value="https://wa.me/c/51987654321" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+          </div>
+
+          <div>
+            <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">API key de Gemini</label>
+            <input type="text" value="••••••••••••••••" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+          </div>
+
+          <div style="padding-top:6px;">
+            <button style="padding:10px 20px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:700;">Guardar cambios</button>
+          </div>
+        </div>
+
+        <div style="font-size:13.5px; font-weight:700; margin:26px 0 10px 0;">Notificaciones adicionales</div>
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:18px;">
+          <div style="display:flex; gap:14px;">
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Token del bot de Telegram <span style="font-weight:500; color:#9aa1ac;">(opcional)</span></label>
+              <input type="text" placeholder="123456:ABC-def..." style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Chat ID de Telegram</label>
+              <input type="text" placeholder="-100123456789" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Correo para notificaciones <span style="font-weight:500; color:#9aa1ac;">(opcional)</span></label>
+            <input type="text" placeholder="ventas@universoftsystems.com" style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px;"/>
+          </div>
+          <div style="display:flex; gap:18px; font-size:12.5px; color:#4b5563;">
+            <label style="display:flex; align-items:center; gap:7px;"><input type="checkbox" checked style="accent-color:{{accent}};"/> Nueva respuesta</label>
+            <label style="display:flex; align-items:center; gap:7px;"><input type="checkbox" checked style="accent-color:{{accent}};"/> Lead caliente</label>
+            <label style="display:flex; align-items:center; gap:7px;"><input type="checkbox" style="accent-color:{{accent}};"/> Resumen del pipeline</label>
+            <label style="display:flex; align-items:center; gap:7px;"><input type="checkbox" checked style="accent-color:{{accent}};"/> Campaña terminada</label>
+          </div>
+        </div>
+
+        <div style="font-size:13.5px; font-weight:700; margin:26px 0 10px 0;">Integraciones</div>
+        <div style="background:white; border:1px solid #e6e8ec; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:18px;">
+          <div>
+            <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Webhook para recibir leads automáticamente</label>
+            <div style="font-size:11.5px; color:#9aa1ac; margin-bottom:8px;">Conecta tu formulario web, Zapier o Make a esta URL para que los leads entren solos, en la etapa "Nuevo".</div>
+            <div style="display:flex; gap:8px;">
+              <input type="text" value="https://bot.universoftsystems.com/webhooks/leads/8f2a1c...&amp;token" readonly style="flex:1; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:12.5px; color:#6b7280; background:#fafbfc;"/>
+              <button style="padding:9px 14px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:12.5px; font-weight:600; color:#374151;">Copiar</button>
+              <button style="padding:9px 14px; border-radius:8px; border:1px solid #fecaca; background:#fef2f2; font-size:12.5px; font-weight:600; color:#dc2626;">Regenerar</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">API key para exportar reportes/datos</label>
+            <div style="font-size:11.5px; color:#9aa1ac; margin-bottom:8px;">De solo lectura — para conectar tus reportes con Excel, Power BI u otra herramienta.</div>
+            <div style="display:flex; gap:8px;">
+              <input type="text" value="usf_live_••••••••••••3f9a" readonly style="flex:1; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:12.5px; color:#6b7280; background:#fafbfc;"/>
+              <button style="padding:9px 14px; border-radius:8px; border:1px solid #e2e4e9; background:white; font-size:12.5px; font-weight:600; color:#374151;">Copiar</button>
+              <button style="padding:9px 14px; border-radius:8px; border:1px solid #fecaca; background:#fef2f2; font-size:12.5px; font-weight:600; color:#dc2626;">Regenerar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- ============ FICHA DEL LEAD (modal) ============ -->
+  <sc-if value="{{showFicha}}" hint-placeholder-val="{{false}}">
+    <div style="position:fixed; inset:0; background:rgba(15,20,30,0.45); display:flex; align-items:center; justify-content:center; z-index:50;">
+      <div style="background:white; border-radius:14px; width:480px; max-width:90vw; max-height:85vh; overflow-y:auto; padding:28px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+          <div>
+            <div style="font-size:17px; font-weight:700;">{{seleccionada.empresa}}</div>
+            <div style="font-size:12.5px; color:#8b93a1; margin-top:3px;">{{seleccionada.contacto}} · {{seleccionada.telefono}}</div>
+          </div>
+          <button onClick="{{cerrarFicha}}" style="border:none; background:#f1f2f5; width:28px; height:28px; border-radius:50%; font-size:14px; color:#6b7280;">✕</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:20px;">
+          <span style="font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:20px; background:{{seleccionada.etapa.bg}}; color:{{seleccionada.etapa.color}};">{{seleccionada.etapa.label}}</span>
+          <span style="font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:20px; background:#f1f2f5; color:#4b5563;">Rubro: {{seleccionada.rubro}}</span>
+        </div>
+        <div style="font-size:11.5px; font-weight:700; color:#8b93a1; text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px;">Campañas recibidas</div>
+        <div style="font-size:13px; color:#374151; margin-bottom:18px;">{{seleccionada.campana}}</div>
+        <div style="font-size:11.5px; font-weight:700; color:#8b93a1; text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px;">Resumen de la conversación</div>
+        <div style="font-size:13px; color:#374151; margin-bottom:18px; line-height:1.6;">{{seleccionada.historial.length}} mensajes · última actividad {{seleccionada.hace}}</div>
+        <div style="font-size:11.5px; font-weight:700; color:#8b93a1; text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px;">Notas internas</div>
+        <textarea rows="3" placeholder="Agrega una nota sobre este lead..." style="width:100%; padding:10px 12px; border:1px solid #e2e4e9; border-radius:8px; font-size:13px; resize:vertical; margin-bottom:16px;"></textarea>
+        <button style="padding:9px 18px; border-radius:8px; border:none; background:{{accent}}; color:white; font-size:13px; font-weight:700;">Guardar nota</button>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"conectado":{"editor":"boolean","default":false,"section":"Estado (demo)"},"accent":{"editor":"color","default":"#2b6cd4","options":["#2b6cd4","#17224a","#0f9d58","#ea580c"],"section":"Marca"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const tab = this.state.tab ?? 'conexion';
+    const pubSubView = this.state.pubSubView ?? 'cola';
+    const expandedListId = this.state.expandedListId ?? null;
+    const selectedReplyId = this.state.selectedReplyId ?? 'r1';
+    const readIds = this.state.readIds ?? ['r2', 'r4'];
+    const modoOverrides = this.state.modoOverrides ?? {};
+    const autoActivado = this.state.autoActivado ?? true;
+    const addingNumber = this.state.addingNumber ?? false;
+    const showFicha = this.state.showFicha ?? false;
+    const sentMessages = this.state.sentMessages ?? {};
+
+    const accent = this.props.accent ?? '#2b6cd4';
+    const isConnected = !!this.props.conectado;
+
+    const goTab = (t) => () => this.setState({ tab: t });
+
+    const navStyle = (id) => {
+      const active = tab === id;
+      return {
+        style: 'display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:9px; border:none; background:' + (active ? accent + '1a' : 'transparent') + '; color:' + (active ? accent : '#475269') + '; font-weight:' + (active ? '700' : '500') + '; width:100%; text-align:left;',
+        iconColor: active ? accent : '#8b93a1',
+        onClick: goTab(id),
+      };
+    };
+
+    const nav = {
+      conexion: navStyle('conexion'),
+      leads: navStyle('leads'),
+      publicaciones: navStyle('publicaciones'),
+      reportes: navStyle('reportes'),
+      respuestas: navStyle('respuestas'),
+      auto: navStyle('auto'),
+      config: navStyle('config'),
+    };
+
+    const toggleAutoActivado = () => this.setState({ autoActivado: !autoActivado });
+    const toggleAddingNumber = () => this.setState({ addingNumber: !addingNumber });
+    const abrirFicha = () => this.setState({ showFicha: true });
+    const cerrarFicha = () => this.setState({ showFicha: false });
+
+    // ---- CONEXIÓN (multi-número) ----
+    const numeros = [
+      {
+        id: 'n1', etiqueta: 'Ventas 1', telefono: '+51 987 654 321', conectado: isConnected, desconectado: !isConnected,
+        iconBg: isConnected ? '#ecfdf3' : '#fffbeb',
+        detalle: isConnected ? 'Sesión activa desde hace 3 días · último uso hace 6 min' : 'Desconectado — vincúlalo de nuevo para seguir enviando',
+        actionLabel: isConnected ? 'Cerrar sesión' : 'Reconectar',
+        actionStyle: isConnected
+          ? 'padding:8px 14px; border-radius:7px; border:1px solid #fecaca; background:#fef2f2; font-size:12.5px; font-weight:600; color:#dc2626;'
+          : 'padding:8px 14px; border-radius:7px; border:none; background:' + accent + '; color:white; font-size:12.5px; font-weight:700;',
+        actionClick: isConnected ? (() => {}) : toggleAddingNumber,
+      },
+      {
+        id: 'n2', etiqueta: 'Ventas 2', telefono: '+51 912 345 678', conectado: true, desconectado: false,
+        iconBg: '#ecfdf3',
+        detalle: 'Sesión activa desde hace 12 días · último uso hace 2 min',
+        actionLabel: 'Cerrar sesión',
+        actionStyle: 'padding:8px 14px; border-radius:7px; border:1px solid #fecaca; background:#fef2f2; font-size:12.5px; font-weight:600; color:#dc2626;',
+        actionClick: () => {},
+      },
+    ];
+
+    // ---- LEADS ----
+    const RAW_LISTS = [
+      {
+        id: 'l1', nombre: 'Clientes Lima — Setiembre 2026', fecha: '10/09/2026', validas: 174, invalidas: 8,
+        invalidRows: [
+          { fila: 12, motivo: 'Sin teléfono', dato: 'Constructora del Sur' },
+          { fila: 45, motivo: 'Teléfono inválido', dato: '"51-987-XX"' },
+          { fila: 100, motivo: 'Sin nombre de empresa', dato: '987654321' },
+          { fila: 133, motivo: 'Duplicado', dato: 'ya existe en la lista' },
+        ],
+      },
+      {
+        id: 'l2', nombre: 'Prospectos Feria Construye 2026', fecha: '14/09/2026', validas: 61, invalidas: 3,
+        invalidRows: [
+          { fila: 8, motivo: 'Sin teléfono', dato: 'Grupo Vega EIRL' },
+          { fila: 29, motivo: 'Teléfono inválido', dato: '"9876"' },
+          { fila: 40, motivo: 'Sin nombre de empresa', dato: '51912345678' },
+        ],
+      },
+    ];
+    const leadsLists = RAW_LISTS.map((l) => ({
+      ...l,
+      isOpen: expandedListId === l.id,
+      toggleLabel: expandedListId === l.id ? 'Ocultar detalle' : 'Ver detalle',
+      toggle: () => this.setState({ expandedListId: expandedListId === l.id ? null : l.id }),
+    }));
+
+    // ---- PUBLICACIONES ----
+    const goCola = () => this.setState({ pubSubView: 'cola' });
+    const goNueva = () => this.setState({ pubSubView: 'nueva' });
+    const isPubCola = pubSubView === 'cola';
+    const isPubNueva = pubSubView === 'nueva';
+    const pillStyle = (active) => 'padding:7px 16px; border-radius:7px; border:none; font-size:12.5px; font-weight:700; background:' + (active ? 'white' : 'transparent') + '; color:' + (active ? '#1e2532' : '#6b7280') + ';' + (active ? ' box-shadow:0 1px 2px rgba(0,0,0,0.06);' : '');
+
+    const campanas = [
+      { nombre: 'Recordatorio trámites vigentes', lista: 'Clientes Lima — Setiembre 2026', fechaLabel: 'Enviada el 05/09/2026 · 08:30', estado: 'Completada', badgeBg: '#eef2ff', badgeColor: '#4338ca', completada: true, enCurso: false, enviados: 147, sinWhatsapp: 2, fallidos: 1 },
+      { nombre: 'Promo Feria Construye', lista: 'Prospectos Feria Construye 2026', fechaLabel: 'En curso desde las 09:00', estado: 'En curso', badgeBg: '#ecfdf3', badgeColor: '#16a34a', completada: false, enCurso: true, progresoTexto: '63 de 174 enviados', progresoPct: 36 },
+      { nombre: 'Lanzamiento planos octubre', lista: 'Clientes Lima — Setiembre 2026', fechaLabel: 'Programada para el 18/09/2026 · 09:00', estado: 'Programada', badgeBg: '#fffbeb', badgeColor: '#b45309', completada: false, enCurso: false },
+    ];
+    const pubEnCursoCount = campanas.filter((c) => c.enCurso).length;
+
+    // ---- REPORTES ----
+    const reportesCampanas = [
+      { nombre: 'Recordatorio trámites vigentes', fecha: '05/09/2026', enviados: 147, sinWhatsapp: 2, fallidos: 1, tasaRespuesta: '11.6%' },
+      { nombre: 'Bienvenida nuevos clientes agosto', fecha: '22/08/2026', enviados: 88, sinWhatsapp: 4, fallidos: 0, tasaRespuesta: '7.9%' },
+      { nombre: 'Aviso feriado atención', fecha: '27/07/2026', enviados: 177, sinWhatsapp: 6, fallidos: 2, tasaRespuesta: '6.2%' },
+    ];
+
+    const embudo = [
+      { label: 'Nuevo', valor: 320, pct: 100, color: '#94a3b8' },
+      { label: 'Contactado', valor: 280, pct: 87, color: '#60a5fa' },
+      { label: 'Respondió', valor: 96, pct: 30, color: accent },
+      { label: 'Interesado', valor: 41, pct: 13, color: '#16a34a' },
+      { label: 'Venta concretada', valor: 14, pct: 4, color: '#15803d' },
+    ];
+
+    const porRubro = [
+      { rubro: 'Construcción', leads: 138, ventas: 7 },
+      { rubro: 'Comercio', leads: 94, ventas: 4 },
+      { rubro: 'Inversiones', leads: 52, ventas: 2 },
+      { rubro: 'Otros', leads: 36, ventas: 1 },
+    ];
+
+    // ---- RESPUESTAS ----
+    const ETAPAS = {
+      interesado: { label: 'Interesado', bg: '#ecfdf3', color: '#16a34a' },
+      duda: { label: 'Duda de precio', bg: '#fffbeb', color: '#b45309' },
+      conversacion: { label: 'En conversación', bg: '#eef2ff', color: '#4338ca' },
+    };
+    const RAW_REPLIES = [
+      { id: 'r1', empresa: 'Constructora Andina SAC', contacto: 'Rosa Injante', telefono: '+51 987 111 222', campana: 'Promo Feria Construye', rubro: 'Construcción', etapa: ETAPAS.interesado, iaSugerencia: 'Interesado', preview: 'Hola, sí me interesa, ¿me pueden llamar?', hace: 'hace 12 min', modoDefault: 'manual', escaladoPorAsesor: true, draft: 'Claro Rosa, te llamamos en un momento al mismo número.',
+        historial: [
+          { autor: 'lead', texto: 'Hola, vi la publicación de la feria', hora: 'hace 14 min' },
+          { autor: 'lead', texto: 'Hola, sí me interesa, ¿me pueden llamar?', hora: 'hace 12 min' },
+        ] },
+      { id: 'r2', empresa: 'Inversiones Ruwark', contacto: 'Miguel Torres', telefono: '+51 998 222 333', campana: 'Recordatorio trámites vigentes', rubro: 'Inversiones', etapa: ETAPAS.conversacion, iaSugerencia: null, preview: 'Gracias, lo reviso y les aviso cualquier cosa.', hace: 'hace 1 h', modoDefault: 'bot', escaladoPorAsesor: false, draft: 'Perfecto, quedamos atentos a tu respuesta.',
+        historial: [
+          { autor: 'bot', texto: '¡Hola! 👋 Gracias por escribirnos a Universoft Systems. ¿En qué puedo ayudarte hoy?', hora: 'hace 1 h 5 min' },
+          { autor: 'lead', texto: 'Gracias, lo reviso y les aviso cualquier cosa.', hora: 'hace 1 h' },
+        ] },
+      { id: 'r3', empresa: 'Grupo Vega EIRL', contacto: 'Diana Vega', telefono: '+51 955 333 444', campana: 'Promo Feria Construye', rubro: 'Comercio', etapa: ETAPAS.duda, iaSugerencia: 'Duda de precio', preview: '¿Cuánto cuesta el servicio completo?', hace: 'hace 2 h', modoDefault: 'bot', escaladoPorAsesor: false, draft: 'Depende del proyecto — un asesor te confirma el precio exacto.',
+        historial: [
+          { autor: 'lead', texto: '¿Cuánto cuesta el servicio completo?', hora: 'hace 2 h' },
+        ] },
+      { id: 'r4', empresa: 'Comercial Los Andes', contacto: 'Jorge Paredes', telefono: '+51 944 555 666', campana: 'Recordatorio trámites vigentes', rubro: 'Comercio', etapa: ETAPAS.interesado, iaSugerencia: null, preview: 'Perfecto, quedo atento.', hace: 'ayer', modoDefault: 'manual', escaladoPorAsesor: false, draft: 'Te aviso apenas tengamos novedades, Jorge.',
+        historial: [
+          { autor: 'yo', texto: 'Claro Jorge, te comparto el detalle del servicio por aquí mismo.', hora: 'ayer' },
+          { autor: 'lead', texto: 'Perfecto, quedo atento.', hora: 'ayer' },
+        ] },
+    ];
+    const bubbleBase = 'border-radius:12px; padding:11px 14px; max-width:72%; font-size:13px; line-height:1.45;';
+    const respuestas = RAW_REPLIES.map((r) => {
+      const isRead = readIds.includes(r.id) || r.id === selectedReplyId;
+      const isSelected = r.id === selectedReplyId;
+      const modoActual = modoOverrides[r.id] ?? r.modoDefault;
+      const modoEsBot = modoActual === 'bot';
+      const extraMsgs = sentMessages[r.id] ?? [];
+      const historialCompleto = [...r.historial, ...extraMsgs].map((m) => ({
+        ...m,
+        alignStyle: m.autor === 'yo' ? 'justify-content:flex-end;' : 'justify-content:flex-start;',
+        esBot: m.autor === 'bot',
+        horaColor: m.autor === 'yo' ? 'rgba(255,255,255,0.75)' : '#9aa1ac',
+        bubbleStyle: bubbleBase + (m.autor === 'yo'
+          ? ' background:' + accent + '; color:white; border-bottom-right-radius:2px;'
+          : ' background:#f5f6f8; color:#1e2532; border-bottom-left-radius:2px;'),
+      }));
+      return {
+        ...r,
+        historial: historialCompleto,
+        chatDraft: r.draft,
+        nameWeight: isRead ? '600' : '800',
+        rowStyle: 'display:block; width:100%; text-align:left; padding:14px 16px; border:none; border-bottom:1px solid #f1f2f5; background:' + (isSelected ? '#f5f6fa' : 'white') + ';',
+        select: () => this.setState({ selectedReplyId: r.id, readIds: Array.from(new Set([...readIds, r.id])) }),
+        modoEsBot,
+        modoEsManual: !modoEsBot,
+        modoDotColor: modoEsBot ? '#2b6cd4' : '#b45309',
+        toggleModo: () => this.setState({ modoOverrides: { ...modoOverrides, [r.id]: modoEsBot ? 'manual' : 'bot' } }),
+        enviarMensaje: () => this.setState({
+          sentMessages: { ...sentMessages, [r.id]: [...extraMsgs, { autor: 'yo', texto: r.draft, hora: 'ahora' }] },
+          modoOverrides: { ...modoOverrides, [r.id]: 'manual' },
+        }),
+      };
+    });
+    const seleccionada = respuestas.find((r) => r.id === selectedReplyId) ?? respuestas[0];
+    const tieneSugerenciaIA = !!seleccionada.iaSugerencia;
+    const unreadCount = RAW_REPLIES.filter((r) => !readIds.includes(r.id) && r.id !== selectedReplyId).length;
+
+    return {
+      accent,
+      isConnected,
+      isDisconnected: !isConnected,
+      connDotColor: isConnected ? '#22c55e' : '#f59e0b',
+      connFooterText: isConnected ? 'WhatsApp conectado' : 'WhatsApp desconectado',
+      nav,
+      showConexion: tab === 'conexion',
+      showLeads: tab === 'leads',
+      showPublicaciones: tab === 'publicaciones',
+      showReportes: tab === 'reportes',
+      showRespuestas: tab === 'respuestas',
+      showAuto: tab === 'auto',
+      showConfig: tab === 'config',
+
+      autoActivado,
+      toggleAutoActivado,
+      autoDotColor: autoActivado ? '#22c55e' : '#c6cad3',
+      autoEstadoTexto: autoActivado ? 'activado' : 'desactivado',
+      autoToggleBg: autoActivado ? accent : '#d7dae1',
+      autoToggleMargin: autoActivado ? 20 : 0,
+
+      leadsLists,
+
+      addingNumber,
+      toggleAddingNumber,
+      numeros,
+
+      goCola, goNueva, isPubCola, isPubNueva,
+      tabColaStyle: pillStyle(isPubCola),
+      tabNuevaStyle: pillStyle(isPubNueva),
+      campanas,
+      pubEnCursoCount,
+      pubBadgeBg: pubEnCursoCount > 0 ? '#ecfdf3' : '#eef0f3',
+      pubBadgeColor: pubEnCursoCount > 0 ? '#16a34a' : '#9aa1ac',
+
+      reportesCampanas,
+      embudo,
+      porRubro,
+
+      respuestas,
+      seleccionada,
+      tieneSugerenciaIA,
+      unreadCount,
+      hasUnread: unreadCount > 0,
+      showFicha,
+      abrirFicha,
+      cerrarFicha,
+    };
+  }
+}
+</script>
+</x-dc>
+</body>
+</html>

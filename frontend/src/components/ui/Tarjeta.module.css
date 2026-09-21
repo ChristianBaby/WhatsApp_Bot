@@ -1,0 +1,11 @@
+.tarjeta {
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-tarjeta);
+  padding: var(--padding-tarjeta);
+}
+
+.sinPadding {
+  padding: 0;
+  overflow: hidden;
+}
