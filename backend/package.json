@@ -13,6 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^2.23.0",
     "baileys": "7.0.0-rc14",
     "csv-parse": "^7.0.2",
     "dotenv": "^16.4.7",

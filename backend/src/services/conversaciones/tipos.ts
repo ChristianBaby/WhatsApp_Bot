@@ -1,5 +1,11 @@
 export type AutorMensaje = 'lead' | 'yo' | 'bot';
 
+/** bot: el auto-responder puede contestar aqui. manual: el usuario esta al mando (seccion 3.10). */
+export type ModoConversacion = 'bot' | 'manual';
+
+/** Por que se paso a modo manual de forma automatica (null = lo tomo el usuario a proposito). */
+export type EscaladoMotivo = 'palabra_clave' | 'baja_confianza';
+
 export type MensajeConversacion = {
   id: number;
   autor: AutorMensaje;
@@ -20,6 +26,11 @@ export type ConversacionResumen = {
   noLeidos: number;
   ultimoMensajeEn: string | null;
   ultimoMensajePreview: string | null;
+  modo: ModoConversacion;
+  escaladoMotivo: EscaladoMotivo | null;
+  /** Ultima sugerencia de la IA (interesado / no_interesado / duda_precio): solo sugerencia, nunca se aplica sola. */
+  iaSugerencia: string | null;
+  iaSugerenciaEn: string | null;
   creadoEn: string;
 };
 

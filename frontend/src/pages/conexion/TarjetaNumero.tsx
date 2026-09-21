@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Icono } from '../../components/ui/Icono';
 import { Boton } from '../../components/ui/Boton';
 import { Tarjeta } from '../../components/ui/Tarjeta';
+import { Interruptor } from '../../components/ui/Interruptor';
 import { api } from '../../lib/api';
 import { formatearRelativo } from '../../lib/fecha';
 import type { NumeroWhatsapp } from '../../lib/types';
@@ -57,6 +58,15 @@ export function TarjetaNumero({ numero, qr }: { numero: NumeroWhatsapp; qr: stri
     setProcesando(true);
     try {
       await api.post(`/numeros/${numero.id}/reconectar`);
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  async function cambiarAutoRespuestas(activo: boolean) {
+    setProcesando(true);
+    try {
+      await api.patch(`/numeros/${numero.id}/auto-respuestas`, { activo });
     } finally {
       setProcesando(false);
     }
@@ -144,6 +154,16 @@ export function TarjetaNumero({ numero, qr }: { numero: NumeroWhatsapp; qr: stri
       </div>
 
       {numero.estado === 'esperando_qr' && <PanelQR qr={qr} />}
+
+      <div className={estilos.filaAutoRespuestas}>
+        <span className={estilos.autoRespuestasTexto}>Auto-respuestas en este número</span>
+        <Interruptor
+          activo={numero.autoRespuestasActivo}
+          onCambio={(v) => void cambiarAutoRespuestas(v)}
+          disabled={procesando}
+          etiqueta="Auto-respuestas en este número"
+        />
+      </div>
     </Tarjeta>
   );
 }

@@ -10,6 +10,8 @@ export type NumeroWhatsapp = {
   estado: EstadoNumero;
   ultimoError: string | null;
   conectadoEn: string | null;
+  /** Interruptor por numero del auto-responder (seccion 3.10), ademas del global en "configuracion". */
+  autoRespuestasActivo: boolean;
   creadoEn: string;
   actualizadoEn: string;
 };
@@ -21,6 +23,7 @@ type FilaNumero = {
   estado: EstadoNumero;
   ultimo_error: string | null;
   conectado_en: string | null;
+  auto_respuestas_activo: boolean;
   creado_en: string;
   actualizado_en: string;
 };
@@ -33,6 +36,7 @@ function mapear(fila: FilaNumero): NumeroWhatsapp {
     estado: fila.estado,
     ultimoError: fila.ultimo_error,
     conectadoEn: fila.conectado_en,
+    autoRespuestasActivo: fila.auto_respuestas_activo,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
@@ -60,6 +64,15 @@ export async function renombrar(id: number, etiqueta: string): Promise<NumeroWha
   const fila = await consultarUno<FilaNumero>(
     'UPDATE numeros_whatsapp SET etiqueta = $2 WHERE id = $1 RETURNING *',
     [id, etiqueta],
+  );
+  if (!fila) throw noEncontrado('Numero no encontrado');
+  return mapear(fila);
+}
+
+export async function cambiarAutoRespuestas(id: number, activo: boolean): Promise<NumeroWhatsapp> {
+  const fila = await consultarUno<FilaNumero>(
+    'UPDATE numeros_whatsapp SET auto_respuestas_activo = $2 WHERE id = $1 RETURNING *',
+    [id, activo],
   );
   if (!fila) throw noEncontrado('Numero no encontrado');
   return mapear(fila);

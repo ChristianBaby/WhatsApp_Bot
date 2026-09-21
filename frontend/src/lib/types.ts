@@ -13,6 +13,7 @@ export type NumeroWhatsapp = {
   estado: EstadoNumero;
   ultimoError: string | null;
   conectadoEn: string | null;
+  autoRespuestasActivo: boolean;
   creadoEn: string;
   actualizadoEn: string;
 };
@@ -140,6 +141,9 @@ export type MensajeConversacion = {
   creadoEn: string;
 };
 
+export type ModoConversacion = 'bot' | 'manual';
+export type EscaladoMotivo = 'palabra_clave' | 'baja_confianza';
+
 export type ConversacionResumen = {
   id: number;
   leadId: number | null;
@@ -153,6 +157,10 @@ export type ConversacionResumen = {
   noLeidos: number;
   ultimoMensajeEn: string | null;
   ultimoMensajePreview: string | null;
+  modo: ModoConversacion;
+  escaladoMotivo: EscaladoMotivo | null;
+  iaSugerencia: string | null;
+  iaSugerenciaEn: string | null;
   creadoEn: string;
 };
 

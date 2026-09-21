@@ -179,6 +179,13 @@ export async function renombrar(numeroId: number, etiqueta: string): Promise<Num
   return actualizado;
 }
 
+/** Interruptor del auto-responder para este numero puntual (seccion 3.10). */
+export async function cambiarAutoRespuestas(numeroId: number, activo: boolean): Promise<NumeroWhatsapp> {
+  const actualizado = await repo.cambiarAutoRespuestas(numeroId, activo);
+  emitirActualizacion(actualizado);
+  return actualizado;
+}
+
 /**
  * Reintenta la conexion. Si las credenciales guardadas siguen siendo
  * validas (ej. un numero "pausado_error" por un corte de red), retoma la

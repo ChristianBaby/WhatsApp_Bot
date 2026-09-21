@@ -56,3 +56,14 @@ rutasNumeros.post(
     res.json(await gestor.cerrarSesionUsuario(id));
   }),
 );
+
+const esquemaAutoRespuestas = z.object({ activo: z.boolean() });
+
+rutasNumeros.patch(
+  '/numeros/:id/auto-respuestas',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const { activo } = esquemaAutoRespuestas.parse(req.body);
+    res.json(await gestor.cambiarAutoRespuestas(id, activo));
+  }),
+);

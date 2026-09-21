@@ -114,27 +114,19 @@ export async function marcarEnConversacion(leadId: number): Promise<void> {
   );
 }
 
+export type EtapaManual = 'interesado' | 'no_interesado' | 'duda_precio' | 'venta_concretada' | 'descartado';
+
 /**
- * Venta concretada / Descartado: exclusivamente manual (seccion 3.9). Nunca
- * se llama sola desde ningun otro lado del sistema — solo desde el boton
- * que el usuario aprieta a proposito.
+ * Cambios de etapa que solo pasan por decision del usuario (seccion 3.9):
+ * confirmar o corregir una sugerencia de la IA, o marcar venta concretada /
+ * descartado. Nunca se llama desde un flujo automatico del sistema.
  */
-export async function actualizarEtapaManual(leadId: number, etapa: 'venta_concretada' | 'descartado'): Promise<void> {
+export async function actualizarEtapaManual(leadId: number, etapa: EtapaManual): Promise<void> {
   await consultarUno('UPDATE leads SET etapa_pipeline = $2 WHERE id = $1', [leadId, etapa]);
 }
 
 export async function actualizarNotas(leadId: number, notas: string): Promise<void> {
   await consultarUno('UPDATE leads SET notas = $2 WHERE id = $1', [leadId, notas]);
-}
-
-/** El lead más reciente con ese telefono (puede repetirse entre listas distintas). */
-export async function buscarPorTelefono(telefono: string): Promise<LeadResumen | null> {
-  const fila = await consultarUno<FilaLead>(
-    'SELECT id, telefono, empresa, rubro, datos_extra FROM leads WHERE telefono = $1 ORDER BY id DESC LIMIT 1',
-    [telefono],
-  );
-  if (!fila) return null;
-  return { id: fila.id, telefono: fila.telefono, empresa: fila.empresa, rubro: fila.rubro, datosExtra: fila.datos_extra };
 }
 
 export type LeadDetalle = LeadResumen & {
@@ -145,12 +137,7 @@ export type LeadDetalle = LeadResumen & {
 
 type FilaLeadDetalle = FilaLead & { etapa_pipeline: string; notas: string | null; creado_en: string };
 
-export async function obtenerDetalle(leadId: number): Promise<LeadDetalle | null> {
-  const fila = await consultarUno<FilaLeadDetalle>(
-    'SELECT id, telefono, empresa, rubro, datos_extra, etapa_pipeline, notas, creado_en FROM leads WHERE id = $1',
-    [leadId],
-  );
-  if (!fila) return null;
+function mapearDetalle(fila: FilaLeadDetalle): LeadDetalle {
   return {
     id: fila.id,
     telefono: fila.telefono,
@@ -161,6 +148,24 @@ export async function obtenerDetalle(leadId: number): Promise<LeadDetalle | null
     notas: fila.notas,
     creadoEn: fila.creado_en,
   };
+}
+
+// Incluye etapa_pipeline: services/conversaciones/mensajeEntrante.ts la usa
+// para no sugerir clasificacion de IA en leads ya cerrados (venta_concretada/descartado).
+const SELECT_LEAD_DETALLE = 'SELECT id, telefono, empresa, rubro, datos_extra, etapa_pipeline, notas, creado_en FROM leads';
+
+/** El lead más reciente con ese telefono (puede repetirse entre listas distintas). */
+export async function buscarPorTelefono(telefono: string): Promise<LeadDetalle | null> {
+  const fila = await consultarUno<FilaLeadDetalle>(
+    `${SELECT_LEAD_DETALLE} WHERE telefono = $1 ORDER BY id DESC LIMIT 1`,
+    [telefono],
+  );
+  return fila ? mapearDetalle(fila) : null;
+}
+
+export async function obtenerDetalle(leadId: number): Promise<LeadDetalle | null> {
+  const fila = await consultarUno<FilaLeadDetalle>(`${SELECT_LEAD_DETALLE} WHERE id = $1`, [leadId]);
+  return fila ? mapearDetalle(fila) : null;
 }
 
 export async function obtenerExcluidos(listaId: number): Promise<LeadExcluido[]> {

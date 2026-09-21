@@ -1,6 +1,13 @@
 import { consultar, consultarUno } from '../../db/pool.js';
 import { noEncontrado } from '../../lib/errors.js';
-import type { AutorMensaje, ConversacionDetalle, ConversacionResumen, MensajeConversacion } from './tipos.js';
+import type {
+  AutorMensaje,
+  ConversacionDetalle,
+  ConversacionResumen,
+  EscaladoMotivo,
+  MensajeConversacion,
+  ModoConversacion,
+} from './tipos.js';
 
 /**
  * La lista de Respuestas (seccion 3.6) necesita, por cada conversacion: los
@@ -13,6 +20,7 @@ const SELECT_RESUMEN = `
   SELECT
     c.id, c.numero_id, c.lead_id, c.telefono, c.nombre_contacto,
     c.no_leidos, c.ultimo_mensaje_en, c.ultimo_mensaje_preview, c.creado_en,
+    c.modo, c.escalado_motivo, c.ia_sugerencia, c.ia_sugerencia_en,
     l.empresa, l.rubro, l.etapa_pipeline, l.notas,
     (
       SELECT p.nombre FROM publicacion_destinatarios pd
@@ -34,6 +42,10 @@ type FilaResumen = {
   ultimo_mensaje_en: string | null;
   ultimo_mensaje_preview: string | null;
   creado_en: string;
+  modo: ModoConversacion;
+  escalado_motivo: EscaladoMotivo | null;
+  ia_sugerencia: string | null;
+  ia_sugerencia_en: string | null;
   empresa: string | null;
   rubro: string | null;
   etapa_pipeline: string | null;
@@ -55,6 +67,10 @@ function mapearResumen(fila: FilaResumen): ConversacionResumen {
     noLeidos: fila.no_leidos,
     ultimoMensajeEn: fila.ultimo_mensaje_en,
     ultimoMensajePreview: fila.ultimo_mensaje_preview,
+    modo: fila.modo,
+    escaladoMotivo: fila.escalado_motivo,
+    iaSugerencia: fila.ia_sugerencia,
+    iaSugerenciaEn: fila.ia_sugerencia_en,
     creadoEn: fila.creado_en,
   };
 }
@@ -100,12 +116,17 @@ export type FilaConversacionCruda = {
   lead_id: number | null;
   telefono: string;
   no_leidos: number;
+  modo: ModoConversacion;
+  bienvenida_enviada_en: string | null;
 };
+
+const CAMPOS_CRUDOS = 'id, numero_id, lead_id, telefono, no_leidos, modo, bienvenida_enviada_en';
 
 /**
  * Busca la conversacion de (numero, telefono) o la crea si es la primera
  * vez que escriben. Devuelve el estado ANTES de agregar el mensaje actual
- * (util para decidir si avisar al dueño: ver services/conversaciones/mensajeEntrante.ts).
+ * (util para decidir si avisar al dueño y si corresponde auto-responder:
+ * ver services/conversaciones/mensajeEntrante.ts).
  */
 export async function obtenerOCrearConversacion(datos: {
   numeroId: number;
@@ -114,7 +135,7 @@ export async function obtenerOCrearConversacion(datos: {
   leadId: number | null;
 }): Promise<FilaConversacionCruda> {
   const existente = await consultarUno<FilaConversacionCruda>(
-    'SELECT id, numero_id, lead_id, telefono, no_leidos FROM conversaciones WHERE numero_id = $1 AND telefono = $2',
+    `SELECT ${CAMPOS_CRUDOS} FROM conversaciones WHERE numero_id = $1 AND telefono = $2`,
     [datos.numeroId, datos.telefono],
   );
 
@@ -137,7 +158,7 @@ export async function obtenerOCrearConversacion(datos: {
   const creada = await consultarUno<FilaConversacionCruda>(
     `INSERT INTO conversaciones (numero_id, lead_id, telefono, nombre_contacto)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, numero_id, lead_id, telefono, no_leidos`,
+     RETURNING ${CAMPOS_CRUDOS}`,
     [datos.numeroId, datos.leadId, datos.telefono, datos.nombreContacto],
   );
   return creada!;
@@ -202,4 +223,40 @@ export async function marcarLeida(conversacionId: number): Promise<ConversacionD
   const actualizada = await obtenerDetalle(conversacionId);
   if (!actualizada) throw noEncontrado('Conversacion no encontrada');
   return actualizada;
+}
+
+/**
+ * Cambia el modo bot/manual (seccion 3.10). motivo solo aplica al pasar a
+ * 'manual' de forma automatica (palabra clave / baja confianza); al volver
+ * a 'bot' o al tomarlo el usuario a proposito, se limpia.
+ */
+export async function cambiarModo(
+  conversacionId: number,
+  modo: ModoConversacion,
+  motivo: EscaladoMotivo | null = null,
+): Promise<void> {
+  await consultarUno('UPDATE conversaciones SET modo = $2, escalado_motivo = $3 WHERE id = $1', [
+    conversacionId,
+    modo,
+    modo === 'manual' ? motivo : null,
+  ]);
+}
+
+export async function marcarBienvenidaEnviada(conversacionId: number): Promise<void> {
+  await consultarUno('UPDATE conversaciones SET bienvenida_enviada_en = now() WHERE id = $1', [conversacionId]);
+}
+
+/** Sugerencia de la IA (seccion 3.9) — nunca toca leads.etapa_pipeline por si sola. */
+export async function guardarSugerenciaIA(conversacionId: number, sugerencia: string): Promise<void> {
+  await consultarUno('UPDATE conversaciones SET ia_sugerencia = $2, ia_sugerencia_en = now() WHERE id = $1', [
+    conversacionId,
+    sugerencia,
+  ]);
+}
+
+/** Se llama al confirmar o corregir una sugerencia: la tarjeta pendiente desaparece del panel. */
+export async function limpiarSugerenciaIA(conversacionId: number): Promise<void> {
+  await consultarUno('UPDATE conversaciones SET ia_sugerencia = NULL, ia_sugerencia_en = NULL WHERE id = $1', [
+    conversacionId,
+  ]);
 }

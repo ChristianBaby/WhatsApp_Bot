@@ -1,0 +1,66 @@
+.filaInterruptor {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.tituloInterruptor {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+}
+
+.descripcionInterruptor {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  margin-top: 2px;
+}
+
+.campo {
+  margin-bottom: 20px;
+}
+
+.etiqueta {
+  display: block;
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+  margin-bottom: 4px;
+}
+
+.ayuda {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin-bottom: 8px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-base);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.notaExtra {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.notaNumeros {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.guardado {
+  font-size: 12.5px;
+  color: var(--exito);
+  margin-left: 10px;
+}

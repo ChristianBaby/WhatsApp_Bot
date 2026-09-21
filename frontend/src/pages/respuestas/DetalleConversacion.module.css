@@ -38,6 +38,67 @@
   flex-shrink: 0;
 }
 
+.bannerBot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: var(--info-fondo);
+  color: var(--info);
+  font-size: var(--texto-menor);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.bannerManual {
+  padding: 10px 18px;
+  background: var(--alerta-fondo);
+  flex-shrink: 0;
+}
+
+.bannerManualFila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: var(--alerta);
+  font-size: var(--texto-menor);
+  font-weight: 600;
+}
+
+.bannerSubnota {
+  font-size: 11px;
+  color: var(--alerta);
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.etiquetaBot {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--texto-tenue);
+  margin-bottom: 3px;
+}
+
+.tarjetaSugerencia {
+  margin: 0 18px 14px 18px;
+  padding: 12px 14px;
+  border-radius: var(--radio-boton);
+  background: var(--exito-fondo);
+  border: 1px solid #bbf0d3;
+  font-size: var(--texto-cuerpo);
+  color: var(--texto-medio);
+  flex-shrink: 0;
+}
+
+.sugerenciaAcciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 .hilo {
   flex: 1;
   overflow-y: auto;
