@@ -1,0 +1,68 @@
+.lista {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: 1px solid var(--borde-fila);
+  background: white;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--fondo-sutil);
+}
+
+.item.seleccionado {
+  background: var(--fondo-sutil-2);
+}
+
+.filaSuperior {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.empresa {
+  font-size: var(--texto-cuerpo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.derecha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.puntoNoLeido {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--peligro-punto);
+  flex-shrink: 0;
+}
+
+.hace {
+  font-size: 11px;
+  color: var(--texto-tenue);
+  white-space: nowrap;
+}
+
+.preview {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 6px;
+}

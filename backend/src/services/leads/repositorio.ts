@@ -97,6 +97,72 @@ export async function marcarContactado(leadId: number): Promise<void> {
   );
 }
 
+/** Automatico en cuanto llega su primera respuesta (seccion 3.9). */
+export async function marcarRespondio(leadId: number): Promise<void> {
+  await consultarUno(
+    `UPDATE leads SET etapa_pipeline = 'respondio' WHERE id = $1 AND etapa_pipeline IN ('nuevo', 'contactado')`,
+    [leadId],
+  );
+}
+
+/** Automatico si hay varios intercambios de mensajes con ese lead (seccion 3.9). */
+export async function marcarEnConversacion(leadId: number): Promise<void> {
+  await consultarUno(
+    `UPDATE leads SET etapa_pipeline = 'en_conversacion'
+     WHERE id = $1 AND etapa_pipeline IN ('nuevo', 'contactado', 'respondio')`,
+    [leadId],
+  );
+}
+
+/**
+ * Venta concretada / Descartado: exclusivamente manual (seccion 3.9). Nunca
+ * se llama sola desde ningun otro lado del sistema — solo desde el boton
+ * que el usuario aprieta a proposito.
+ */
+export async function actualizarEtapaManual(leadId: number, etapa: 'venta_concretada' | 'descartado'): Promise<void> {
+  await consultarUno('UPDATE leads SET etapa_pipeline = $2 WHERE id = $1', [leadId, etapa]);
+}
+
+export async function actualizarNotas(leadId: number, notas: string): Promise<void> {
+  await consultarUno('UPDATE leads SET notas = $2 WHERE id = $1', [leadId, notas]);
+}
+
+/** El lead más reciente con ese telefono (puede repetirse entre listas distintas). */
+export async function buscarPorTelefono(telefono: string): Promise<LeadResumen | null> {
+  const fila = await consultarUno<FilaLead>(
+    'SELECT id, telefono, empresa, rubro, datos_extra FROM leads WHERE telefono = $1 ORDER BY id DESC LIMIT 1',
+    [telefono],
+  );
+  if (!fila) return null;
+  return { id: fila.id, telefono: fila.telefono, empresa: fila.empresa, rubro: fila.rubro, datosExtra: fila.datos_extra };
+}
+
+export type LeadDetalle = LeadResumen & {
+  etapaPipeline: string;
+  notas: string | null;
+  creadoEn: string;
+};
+
+type FilaLeadDetalle = FilaLead & { etapa_pipeline: string; notas: string | null; creado_en: string };
+
+export async function obtenerDetalle(leadId: number): Promise<LeadDetalle | null> {
+  const fila = await consultarUno<FilaLeadDetalle>(
+    'SELECT id, telefono, empresa, rubro, datos_extra, etapa_pipeline, notas, creado_en FROM leads WHERE id = $1',
+    [leadId],
+  );
+  if (!fila) return null;
+  return {
+    id: fila.id,
+    telefono: fila.telefono,
+    empresa: fila.empresa,
+    rubro: fila.rubro,
+    datosExtra: fila.datos_extra,
+    etapaPipeline: fila.etapa_pipeline,
+    notas: fila.notas,
+    creadoEn: fila.creado_en,
+  };
+}
+
 export async function obtenerExcluidos(listaId: number): Promise<LeadExcluido[]> {
   const filas = await consultar<FilaLeadExcluido>(
     'SELECT * FROM leads_excluidos WHERE lista_id = $1 ORDER BY fila_numero ASC',

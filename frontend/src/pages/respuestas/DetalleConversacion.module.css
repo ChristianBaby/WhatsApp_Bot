@@ -1,0 +1,112 @@
+.contenedor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--borde-fila);
+  flex-shrink: 0;
+}
+
+.nombreFila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.nombre {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+}
+
+.subtitulo {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+}
+
+.campana {
+  font-size: var(--texto-nano);
+  color: var(--texto-tenue);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hilo {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.filaBurbuja {
+  display: flex;
+}
+
+.burbuja {
+  border-radius: 12px;
+  padding: 10px 13px;
+  max-width: 72%;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.burbujaLead {
+  background: var(--fondo-app);
+  color: var(--texto);
+  border-bottom-left-radius: 2px;
+}
+
+.burbujaYo {
+  background: var(--acento);
+  color: white;
+  border-bottom-right-radius: 2px;
+  margin-left: auto;
+}
+
+.horaBurbuja {
+  font-size: 10.5px;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.filaInput {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--borde-fila);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  padding: 9px 13px;
+  border: 1px solid var(--borde-control);
+  border-radius: 20px;
+  font-size: var(--texto-base);
+  font-family: inherit;
+}
+
+.notaAyuda {
+  font-size: 11px;
+  color: var(--texto-tenue);
+  padding: 0 18px 12px 18px;
+  flex-shrink: 0;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  padding: 0 18px 16px 18px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}

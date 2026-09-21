@@ -34,11 +34,14 @@ export function useEstadoPanel(): IndicadoresSidebar {
     cargar();
   }, []);
 
-  // Los numeros cambian de estado en vivo (QR escaneado, sesion caida...).
-  // En vez de duplicar esa logica aqui, simplemente volvemos a pedir el
-  // resumen cuando algo cambia — un solo lugar calcula "hay conectado".
-  useSSE(['numeros'], {
+  // Numeros, publicaciones y conversaciones cambian en vivo (QR escaneado,
+  // campana en curso, respuesta nueva...). En vez de duplicar esa logica
+  // aqui, simplemente volvemos a pedir el resumen cuando algo cambia — un
+  // solo lugar (el backend) calcula cada indicador.
+  useSSE(['numeros', 'publicaciones', 'conversaciones'], {
     'numero:actualizado': cargar,
+    'publicacion:actualizada': cargar,
+    'conversacion:actualizada': cargar,
   });
 
   return {

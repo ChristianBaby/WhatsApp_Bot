@@ -7,6 +7,7 @@ import { noEncontrado } from '../../lib/errors.js';
 import { crearSesion, type SesionBaileys } from './socket.js';
 import * as repo from './repositorio.js';
 import type { NumeroWhatsapp } from './repositorio.js';
+import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
 
 /**
  * Orquesta todas las sesiones de WhatsApp activas (una por numero
@@ -126,6 +127,22 @@ async function iniciar(numeroId: number): Promise<void> {
       },
       onDesconectado: (motivo, mensaje) => {
         void manejarDesconexion(numeroId, motivo, mensaje);
+      },
+      onMensaje: (mensaje) => {
+        repo
+          .obtener(numeroId)
+          .then((numero) =>
+            procesarMensaje({
+              numeroId,
+              numeroEtiqueta: numero?.etiqueta ?? `Numero ${numeroId}`,
+              telefono: mensaje.telefono,
+              fromMe: mensaje.fromMe,
+              texto: mensaje.texto,
+              whatsappId: mensaje.whatsappId,
+              pushName: mensaje.pushName,
+            }),
+          )
+          .catch((err: unknown) => log.error({ err, numeroId }, 'No se pudo procesar un mensaje entrante'));
       },
     });
     entrada.sesion = sesion;

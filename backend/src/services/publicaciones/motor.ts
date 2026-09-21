@@ -5,6 +5,7 @@ import { idsNumerosConectados } from '../whatsapp/gestor.js';
 import { NumeroNoConectadoError, enviarMensaje, verificarEnWhatsapp } from '../whatsapp/envio.js';
 import * as leadsRepo from '../leads/repositorio.js';
 import * as configRepo from '../configuracion/repositorio.js';
+import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
 import * as repo from './repositorio.js';
 import { datosPlaceholderDeLead, elegirVariante, sustituirPlaceholders } from './plantilla.js';
 import type { ConfigEnvio, Publicacion } from './tipos.js';
@@ -90,10 +91,23 @@ async function procesarDestinatario(pub: Publicacion, destinatario: Destinatario
     if (pub.catalogoUrl) texto += `\n\n${pub.catalogoUrl}`;
 
     const adjunto = pub.adjuntoRuta && pub.adjuntoTipo ? { ruta: pub.adjuntoRuta, tipo: pub.adjuntoTipo } : null;
-    await enviarMensaje(destinatario.numeroId, destinatario.telefono, texto, adjunto);
+    const whatsappId = await enviarMensaje(destinatario.numeroId, destinatario.telefono, texto, adjunto);
 
     await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'enviado', { mensajeEnviado: texto });
     await leadsRepo.marcarContactado(destinatario.leadId);
+
+    // No se deja a merced del eco de Baileys: se registra aqui mismo para
+    // que el historial de la conversacion (seccion 3.6) exista desde el
+    // primer mensaje, no solo cuando el lead responde. Se pasa el
+    // whatsappId real para no duplicarlo si Baileys igual reemite el eco.
+    await procesarMensaje({
+      numeroId: destinatario.numeroId,
+      numeroEtiqueta: '', // no se usa: el aviso al dueño solo aplica a mensajes entrantes
+      telefono: destinatario.telefono,
+      fromMe: true,
+      texto,
+      whatsappId,
+    });
   } catch (err) {
     const motivo = err instanceof NumeroNoConectadoError ? err.message : (err as Error).message;
     await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'fallido', { motivoFallo: motivo });

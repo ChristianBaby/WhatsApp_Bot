@@ -1,0 +1,10 @@
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: calc(100vh - 170px);
+  min-height: 460px;
+}
+
+.columnaLista {
+  border-right: 1px solid var(--borde);
+}

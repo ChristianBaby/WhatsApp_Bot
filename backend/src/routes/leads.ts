@@ -89,3 +89,7 @@ rutasLeads.get(
     res.json(await repo.obtenerExcluidos(id));
   }),
 );
+
+// Notas y cambios manuales de etapa (venta concretada / descartado) se
+// exponen desde /conversaciones (routes/conversaciones.ts), no aqui: asi
+// pueden emitir el evento SSE de esa conversacion despues de guardar.

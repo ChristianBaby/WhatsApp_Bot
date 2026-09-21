@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { consultarUno } from '../db/pool.js';
 import { manejarAsync } from '../middleware/errorHandler.js';
+import * as conversacionesRepo from '../services/conversaciones/repositorio.js';
 
 export const rutasResumen = Router();
 
@@ -25,7 +26,7 @@ rutasResumen.get(
     res.json({
       hayNumeroConectado: conectado?.existe ?? false,
       publicacionesEnCurso: enCurso?.total ?? 0,
-      respuestasNoLeidas: 0, // Fase 4
+      respuestasNoLeidas: await conversacionesRepo.contarNoLeidas(),
       autoRespuestasActivas: autoRespuestas?.valor === true,
     });
   }),

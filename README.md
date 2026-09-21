@@ -16,7 +16,7 @@ Maquetación de referencia: [`docs/Main-html/`](./docs/Main-html/).
 | 1 | Conexión de WhatsApp multi-número (QR en vivo) | ✅ Completa |
 | 2 | Leads: carga de CSV/Excel, limpieza y validación | ✅ Completa |
 | 3 | Motor de envío, anti-baneo y cola de publicaciones | ✅ Completa |
-| 4 | Respuestas, chat integrado y mini-CRM | ⬜ Pendiente |
+| 4 | Respuestas, chat integrado y mini-CRM | ✅ Completa |
 | 5 | IA: clasificación de respuestas y auto-responder | ⬜ Pendiente |
 | 6 | Reportes y exportación | ⬜ Pendiente |
 | 7 | Configuración e integraciones externas | ⬜ Pendiente |
