@@ -17,12 +17,31 @@ body,
   height: 100%;
 }
 
+html {
+  /* Le dice al navegador que dibuje sus propios controles (scrollbars,
+     el calendario de <input type="date">, etc.) en oscuro o claro segun
+     el tema — sin esto quedarian siempre claros aunque el resto no. */
+  color-scheme: light;
+}
+
+html[data-tema='oscuro'] {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   font-family: var(--fuente-cuerpo);
   color: var(--texto);
   background: var(--fondo-app);
   -webkit-font-smoothing: antialiased;
+  /* Transicion suave al alternar el tema, no un salto brusco de color. */
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Imagenes (logo, adjuntos de campanas...) se atenuan un poco en oscuro
+   para no deslumbrar contra el fondo oscuro que las rodea. */
+img {
+  filter: var(--filtro-imagen);
 }
 
 h1,
@@ -75,7 +94,7 @@ textarea {
 }
 
 .scroll::-webkit-scrollbar-thumb {
-  background: #d8dce3;
+  background: var(--scrollbar-thumb);
   border-radius: 8px;
 }
 

@@ -10,7 +10,7 @@
   border-radius: var(--radio-control);
   font-size: var(--texto-control);
   font-family: inherit;
-  background: white;
+  background: var(--fondo-panel);
 }
 
 .tarjetasKpi {
@@ -21,7 +21,7 @@
 }
 
 .kpi {
-  background: white;
+  background: var(--fondo-panel);
   border: 1px solid var(--borde);
   border-radius: var(--radio-tarjeta);
   padding: 16px 18px;

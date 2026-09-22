@@ -17,7 +17,7 @@
 
 .primario {
   background: var(--acento);
-  color: #fff;
+  color: var(--texto-sobre-acento);
   padding: 10px 16px;
   border-radius: var(--radio-boton);
   font-size: var(--texto-cuerpo);

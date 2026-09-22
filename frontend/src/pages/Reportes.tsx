@@ -11,8 +11,8 @@ import estilos from './Reportes.module.css';
 type Periodo = 'ultimos30' | 'estemes' | 'todo';
 
 const COLOR_ETAPA: Record<string, string> = {
-  Nuevo: '#94a3b8',
-  Contactado: '#60a5fa',
+  Nuevo: 'var(--embudo-nuevo)',
+  Contactado: 'var(--embudo-contactado)',
   Respondió: 'var(--acento)',
   Interesado: 'var(--exito)',
   'Venta concretada': 'var(--exito-fuerte)',

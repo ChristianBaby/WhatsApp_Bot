@@ -14,7 +14,9 @@ export type NombreIcono =
   | 'config'
   | 'subir'
   | 'check'
-  | 'cerrar';
+  | 'cerrar'
+  | 'sol'
+  | 'luna';
 
 type Props = {
   nombre: NombreIcono;
@@ -84,6 +86,20 @@ export function Icono({ nombre, tamano = 18, color = 'currentColor', grosor = 1.
       {nombre === 'check' && <path d="M20 6 9 17l-5-5" {...comunes} strokeWidth={2.2} />}
 
       {nombre === 'cerrar' && <path d="M18 6 6 18M6 6l12 12" {...comunes} />}
+
+      {nombre === 'sol' && (
+        <>
+          <circle cx="12" cy="12" r="4" {...comunes} />
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+            {...comunes}
+          />
+        </>
+      )}
+
+      {nombre === 'luna' && (
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" {...comunes} />
+      )}
     </svg>
   );
 }

@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Icono, type NombreIcono } from '../components/ui/Icono';
 import { SECCIONES, type SeccionId } from '../lib/rutas';
+import { useTema } from '../hooks/useTema';
 import estilos from './Sidebar.module.css';
 
 /**
@@ -40,6 +41,7 @@ export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
     autoRespuestasActivas,
     textoPie,
   } = indicadores;
+  const { tema, alternar } = useTema();
 
   return (
     <aside className={estilos.sidebar}>
@@ -112,6 +114,18 @@ export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
         />
         <span className={estilos.pieTexto}>{textoPie}</span>
       </div>
+
+      <button
+        className={estilos.botonTema}
+        onClick={alternar}
+        title={tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        aria-label={tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      >
+        <Icono nombre={tema === 'oscuro' ? 'sol' : 'luna'} color="var(--texto-tenue)" tamano={16} />
+        <span className={estilos.botonTemaTexto}>
+          {tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro'}
+        </span>
+      </button>
 
       <button className={estilos.filaUsuario} onClick={onCerrarSesion} title="Cerrar sesión">
         <span className={estilos.usuarioTexto}>{usuario}</span>

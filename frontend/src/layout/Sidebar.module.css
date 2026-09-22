@@ -91,7 +91,7 @@
   padding: 0 4px;
   border-radius: var(--radio-chip);
   background: var(--peligro-punto);
-  color: #fff;
+  color: var(--texto-sobre-acento);
   font-size: 10px;
   font-weight: 700;
   display: flex;
@@ -120,7 +120,32 @@
 
 .pieTexto {
   font-size: var(--texto-micro);
-  color: #5b6472;
+  color: var(--texto-pie);
+  font-weight: 600;
+}
+
+/* --- Alternar tema claro/oscuro --- */
+
+.botonTema {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.botonTema:hover {
+  background: var(--fondo-sutil-2);
+}
+
+.botonTemaTexto {
+  font-size: var(--texto-micro);
+  color: var(--texto-tenue);
   font-weight: 600;
 }
 

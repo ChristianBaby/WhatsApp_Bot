@@ -3,6 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      Resuelve el tema (claro/oscuro) y lo pone en <html> ANTES de que se
+      pinte nada: asi nunca hay un parpadeo blanco al cargar en modo
+      oscuro. Si el usuario ya eligio un tema a mano (boton en el
+      sidebar), se respeta ese; si no, sigue la preferencia del sistema.
+      Ver hooks/useTema.ts para el lado de React (el toggle, el listener
+      de cambios del sistema en vivo).
+    -->
+    <script>
+      (function () {
+        try {
+          var esManual = localStorage.getItem('tema_manual') === 'true';
+          var guardado = localStorage.getItem('tema');
+          var tema;
+          if (esManual && (guardado === 'oscuro' || guardado === 'claro')) {
+            tema = guardado;
+          } else {
+            var prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            tema = prefiereOscuro ? 'oscuro' : 'claro';
+          }
+          document.documentElement.setAttribute('data-tema', tema);
+        } catch (e) {
+          /* localStorage bloqueado (modo privado estricto, etc.): se queda en claro. */
+        }
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

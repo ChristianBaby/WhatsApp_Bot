@@ -86,7 +86,7 @@
   padding: 12px 14px;
   border-radius: var(--radio-boton);
   background: var(--exito-fondo);
-  border: 1px solid #bbf0d3;
+  border: 1px solid var(--exito-borde);
   font-size: var(--texto-cuerpo);
   color: var(--texto-medio);
   flex-shrink: 0;

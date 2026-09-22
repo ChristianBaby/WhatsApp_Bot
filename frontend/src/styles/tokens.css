@@ -1,8 +1,15 @@
 /* ============================================================
    Design tokens — extraidos valor por valor de la maquetacion
-   (docs/Main-html/Main.dc.html). Esta es la unica fuente de
-   verdad del estilo: ningun componente escribe un color o un
-   tamano a mano.
+   (docs/Main-html/Main.dc.html) para el modo claro, mas su
+   equivalente en modo oscuro. Esta es la unica fuente de verdad
+   del estilo: ningun componente escribe un color o un tamano a
+   mano — todo pasa por una variable de aca.
+
+   El tema activo lo decide el atributo data-tema en <html>, que
+   pone un script inline en index.html ANTES del primer render
+   (localStorage si el usuario eligio a mano, si no
+   prefers-color-scheme) — asi nunca hay parpadeo blanco al cargar.
+   Ver hooks/useTema.ts para el lado de React.
    ============================================================ */
 
 :root {
@@ -33,12 +40,17 @@
   --texto-tenue-2: #9aa1ac;
   --texto-nav: #475269;
   --texto-placeholder: #94a3b8;
+  --texto-pie: #5b6472;
+  /* Texto sobre un fondo de --acento solido (botones primarios): blanco
+     funciona bien en los dos temas, se deja como variable por prolijidad. */
+  --texto-sobre-acento: #ffffff;
 
   /* --- Estados (fondo / texto) --- */
   --exito: #16a34a;
   --exito-fondo: #ecfdf3;
   --exito-fuerte: #15803d;
   --exito-punto: #22c55e;
+  --exito-borde: #bbf0d3;
 
   --alerta: #b45309;
   --alerta-fondo: #fffbeb;
@@ -54,6 +66,13 @@
 
   --inactivo: #c6cad3;
   --apagado: #d7dae1;
+
+  /* --- Graficos (embudo de Reportes) --- */
+  --embudo-nuevo: #94a3b8;
+  --embudo-contactado: #60a5fa;
+
+  /* --- Varios --- */
+  --scrollbar-thumb: #d8dce3;
 
   /* --- Tipografia --- */
   --fuente-titulo: 'Sora', system-ui, sans-serif;
@@ -82,4 +101,81 @@
   /* --- Sombras --- */
   --sombra-pill: 0 1px 2px rgba(0, 0, 0, 0.06);
   --sombra-modal: 0 20px 60px rgba(11, 17, 32, 0.22);
+
+  /* --- Imagenes --- */
+  --filtro-imagen: none;
+}
+
+/* ============================================================
+   Modo oscuro. Gris oscuro profundo (nunca negro puro) con grises
+   progresivamente mas claros para la elevacion de tarjetas/modales,
+   texto blanco roto (no #fff, evita fatiga visual) y los colores de
+   estado desaturados/aclarados para mantener buen contraste sobre
+   fondo oscuro (WCAG AA).
+   ============================================================ */
+:root[data-tema='oscuro'] {
+  /* --- Marca --- */
+  --acento: #6798eb;
+  --acento-suave: #6798eb26;
+
+  /* --- Superficies (elevacion: mas claro = "mas arriba") --- */
+  --fondo-app: #121212;
+  --fondo-panel: #1e1e1e;
+  --fondo-sutil: #242424;
+  --fondo-sutil-2: #262626;
+  --fondo-neutro: #2a2a2c;
+
+  /* --- Bordes --- */
+  --borde: #2f2f31;
+  --borde-control: #3a3a3d;
+  --borde-fila: #2a2a2c;
+
+  /* --- Texto (blanco roto, no #fff puro) --- */
+  --texto: #e0e0e0;
+  --texto-fuerte: #f5f5f5;
+  --texto-medio: #cbcbcb;
+  --texto-medio-2: #b3b3b3;
+  --texto-suave: #9a9a9a;
+  --texto-tenue: #838388;
+  --texto-tenue-2: #8f8f94;
+  --texto-nav: #b7bac4;
+  --texto-placeholder: #6e6e72;
+  --texto-pie: #a0a0a5;
+  --texto-sobre-acento: #ffffff;
+
+  /* --- Estados: fondo oscuro y desaturado, texto claro para contraste --- */
+  --exito: #4ade80;
+  --exito-fondo: #16321f;
+  --exito-fuerte: #6ee89a;
+  --exito-punto: #22c55e;
+  --exito-borde: #235233;
+
+  --alerta: #fbbf24;
+  --alerta-fondo: #3a2e10;
+  --alerta-punto: #f59e0b;
+
+  --info: #a5b4fc;
+  --info-fondo: #242660;
+
+  --peligro: #f87171;
+  --peligro-fondo: #3a1616;
+  --peligro-borde: #5c2323;
+  --peligro-punto: #ef4444;
+
+  --inactivo: #55555a;
+  --apagado: #3a3a3e;
+
+  /* --- Graficos --- */
+  --embudo-nuevo: #7c8894;
+  --embudo-contactado: #7cb4fb;
+
+  /* --- Varios --- */
+  --scrollbar-thumb: #3a3a3e;
+
+  /* --- Sombras: mas fuertes, la superficie clara ya hace de elevacion --- */
+  --sombra-pill: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sombra-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
+
+  /* --- Imagenes: se atenuan un poco para no deslumbrar sobre fondo oscuro --- */
+  --filtro-imagen: brightness(0.88) contrast(1.03);
 }
