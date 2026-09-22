@@ -1,31 +1,18 @@
 import { solicitudInvalida } from '../../lib/errors.js';
 import { normalizarTelefono } from '../../lib/telefono.js';
+import { CANDIDATOS_EMPRESA, CANDIDATOS_RUBRO, CANDIDATOS_TELEFONO, encontrarColumna, normalizarEncabezado } from './columnas.js';
 import type { ArchivoParseado } from './parseo.js';
 import type { FilaInvalida, FilaValida, ResultadoValidacion } from './tipos.js';
 
 /**
- * Detecta que columna del archivo es cada campo, valida y normaliza cada
- * fila, y arma el resumen que el usuario ve antes de confirmar la carga
- * (seccion 3.2). No toca la base de datos: es pura funcion de
- * entrada/salida, facil de probar y de ajustar.
+ * Valida y normaliza cada fila, y arma el resumen que el usuario ve antes
+ * de confirmar la carga (seccion 3.2). No toca la base de datos: es pura
+ * funcion de entrada/salida, facil de probar y de ajustar. La deteccion de
+ * columnas (que encabezado es telefono/empresa/rubro) vive en columnas.ts.
  */
-
-// Encabezados candidatos por campo, ya normalizados (sin tildes, minusculas).
-// El primero que calce con una columna del archivo (de izquierda a derecha) gana.
-const CANDIDATOS_TELEFONO = ['telefono', 'phone', 'celular', 'movil', 'whatsapp', 'numero'];
-const CANDIDATOS_EMPRESA = ['empresa', 'negocio', 'compania', 'company', 'razon social'];
-const CANDIDATOS_RUBRO = ['rubro', 'giro', 'sector', 'categoria', 'industria'];
 
 const TELEFONO_DIGITOS_MIN = 8;
 const TELEFONO_DIGITOS_MAX = 15;
-
-function normalizarEncabezado(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // quita tildes
-    .toLowerCase()
-    .trim();
-}
 
 /**
  * Nombre de columna -> nombre de variable de plantilla. "Contacto" y
@@ -37,15 +24,6 @@ function normalizarNombreVariable(texto: string): string {
   return normalizarEncabezado(texto)
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
-}
-
-function encontrarColumna(encabezados: string[], candidatos: string[]): string | null {
-  const normalizados = encabezados.map((h) => ({ original: h, normal: normalizarEncabezado(h) }));
-  for (const candidato of candidatos) {
-    const coincidencia = normalizados.find((h) => h.normal === candidato || h.normal.includes(candidato));
-    if (coincidencia) return coincidencia.original;
-  }
-  return null;
 }
 
 export function validarArchivo(archivo: ArchivoParseado): ResultadoValidacion {

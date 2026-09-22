@@ -1,6 +1,7 @@
 import { parse as parseCsv } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import { solicitudInvalida } from '../../lib/errors.js';
+import { CANDIDATOS_EMPRESA, CANDIDATOS_TELEFONO, encontrarColumna } from './columnas.js';
 
 /**
  * Lee un CSV o XLSX y lo deja como filas crudas (encabezado -> texto),
@@ -51,18 +52,44 @@ function parsearCsv(buffer: Buffer): ArchivoParseado {
   return { encabezados, filas };
 }
 
+function encabezadosDeHoja(hoja: ExcelJS.Worksheet): string[] {
+  const encabezados: string[] = [];
+  hoja.getRow(1).eachCell({ includeEmpty: false }, (celda, columna) => {
+    encabezados[columna - 1] = limpiarCelda(celda.value);
+  });
+  return encabezados;
+}
+
+/**
+ * Un Excel exportado de un buscador de leads (Google Maps, etc.) suele
+ * traer varias hojas: un "Resumen" sin tabla, la lista completa, un
+ * filtro... Se elige la hoja mas grande que de verdad tenga columnas de
+ * telefono y empresa, en vez de asumir siempre que es la primera.
+ */
+function elegirMejorHoja(libro: ExcelJS.Workbook): ExcelJS.Worksheet {
+  let mejor: { hoja: ExcelJS.Worksheet; filas: number } | null = null;
+
+  for (const hoja of libro.worksheets) {
+    const encabezados = encabezadosDeHoja(hoja);
+    const calza = encontrarColumna(encabezados, CANDIDATOS_TELEFONO) && encontrarColumna(encabezados, CANDIDATOS_EMPRESA);
+    if (calza && (!mejor || hoja.rowCount > mejor.filas)) {
+      mejor = { hoja, filas: hoja.rowCount };
+    }
+  }
+
+  // Si ninguna hoja califica, se cae a la primera — el error de "falta la
+  // columna de telefono" que tira validarArchivo sigue siendo claro.
+  return mejor?.hoja ?? libro.worksheets[0]!;
+}
+
 async function parsearXlsx(buffer: Buffer): Promise<ArchivoParseado> {
   const libro = new ExcelJS.Workbook();
   await libro.xlsx.load(buffer as unknown as ExcelJS.Buffer);
 
-  const hoja = libro.worksheets[0];
-  if (!hoja) throw solicitudInvalida('El archivo no tiene ninguna hoja');
+  if (libro.worksheets.length === 0) throw solicitudInvalida('El archivo no tiene ninguna hoja');
+  const hoja = elegirMejorHoja(libro);
 
-  const filaEncabezados = hoja.getRow(1);
-  const encabezados: string[] = [];
-  filaEncabezados.eachCell({ includeEmpty: false }, (celda, columna) => {
-    encabezados[columna - 1] = limpiarCelda(celda.value);
-  });
+  const encabezados = encabezadosDeHoja(hoja);
 
   if (encabezados.length === 0) {
     throw solicitudInvalida('El archivo esta vacio');

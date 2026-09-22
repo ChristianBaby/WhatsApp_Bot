@@ -17,6 +17,12 @@ auth_sessions/
 uploads/
 postgres_data/
 
+# Archivos de leads reales (datos de negocios/personas): nunca al repo,
+# solo se suben desde el panel a la base de datos.
+*.xlsx
+*.xls
+/*.csv
+
 # Logs
 *.log
 npm-debug.log*
