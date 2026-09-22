@@ -88,6 +88,10 @@ docker compose up --build     # app + postgres, igual que en el VPS
   Los textos que ve el usuario sí llevan tildes.
 - **Estilos:** todo color, tamaño y radio sale de `frontend/src/styles/tokens.css`.
   Ningún componente escribe un valor a mano.
+- **Modo oscuro:** paleta completa (`:root[data-tema='oscuro']` en `tokens.css`),
+  con detección automática de `prefers-color-scheme` y toggle manual persistido
+  en `localStorage` (botón sol/luna en el sidebar). Cualquier color nuevo debe
+  agregarse como token en ambas paletas, nunca a mano en un componente.
 - **Migraciones:** numeradas y nunca se editan una vez aplicadas. Para cambiar el
   esquema se agrega un archivo nuevo.
 - **Datos persistentes:** `auth_sessions/`, `uploads/` y el volumen de Postgres
