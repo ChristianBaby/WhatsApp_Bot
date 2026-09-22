@@ -1,0 +1,172 @@
+.filtros {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.select {
+  padding: 8px 12px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-control);
+  font-family: inherit;
+  background: white;
+}
+
+.tarjetasKpi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpi {
+  background: white;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-tarjeta);
+  padding: 16px 18px;
+}
+
+.kpiLabel {
+  font-size: var(--texto-nano);
+  font-weight: 700;
+  color: var(--texto-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpiValor {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--fuente-titulo);
+  margin-top: 6px;
+}
+
+.filaDos {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: start;
+}
+
+.columnaDerecha {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tituloPanel {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.embudoFila {
+  margin-bottom: 14px;
+}
+
+.embudoEncabezado {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--texto-cuerpo);
+  margin-bottom: 5px;
+}
+
+.embudoValor {
+  font-weight: 700;
+  color: var(--texto-medio);
+}
+
+.embudoBarraFondo {
+  height: 9px;
+  background: var(--fondo-neutro);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.embudoBarraRelleno {
+  height: 100%;
+  border-radius: 20px;
+  transition: width 0.4s ease;
+}
+
+.filaRubro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borde-fila);
+  font-size: var(--texto-cuerpo);
+}
+
+.filaRubro:last-child {
+  border-bottom: none;
+}
+
+.rubroNombre {
+  font-weight: 600;
+}
+
+.rubroDetalle {
+  color: var(--texto-tenue);
+  font-size: var(--texto-menor);
+}
+
+.rubroVentas {
+  color: var(--exito);
+  font-weight: 600;
+}
+
+.filaAutoResp {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: var(--texto-cuerpo);
+}
+
+.autoRespValor {
+  font-weight: 700;
+}
+
+.autoRespNota {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--borde-fila);
+}
+
+.tablaEncabezado {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.8fr 1fr 0.8fr 0.8fr 1fr;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: var(--texto-nano);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.tablaFila {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.8fr 1fr 0.8fr 0.8fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--borde-fila);
+  font-size: var(--texto-cuerpo);
+}
+
+.tablaFila:last-child {
+  border-bottom: none;
+}
+
+.nombreCampana {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

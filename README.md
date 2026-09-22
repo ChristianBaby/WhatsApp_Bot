@@ -18,7 +18,7 @@ Maquetación de referencia: [`docs/Main-html/`](./docs/Main-html/).
 | 3 | Motor de envío, anti-baneo y cola de publicaciones | ✅ Completa |
 | 4 | Respuestas, chat integrado y mini-CRM | ✅ Completa |
 | 5 | IA: clasificación de respuestas y auto-responder | ✅ Completa |
-| 6 | Reportes y exportación | ⬜ Pendiente |
+| 6 | Reportes y exportación | ✅ Completa |
 | 7 | Configuración e integraciones externas | ⬜ Pendiente |
 | 8 | Seguridad, despliegue en Coolify y producción | ⬜ Pendiente |
 

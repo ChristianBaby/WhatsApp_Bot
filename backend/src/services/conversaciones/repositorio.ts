@@ -234,12 +234,12 @@ export async function cambiarModo(
   conversacionId: number,
   modo: ModoConversacion,
   motivo: EscaladoMotivo | null = null,
+  palabra: string | null = null,
 ): Promise<void> {
-  await consultarUno('UPDATE conversaciones SET modo = $2, escalado_motivo = $3 WHERE id = $1', [
-    conversacionId,
-    modo,
-    modo === 'manual' ? motivo : null,
-  ]);
+  await consultarUno(
+    'UPDATE conversaciones SET modo = $2, escalado_motivo = $3, escalado_palabra = $4 WHERE id = $1',
+    [conversacionId, modo, modo === 'manual' ? motivo : null, modo === 'manual' ? palabra : null],
+  );
 }
 
 export async function marcarBienvenidaEnviada(conversacionId: number): Promise<void> {

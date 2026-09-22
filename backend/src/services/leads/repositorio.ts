@@ -122,7 +122,13 @@ export type EtapaManual = 'interesado' | 'no_interesado' | 'duda_precio' | 'vent
  * descartado. Nunca se llama desde un flujo automatico del sistema.
  */
 export async function actualizarEtapaManual(leadId: number, etapa: EtapaManual): Promise<void> {
-  await consultarUno('UPDATE leads SET etapa_pipeline = $2 WHERE id = $1', [leadId, etapa]);
+  await consultarUno(
+    `UPDATE leads
+     SET etapa_pipeline = $2,
+         venta_concretada_en = CASE WHEN $2 = 'venta_concretada' THEN now() ELSE venta_concretada_en END
+     WHERE id = $1`,
+    [leadId, etapa],
+  );
 }
 
 export async function actualizarNotas(leadId: number, notas: string): Promise<void> {

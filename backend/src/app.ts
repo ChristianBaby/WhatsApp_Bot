@@ -10,6 +10,7 @@ import { rutasAdjuntos } from './routes/adjuntos.js';
 import { rutasPublicaciones } from './routes/publicaciones.js';
 import { rutasConversaciones } from './routes/conversaciones.js';
 import { rutasConfiguracion } from './routes/configuracion.js';
+import { rutasReportes } from './routes/reportes.js';
 import { rutasResumen } from './routes/resumen.js';
 import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandler.js';
 import { crearLogger } from './lib/logger.js';
@@ -49,6 +50,7 @@ export function crearApp() {
   app.use('/api', rutasPublicaciones);
   app.use('/api', rutasConversaciones);
   app.use('/api', rutasConfiguracion);
+  app.use('/api', rutasReportes);
   app.use('/api', rutasResumen);
 
   // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).

@@ -141,9 +141,10 @@ async function intentarAutoResponder(msg: MensajeCrudo, conversacion: FilaConver
   if (decision.tipo === 'silencio') return;
 
   if (decision.tipo === 'escalar') {
-    await repo.cambiarModo(conversacion.id, 'manual', decision.motivo);
+    const palabra = decision.motivo === 'palabra_clave' ? decision.palabra : null;
+    await repo.cambiarModo(conversacion.id, 'manual', decision.motivo, palabra);
     emitirConversacion(conversacion.id);
-    log.info({ conversacionId: conversacion.id, motivo: decision.motivo }, 'Conversacion escalada a modo manual');
+    log.info({ conversacionId: conversacion.id, motivo: decision.motivo, palabra }, 'Conversacion escalada a modo manual');
     return;
   }
 

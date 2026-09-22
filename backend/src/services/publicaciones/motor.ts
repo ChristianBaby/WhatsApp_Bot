@@ -1,6 +1,7 @@
 import { crearLogger } from '../../lib/logger.js';
 import { emitir } from '../../lib/sse.js';
 import { noEncontrado, solicitudInvalida } from '../../lib/errors.js';
+import { normalizarTelefono } from '../../lib/telefono.js';
 import { idsNumerosConectados } from '../whatsapp/gestor.js';
 import { NumeroNoConectadoError, enviarMensaje, verificarEnWhatsapp } from '../whatsapp/envio.js';
 import * as leadsRepo from '../leads/repositorio.js';
@@ -76,6 +77,39 @@ async function completar(publicacionId: number): Promise<void> {
   proximaAccionPermitida.delete(publicacionId);
   emitirProgreso(publicacionId);
   log.info({ publicacionId }, 'Publicacion completada');
+  await avisarCampanaTerminada(publicacionId);
+}
+
+/** Resumen final de la campaña por WhatsApp al terminar (seccion 3.7). */
+async function avisarCampanaTerminada(publicacionId: number): Promise<void> {
+  try {
+    const telefonoDueno = await configRepo.obtenerValor<string>('telefono_propietario');
+    if (!telefonoDueno) return;
+    const destino = normalizarTelefono(telefonoDueno);
+    if (destino.length < 8) return;
+
+    const pub = await repo.obtenerConProgreso(publicacionId);
+    if (!pub) return;
+
+    const { progreso } = pub;
+    const duracion =
+      pub.iniciadaEn && pub.finalizadaEn
+        ? Math.round((new Date(pub.finalizadaEn).getTime() - new Date(pub.iniciadaEn).getTime()) / 60000)
+        : null;
+
+    const texto = [
+      `✅ Campaña "${pub.nombre}" terminada${duracion !== null ? ` en ${duracion} min` : ''}.`,
+      `Enviados: ${progreso.enviados} · Sin WhatsApp: ${progreso.sinWhatsapp} · Fallidos: ${progreso.fallidos}`,
+      `Total: ${progreso.totalDestinatarios} contactos`,
+    ].join('\n');
+
+    // Se manda desde el primer numero de la campana — cualquiera de sus
+    // numeros conectados sirve, este es solo un aviso al propio dueño.
+    const numeroId = pub.numeroIds[0];
+    if (numeroId !== undefined) await enviarMensaje(numeroId, destino, texto);
+  } catch (err) {
+    log.warn({ err, publicacionId }, 'No se pudo mandar el resumen final de la campaña');
+  }
 }
 
 async function procesarDestinatario(pub: Publicacion, destinatario: DestinatarioPendiente): Promise<void> {

@@ -168,3 +168,49 @@ export type ConversacionDetalle = ConversacionResumen & {
   notas: string | null;
   mensajes: MensajeConversacion[];
 };
+
+// --- Reportes (seccion 3.7) ---
+
+export type KpisGenerales = {
+  mensajesEnviados: number;
+  tasaRespuesta: number;
+  ventasConcretadas: number;
+  tasaConversion: number;
+};
+
+export type EtapaEmbudo = {
+  etapa: string;
+  valor: number;
+  pct: number;
+};
+
+export type RubroResumen = {
+  rubro: string;
+  leads: number;
+  ventas: number;
+};
+
+export type ResumenAutoResponder = {
+  atendidasPorBot: number;
+  escaladasAAsesor: number;
+  palabraMasUsada: { palabra: string; veces: number } | null;
+};
+
+export type CampanaResumen = {
+  id: number;
+  nombre: string;
+  fecha: string | null;
+  enviados: number;
+  sinWhatsapp: number;
+  fallidos: number;
+  tasaRespuesta: number;
+  duracionMinutos: number | null;
+};
+
+export type DatosReportes = {
+  kpis: KpisGenerales;
+  embudo: EtapaEmbudo[];
+  porRubro: RubroResumen[];
+  autoResponder: ResumenAutoResponder;
+  campanas: CampanaResumen[];
+};

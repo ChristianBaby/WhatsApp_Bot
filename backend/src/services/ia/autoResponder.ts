@@ -11,7 +11,8 @@ import { generarJSON } from './gemini.js';
 
 export type DecisionAutoResponder =
   | { tipo: 'silencio' }
-  | { tipo: 'escalar'; motivo: 'palabra_clave' | 'baja_confianza' }
+  | { tipo: 'escalar'; motivo: 'palabra_clave'; palabra: string }
+  | { tipo: 'escalar'; motivo: 'baja_confianza' }
   | { tipo: 'bienvenida'; texto: string }
   | { tipo: 'responder'; texto: string };
 
@@ -59,11 +60,11 @@ Si la información de arriba te permite responder con confianza, respondé breve
 
 export async function decidirRespuestaAutomatica(ctx: ContextoAutoResponder): Promise<DecisionAutoResponder> {
   const textoNormalizado = ctx.texto.toLowerCase();
-  const tienePalabraClave = ctx.palabrasEscalamiento.some((p) => {
+  const palabraEncontrada = ctx.palabrasEscalamiento.find((p) => {
     const palabra = p.trim().toLowerCase();
     return palabra && textoNormalizado.includes(palabra);
   });
-  if (tienePalabraClave) return { tipo: 'escalar', motivo: 'palabra_clave' };
+  if (palabraEncontrada) return { tipo: 'escalar', motivo: 'palabra_clave', palabra: palabraEncontrada.trim() };
 
   if (ctx.esPrimerMensaje) {
     const bienvenida = ctx.mensajeBienvenida.trim();
