@@ -30,6 +30,14 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const cuerpo = (await res.json().catch(() => ({}))) as RespuestaError;
+
+    // Sesion vencida o cerrada en otra pestaña: manda al login de una vez,
+    // salvo que el 401 venga del login mismo (ese es un error normal de
+    // usuario/contraseña, no "se te cerro la sesion").
+    if (res.status === 401 && !ruta.startsWith('/auth/')) {
+      window.location.href = '/login';
+    }
+
     throw new ErrorApi(
       cuerpo.error ?? `Error ${res.status}`,
       res.status,

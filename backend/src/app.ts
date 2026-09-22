@@ -1,9 +1,14 @@
 import express from 'express';
+import session from 'express-session';
+import createPgSessionStore from 'connect-pg-simple';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
+import { pool } from './db/pool.js';
 import { manejadorSSE } from './lib/sse.js';
+import { requiereSesion } from './middleware/auth.js';
 import { rutasSalud } from './routes/health.js';
+import { rutasAuth } from './routes/auth.js';
 import { rutasNumeros } from './routes/numeros.js';
 import { rutasLeads } from './routes/leads.js';
 import { rutasAdjuntos } from './routes/adjuntos.js';
@@ -29,6 +34,26 @@ export function crearApp() {
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
 
+  // Sesion del panel (seccion 8.5), guardada en Postgres: un reinicio del
+  // contenedor no desloguea a nadie. La cookie solo viaja por HTTPS en
+  // produccion (Coolify/Traefik terminan el TLS; trust proxy ya esta seteado).
+  const PgSessionStore = createPgSessionStore(session);
+  app.use(
+    session({
+      store: new PgSessionStore({ pool, tableName: 'session' }),
+      secret: env.SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      name: 'panel_sesion',
+      cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: env.esProd,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+      },
+    }),
+  );
+
   // Log de cada request (sin ruido de estaticos ni del latido de SSE).
   app.use((req, res, next) => {
     if (!req.path.startsWith('/api') && !req.path.startsWith('/webhooks')) return next();
@@ -43,7 +68,13 @@ export function crearApp() {
   });
 
   // --- API ---
+  // /api/health y /api/auth/* quedan sin proteger a proposito: el
+  // healthcheck de Docker no manda cookies, y el login es justo el paso
+  // anterior a tener una sesion.
   app.use('/api', rutasSalud);
+  app.use('/api', rutasAuth);
+
+  app.use('/api', requiereSesion);
   app.use('/api', rutasNumeros);
   app.use('/api', rutasLeads);
   app.use('/api', rutasAdjuntos);
@@ -54,10 +85,10 @@ export function crearApp() {
   app.use('/api', rutasResumen);
 
   // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).
-  app.get('/api/eventos', manejadorSSE);
+  app.get('/api/eventos', requiereSesion, manejadorSSE);
 
-  // Archivos subidos (imagenes/videos de las publicaciones).
-  app.use('/uploads', express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: true }));
+  // Archivos subidos (imagenes/videos de las publicaciones): solo con sesion.
+  app.use('/uploads', requiereSesion, express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: true }));
 
   // 404 solo para rutas de API; lo demas puede caer al panel.
   app.use('/api', manejadorNoEncontrado);

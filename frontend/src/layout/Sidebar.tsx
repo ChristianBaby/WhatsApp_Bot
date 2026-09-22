@@ -26,7 +26,13 @@ const ICONOS: Record<SeccionId, NombreIcono> = {
   config: 'config',
 };
 
-export function Sidebar({ indicadores }: { indicadores: IndicadoresSidebar }) {
+type Props = {
+  indicadores: IndicadoresSidebar;
+  usuario: string | null;
+  onCerrarSesion: () => void;
+};
+
+export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
   const {
     hayNumeroConectado,
     publicacionesEnCurso,
@@ -106,6 +112,11 @@ export function Sidebar({ indicadores }: { indicadores: IndicadoresSidebar }) {
         />
         <span className={estilos.pieTexto}>{textoPie}</span>
       </div>
+
+      <button className={estilos.filaUsuario} onClick={onCerrarSesion} title="Cerrar sesión">
+        <span className={estilos.usuarioTexto}>{usuario}</span>
+        <span className={estilos.cerrarSesionTexto}>Cerrar sesión</span>
+      </button>
     </aside>
   );
 }

@@ -123,3 +123,41 @@
   color: #5b6472;
   font-weight: 600;
 }
+
+.filaUsuario {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.filaUsuario:hover {
+  background: var(--fondo-sutil-2);
+}
+
+.filaUsuario:hover .cerrarSesionTexto {
+  color: var(--peligro);
+}
+
+.usuarioTexto {
+  font-size: var(--texto-micro);
+  color: var(--texto-tenue);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cerrarSesionTexto {
+  font-size: 11px;
+  color: var(--texto-tenue);
+  font-weight: 600;
+  flex-shrink: 0;
+}

@@ -7,6 +7,7 @@ import { cerrarTodos } from './lib/sse.js';
 import { logger } from './lib/logger.js';
 import * as gestorWhatsapp from './services/whatsapp/gestor.js';
 import * as motorPublicaciones from './services/publicaciones/motor.js';
+import { asegurarUsuarioAdmin } from './services/auth/arranque.js';
 
 /**
  * Arranque del servidor:
@@ -21,6 +22,7 @@ async function iniciar(): Promise<void> {
   await fs.mkdir(env.rutaSubidas, { recursive: true });
 
   await migrar();
+  await asegurarUsuarioAdmin();
 
   // No se espera a que terminen de reconectar: cada numero avisa por SSE
   // en cuanto cambia de estado, no hace falta bloquear el arranque del
