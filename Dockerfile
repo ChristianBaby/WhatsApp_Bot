@@ -8,7 +8,11 @@ FROM node:22-alpine AS panel
 
 WORKDIR /build/frontend
 COPY frontend/package*.json ./
-RUN npm ci
+# --include=dev: Coolify pone NODE_ENV=production en el entorno de build
+# (el ambiente se llama "production"), y con eso "npm ci" solo se salta las
+# devDependencies — que es justo donde vive TypeScript/Vite, necesarios
+# para compilar (no para correr, esta etapa nunca llega a produccion).
+RUN npm ci --include=dev
 COPY frontend/ ./
 RUN npm run build
 
@@ -18,7 +22,7 @@ FROM node:22-alpine AS backend
 
 WORKDIR /build/backend
 COPY backend/package*.json ./
-RUN npm ci
+RUN npm ci --include=dev
 COPY backend/ ./
 RUN npm run build
 

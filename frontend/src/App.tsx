@@ -3,6 +3,7 @@ import { Layout } from './layout/Layout';
 import { RUTA_INICIAL } from './lib/rutas';
 import { useAuth } from './hooks/useAuth';
 import { Login } from './pages/Login';
+import { Registro } from './pages/Registro';
 import { Conexion } from './pages/Conexion';
 import { Leads } from './pages/Leads';
 import { Publicaciones } from './pages/Publicaciones';
@@ -22,6 +23,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={usuario ? <Navigate to={RUTA_INICIAL} replace /> : <Login />} />
+        <Route path="/registro" element={usuario ? <Navigate to={RUTA_INICIAL} replace /> : <Registro />} />
         <Route
           element={usuario ? <Layout usuario={usuario} onCerrarSesion={cerrarSesion} /> : <Navigate to="/login" replace />}
         >

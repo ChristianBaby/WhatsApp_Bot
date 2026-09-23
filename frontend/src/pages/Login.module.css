@@ -65,3 +65,36 @@
   font-size: var(--texto-menor);
   margin-bottom: 16px;
 }
+
+.separador {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0;
+  color: var(--texto-tenue);
+  font-size: var(--texto-micro);
+}
+
+.separador::before,
+.separador::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--borde);
+}
+
+.pieEnlace {
+  text-align: center;
+  margin: 18px 0 0;
+  font-size: var(--texto-control);
+  color: var(--texto-tenue);
+}
+
+.pieEnlace a {
+  color: var(--acento);
+  font-weight: 700;
+}
+
+.pieEnlace a:hover {
+  opacity: 0.85;
+}

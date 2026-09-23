@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 
-type EstadoAuth = { cargando: boolean; usuario: string | null };
+export type Usuario = { nombre: string | null; apellido: string | null; email: string | null };
+
+type EstadoAuth = { cargando: boolean; usuario: Usuario | null };
 
 /** Sesion del panel (seccion 8.5). Se consulta una vez al cargar la app. */
 export function useAuth() {
@@ -9,8 +11,8 @@ export function useAuth() {
 
   useEffect(() => {
     api
-      .get<{ usuario: string }>('/auth/sesion')
-      .then((r) => setEstado({ cargando: false, usuario: r.usuario }))
+      .get<Usuario>('/auth/sesion')
+      .then((usuario) => setEstado({ cargando: false, usuario }))
       .catch(() => setEstado({ cargando: false, usuario: null }));
   }, []);
 

@@ -1,19 +1,56 @@
 import { consultarUno } from '../../db/pool.js';
 
-export type Usuario = { id: number; usuario: string; contrasenaHash: string };
+export type Usuario = {
+  id: number;
+  nombre: string | null;
+  apellido: string | null;
+  email: string | null;
+  contrasenaHash: string | null;
+};
 
-export async function buscarPorUsuario(usuario: string): Promise<Usuario | null> {
-  const fila = await consultarUno<{ id: number; usuario: string; contrasena_hash: string }>(
-    'SELECT id, usuario, contrasena_hash FROM usuarios WHERE usuario = $1',
-    [usuario],
-  );
-  return fila ? { id: fila.id, usuario: fila.usuario, contrasenaHash: fila.contrasena_hash } : null;
+type FilaUsuario = {
+  id: number;
+  nombre: string | null;
+  apellido: string | null;
+  email: string | null;
+  contrasena_hash: string | null;
+};
+
+const COLUMNAS = 'id, nombre, apellido, email, contrasena_hash';
+
+function mapear(fila: FilaUsuario): Usuario {
+  return {
+    id: fila.id,
+    nombre: fila.nombre,
+    apellido: fila.apellido,
+    email: fila.email,
+    contrasenaHash: fila.contrasena_hash,
+  };
 }
 
-export async function obtenerPorId(id: number): Promise<Pick<Usuario, 'id' | 'usuario'> | null> {
-  const fila = await consultarUno<{ id: number; usuario: string }>('SELECT id, usuario FROM usuarios WHERE id = $1', [
-    id,
+export async function buscarPorEmail(email: string): Promise<Usuario | null> {
+  const fila = await consultarUno<FilaUsuario>(`SELECT ${COLUMNAS} FROM usuarios WHERE LOWER(email) = LOWER($1)`, [
+    email,
   ]);
+  return fila ? mapear(fila) : null;
+}
+
+export async function buscarPorGoogleId(googleId: string): Promise<Usuario | null> {
+  const fila = await consultarUno<FilaUsuario>(`SELECT ${COLUMNAS} FROM usuarios WHERE google_id = $1`, [googleId]);
+  return fila ? mapear(fila) : null;
+}
+
+/** El admin de arranque (seccion 8.5) todavia se busca por su nombre de usuario heredado. */
+export async function buscarPorUsuario(usuario: string): Promise<Pick<Usuario, 'id'> | null> {
+  const fila = await consultarUno<{ id: number }>('SELECT id FROM usuarios WHERE usuario = $1', [usuario]);
+  return fila;
+}
+
+export async function obtenerPorId(id: number): Promise<Pick<Usuario, 'id' | 'nombre' | 'apellido' | 'email'> | null> {
+  const fila = await consultarUno<{ id: number; nombre: string | null; apellido: string | null; email: string | null }>(
+    'SELECT id, nombre, apellido, email FROM usuarios WHERE id = $1',
+    [id],
+  );
   return fila;
 }
 
@@ -22,8 +59,44 @@ export async function contarUsuarios(): Promise<number> {
   return fila?.total ?? 0;
 }
 
-export async function crearUsuario(usuario: string, contrasenaHash: string): Promise<void> {
-  await consultarUno('INSERT INTO usuarios (usuario, contrasena_hash) VALUES ($1, $2)', [usuario, contrasenaHash]);
+/** Bootstrap del admin original (arranque.ts), con usuario/contraseña como antes. */
+export async function crearUsuario(usuario: string, contrasenaHash: string): Promise<number> {
+  const fila = await consultarUno<{ id: number }>(
+    'INSERT INTO usuarios (usuario, contrasena_hash) VALUES ($1, $2) RETURNING id',
+    [usuario, contrasenaHash],
+  );
+  return fila!.id;
+}
+
+export type DatosRegistro = { nombre: string; apellido: string; email: string; contrasenaHash: string };
+
+/** Registro abierto del panel: nombre, apellido, correo y contraseña. */
+export async function registrarUsuario(datos: DatosRegistro): Promise<number> {
+  const fila = await consultarUno<{ id: number }>(
+    'INSERT INTO usuarios (nombre, apellido, email, contrasena_hash) VALUES ($1, $2, $3, $4) RETURNING id',
+    [datos.nombre, datos.apellido, datos.email, datos.contrasenaHash],
+  );
+  return fila!.id;
+}
+
+export type DatosRegistroGoogle = { nombre: string; apellido: string; email: string; googleId: string };
+
+/** Primera vez que esa cuenta de Google entra y no calzaba con ninguna existente: se crea sin contraseña. */
+export async function registrarUsuarioGoogle(datos: DatosRegistroGoogle): Promise<number> {
+  const fila = await consultarUno<{ id: number }>(
+    'INSERT INTO usuarios (nombre, apellido, email, google_id) VALUES ($1, $2, $3, $4) RETURNING id',
+    [datos.nombre, datos.apellido, datos.email, datos.googleId],
+  );
+  return fila!.id;
+}
+
+export async function vincularGoogle(id: number, googleId: string): Promise<void> {
+  await consultarUno('UPDATE usuarios SET google_id = $2 WHERE id = $1', [id, googleId]);
+}
+
+/** Solo rellena el correo si el usuario todavia no tiene uno guardado. */
+export async function establecerEmailSiFalta(id: number, email: string): Promise<void> {
+  await consultarUno('UPDATE usuarios SET email = $2 WHERE id = $1 AND email IS NULL', [id, email]);
 }
 
 export async function actualizarUltimoAcceso(id: number): Promise<void> {

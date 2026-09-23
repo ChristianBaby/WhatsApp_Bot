@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { useEstadoPanel } from '../hooks/useEstadoPanel';
+import type { Usuario } from '../hooks/useAuth';
 import estilos from './Layout.module.css';
 
 type Props = {
-  usuario: string | null;
+  usuario: Usuario | null;
   onCerrarSesion: () => void;
 };
 

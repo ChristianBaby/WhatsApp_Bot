@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { Icono, type NombreIcono } from '../components/ui/Icono';
 import { SECCIONES, type SeccionId } from '../lib/rutas';
 import { useTema } from '../hooks/useTema';
+import type { Usuario } from '../hooks/useAuth';
 import estilos from './Sidebar.module.css';
 
 /**
@@ -29,7 +30,7 @@ const ICONOS: Record<SeccionId, NombreIcono> = {
 
 type Props = {
   indicadores: IndicadoresSidebar;
-  usuario: string | null;
+  usuario: Usuario | null;
   onCerrarSesion: () => void;
 };
 
@@ -42,6 +43,9 @@ export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
     textoPie,
   } = indicadores;
   const { tema, alternar } = useTema();
+
+  const nombreMostrado =
+    [usuario?.nombre, usuario?.apellido].filter(Boolean).join(' ') || usuario?.email || '';
 
   return (
     <aside className={estilos.sidebar}>
@@ -128,7 +132,7 @@ export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
       </button>
 
       <button className={estilos.filaUsuario} onClick={onCerrarSesion} title="Cerrar sesión">
-        <span className={estilos.usuarioTexto}>{usuario}</span>
+        <span className={estilos.usuarioTexto}>{nombreMostrado}</span>
         <span className={estilos.cerrarSesionTexto}>Cerrar sesión</span>
       </button>
     </aside>

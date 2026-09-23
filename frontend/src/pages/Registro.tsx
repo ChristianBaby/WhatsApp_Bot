@@ -5,13 +5,9 @@ import { BotonGoogle } from '../components/ui/BotonGoogle';
 import { api, ErrorApi } from '../lib/api';
 import estilos from './Login.module.css';
 
-const ERRORES_GOOGLE: Record<string, string> = {
-  google_no_configurado: 'El login con Google no esta disponible.',
-  google_estado_invalido: 'La sesión con Google expiró, intenta de nuevo.',
-  google_fallo: 'No se pudo iniciar sesión con Google. Intenta de nuevo.',
-};
-
-export function Login() {
+export function Registro() {
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -23,20 +19,24 @@ export function Login() {
       .get<{ googleDisponible: boolean }>('/auth/config')
       .then((cfg) => setGoogleDisponible(cfg.googleDisponible))
       .catch(() => setGoogleDisponible(false));
-
-    const codigoError = new URLSearchParams(window.location.search).get('error');
-    if (codigoError) setError(ERRORES_GOOGLE[codigoError] ?? 'No se pudo iniciar sesión con Google.');
   }, []);
 
+  const completo = nombre.trim() && apellido.trim() && email.trim() && contrasena.length >= 8;
+
   async function enviar() {
-    if (!email.trim() || !contrasena) return;
+    if (!completo) return;
     setEnviando(true);
     setError(null);
     try {
-      await api.post('/auth/login', { email: email.trim(), contrasena });
+      await api.post('/auth/registro', {
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        email: email.trim(),
+        contrasena,
+      });
       window.location.href = '/';
     } catch (err) {
-      setError(err instanceof ErrorApi ? err.message : 'No se pudo iniciar sesión');
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo crear la cuenta');
       setEnviando(false);
     }
   }
@@ -56,6 +56,33 @@ export function Login() {
           }}
         >
           <div className={estilos.campo}>
+            <label className={estilos.etiqueta} htmlFor="nombre">
+              Nombre
+            </label>
+            <input
+              id="nombre"
+              className={estilos.input}
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              autoFocus
+              disabled={enviando}
+            />
+          </div>
+
+          <div className={estilos.campo}>
+            <label className={estilos.etiqueta} htmlFor="apellido">
+              Apellido
+            </label>
+            <input
+              id="apellido"
+              className={estilos.input}
+              value={apellido}
+              onChange={(e) => setApellido(e.target.value)}
+              disabled={enviando}
+            />
+          </div>
+
+          <div className={estilos.campo}>
             <label className={estilos.etiqueta} htmlFor="email">
               Correo
             </label>
@@ -65,7 +92,6 @@ export function Login() {
               className={estilos.input}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoFocus
               disabled={enviando}
             />
           </div>
@@ -86,8 +112,8 @@ export function Login() {
 
           {error && <div className={estilos.error}>{error}</div>}
 
-          <Boton ancho disabled={enviando || !email.trim() || !contrasena} type="submit">
-            {enviando ? 'Ingresando…' : 'Ingresar'}
+          <Boton ancho disabled={enviando || !completo} type="submit">
+            {enviando ? 'Creando cuenta…' : 'Crear cuenta'}
           </Boton>
         </form>
 
@@ -101,7 +127,7 @@ export function Login() {
         )}
 
         <p className={estilos.pieEnlace}>
-          ¿No tienes cuenta? <Link to="/registro">Regístrate</Link>
+          ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
         </p>
       </div>
     </div>
