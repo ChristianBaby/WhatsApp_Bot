@@ -91,6 +91,55 @@
   margin-bottom: 8px;
 }
 
+.tablaDatosContenedor {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-boton);
+  max-height: 320px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+
+.tablaDatos {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--texto-cuerpo);
+  white-space: nowrap;
+}
+
+.tablaDatos thead th {
+  position: sticky;
+  top: 0;
+  background: var(--fondo-sutil);
+  text-align: left;
+  font-size: var(--texto-nano);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.tablaDatos tbody td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--borde-fila);
+  color: var(--texto-medio);
+}
+
+.tablaDatos tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tablaDatos tbody tr:hover {
+  background: var(--fondo-sutil);
+}
+
+.notaTabla {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin: 0 0 22px;
+}
+
 .tablaExcluidos {
   border: 1px solid var(--borde);
   border-radius: var(--radio-boton);

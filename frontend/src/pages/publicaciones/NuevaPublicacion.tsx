@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Tarjeta } from '../../components/ui/Tarjeta';
 import { Boton } from '../../components/ui/Boton';
-import { Icono } from '../../components/ui/Icono';
 import { api, ErrorApi } from '../../lib/api';
 import type { ListaLeads, NumeroWhatsapp, Publicacion, ResultadoDryRun } from '../../lib/types';
 import { AdjuntoCampo, type Adjunto } from './AdjuntoCampo';
+import { VarianteMensaje } from './VarianteMensaje';
 import { PanelRitmo, SIN_OVERRIDES, type OverridesRitmo } from './PanelRitmo';
 import { ModalDryRun } from './ModalDryRun';
 import { ModalPrueba } from './ModalPrueba';
@@ -199,6 +199,9 @@ export function NuevaPublicacion({ publicacionId, onGuardado, onCancelar }: Prop
     .filter((n) => numeroIdsSeleccionados.includes(n.id))
     .map((n) => ({ id: n.id, etiqueta: n.etiqueta }));
 
+  const listaSeleccionada = listas.find((l) => l.id === listaId) ?? null;
+  const variablesDisponibles = listaSeleccionada ? ['empresa', 'rubro', ...listaSeleccionada.columnasExtra] : ['empresa', 'rubro'];
+
   return (
     <div className={estilos.layout}>
       <Tarjeta className={estilos.formulario}>
@@ -229,20 +232,14 @@ export function NuevaPublicacion({ publicacionId, onGuardado, onCancelar }: Prop
             Variantes del mensaje <span className={estilos.etiquetaAyuda}>(se elige una al azar por contacto)</span>
           </label>
           {variantes.map((v, i) => (
-            <div className={estilos.variante} key={i}>
-              <textarea
-                className={estilos.textarea}
-                rows={2}
-                value={v}
-                onChange={(e) => actualizarVariante(i, e.target.value)}
-                placeholder="Hola {contacto}, le escribimos de Universoft para compartirle esta publicación de {empresa} 👇"
-              />
-              {variantes.length > 1 && (
-                <button className={estilos.varianteQuitar} onClick={() => quitarVariante(i)} aria-label="Quitar variante">
-                  <Icono nombre="cerrar" tamano={16} />
-                </button>
-              )}
-            </div>
+            <VarianteMensaje
+              key={i}
+              valor={v}
+              onCambio={(valor) => actualizarVariante(i, valor)}
+              variablesDisponibles={variablesDisponibles}
+              placeholder="Hola *{empresa}*, le escribimos de Universoft para compartirle esta publicación 👇"
+              onQuitar={variantes.length > 1 ? () => quitarVariante(i) : undefined}
+            />
           ))}
           <button className={estilos.agregarVariante} onClick={agregarVariante}>
             + Agregar otra variante

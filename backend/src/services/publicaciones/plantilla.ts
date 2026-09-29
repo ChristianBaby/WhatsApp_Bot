@@ -13,13 +13,18 @@ export function sustituirPlaceholders(texto: string, datos: Record<string, strin
   return texto.replace(/\{(\w+)\}/g, (coincidencia, clave: string) => datos[clave] ?? coincidencia);
 }
 
-/** Arma el diccionario de variables disponibles para un lead: {empresa} + sus columnas libres. */
-export function datosPlaceholderDeLead(lead: { empresa: string; datosExtra: Record<string, string> }): Record<string, string> {
-  return { empresa: lead.empresa, ...lead.datosExtra };
+/** Arma el diccionario de variables disponibles para un lead: {empresa}, {rubro} (si tiene) + sus columnas libres. */
+export function datosPlaceholderDeLead(lead: { empresa: string; rubro?: string | null; datosExtra: Record<string, string> }): Record<string, string> {
+  return {
+    empresa: lead.empresa,
+    ...(lead.rubro ? { rubro: lead.rubro } : {}),
+    ...lead.datosExtra,
+  };
 }
 
 /** Datos de muestra para dry-run/prueba cuando no hay un lead real de referencia. */
 export const DATOS_PLACEHOLDER_MUESTRA: Record<string, string> = {
   empresa: 'Empresa de Prueba',
   contacto: 'Contacto de Prueba',
+  rubro: 'Rubro de Prueba',
 };

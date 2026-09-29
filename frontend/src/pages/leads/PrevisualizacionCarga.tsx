@@ -18,11 +18,14 @@ type Props = {
  * de esto toca la base de datos todavia — el usuario decide si confirma
  * o corrige el archivo origen y vuelve a intentar.
  */
+const FILAS_TABLA_MAX = 200;
+
 export function PrevisualizacionCarga({ previsualizacion, guardando, onConfirmar, onCancelar }: Props) {
-  const { nombreArchivoOriginal, resumen, columnasExtra, filasInvalidas } = previsualizacion;
+  const { nombreArchivoOriginal, resumen, columnasExtra, filasValidas, filasInvalidas } = previsualizacion;
   const [nombre, setNombre] = useState(() => nombreArchivoOriginal.replace(/\.(csv|xlsx)$/i, ''));
 
   const puedeConfirmar = nombre.trim().length > 0 && resumen.validas > 0 && !guardando;
+  const filasAMostrar = filasValidas.slice(0, FILAS_TABLA_MAX);
 
   return (
     <div>
@@ -87,6 +90,48 @@ export function PrevisualizacionCarga({ previsualizacion, guardando, onConfirmar
           </div>
         )}
       </div>
+
+      {filasAMostrar.length > 0 && (
+        <div>
+          <div className={estilos.tituloDetalle}>
+            Vista previa de columnas ({resumen.validas} fila{resumen.validas === 1 ? '' : 's'} válida
+            {resumen.validas === 1 ? '' : 's'})
+          </div>
+          <div className={estilos.tablaDatosContenedor}>
+            <table className={estilos.tablaDatos}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Teléfono</th>
+                  <th>Empresa</th>
+                  <th>Rubro</th>
+                  {columnasExtra.map((c) => (
+                    <th key={c}>{c}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filasAMostrar.map((fila) => (
+                  <tr key={fila.filaNumero}>
+                    <td className={estilos.numeroFila}>{fila.filaNumero}</td>
+                    <td>{fila.telefono}</td>
+                    <td>{fila.empresa}</td>
+                    <td>{fila.rubro ?? '—'}</td>
+                    {columnasExtra.map((c) => (
+                      <td key={c}>{fila.datosExtra[c] ?? '—'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filasValidas.length > FILAS_TABLA_MAX && (
+            <p className={estilos.notaTabla}>
+              Mostrando las primeras {FILAS_TABLA_MAX} de {filasValidas.length} filas válidas.
+            </p>
+          )}
+        </div>
+      )}
 
       {filasInvalidas.length > 0 && (
         <div>
