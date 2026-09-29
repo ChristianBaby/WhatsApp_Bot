@@ -1,42 +1,77 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { Boton } from '../components/ui/Boton';
-import { BotonGoogle } from '../components/ui/BotonGoogle';
-import { api, ErrorApi } from '../lib/api';
+import { GATEWAY_URL, guardarSesion, type Usuario } from '../lib/authSession';
 import estilos from './Login.module.css';
 
-const ERRORES_GOOGLE: Record<string, string> = {
-  google_no_configurado: 'El login con Google no esta disponible.',
-  google_estado_invalido: 'La sesión con Google expiró, intenta de nuevo.',
-  google_fallo: 'No se pudo iniciar sesión con Google. Intenta de nuevo.',
+type RespuestaLoginOk = {
+  success: true;
+  data: {
+    usuario: Record<string, unknown> & { id?: string; email?: string; rol?: { nombre?: string } | string };
+    accessToken: string;
+    refreshToken: string;
+  };
 };
+
+type RespuestaLoginError = {
+  success: false;
+  message?: string;
+  error?: string;
+  attemptsLeft?: number;
+  retryAfter?: number;
+};
+
+/** Arma el nombre a mostrar sin asumir si la cuenta vive en `usuarios` (empleado) o `usuarios_externos`. */
+function nombreDeUsuario(u: Record<string, unknown>): string | undefined {
+  const nombre = (u.nombre as string) || (u.nombres as string);
+  const apellido = (u.apellido_paterno as string) || (u.apellidos as string);
+  const completo = [nombre, apellido].filter(Boolean).join(' ');
+  return completo || undefined;
+}
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
+  const [recordar, setRecordar] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [googleDisponible, setGoogleDisponible] = useState(false);
-
-  useEffect(() => {
-    api
-      .get<{ googleDisponible: boolean }>('/auth/config')
-      .then((cfg) => setGoogleDisponible(cfg.googleDisponible))
-      .catch(() => setGoogleDisponible(false));
-
-    const codigoError = new URLSearchParams(window.location.search).get('error');
-    if (codigoError) setError(ERRORES_GOOGLE[codigoError] ?? 'No se pudo iniciar sesión con Google.');
-  }, []);
 
   async function enviar() {
     if (!email.trim() || !contrasena) return;
     setEnviando(true);
     setError(null);
+
     try {
-      await api.post('/auth/login', { email: email.trim(), contrasena });
+      const res = await fetch(`${GATEWAY_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password: contrasena, rememberMe: recordar }),
+      });
+      const cuerpo = (await res.json()) as RespuestaLoginOk | RespuestaLoginError;
+
+      if (!res.ok || !cuerpo.success) {
+        const fallo = cuerpo as RespuestaLoginError;
+        if (fallo.error === 'RATE_LIMIT_EXCEEDED') {
+          setError('Demasiados intentos. Espera un momento e intenta de nuevo.');
+        } else {
+          setError(fallo.message || 'Correo o contraseña incorrectos');
+        }
+        setEnviando(false);
+        return;
+      }
+
+      const { usuario, accessToken, refreshToken } = cuerpo.data;
+      const rol = typeof usuario.rol === 'string' ? usuario.rol : usuario.rol?.nombre;
+      const usuarioNormalizado: Usuario = {
+        id: String(usuario.id ?? ''),
+        email: usuario.email as string | undefined,
+        nombre: nombreDeUsuario(usuario),
+        rol,
+      };
+
+      guardarSesion({ accessToken, refreshToken, usuario: usuarioNormalizado }, recordar);
       window.location.href = '/';
-    } catch (err) {
-      setError(err instanceof ErrorApi ? err.message : 'No se pudo iniciar sesión');
+    } catch {
+      setError('No se pudo conectar con el servidor de acceso');
       setEnviando(false);
     }
   }
@@ -84,25 +119,22 @@ export function Login() {
             />
           </div>
 
+          <label className={estilos.recordar}>
+            <input
+              type="checkbox"
+              checked={recordar}
+              onChange={(e) => setRecordar(e.target.checked)}
+              disabled={enviando}
+            />
+            Mantener sesión iniciada en este dispositivo
+          </label>
+
           {error && <div className={estilos.error}>{error}</div>}
 
           <Boton ancho disabled={enviando || !email.trim() || !contrasena} type="submit">
             {enviando ? 'Ingresando…' : 'Ingresar'}
           </Boton>
         </form>
-
-        {googleDisponible && (
-          <>
-            <div className={estilos.separador}>
-              <span>o</span>
-            </div>
-            <BotonGoogle texto="Continuar con Google" disabled={enviando} />
-          </>
-        )}
-
-        <p className={estilos.pieEnlace}>
-          ¿No tienes cuenta? <Link to="/registro">Regístrate</Link>
-        </p>
       </div>
     </div>
   );

@@ -73,7 +73,7 @@ export function NuevaPublicacion({ publicacionId, onGuardado, onCancelar }: Prop
               ruta: pub.adjuntoRuta,
               tipo: pub.adjuntoTipo,
               nombreOriginal: pub.adjuntoNombreOriginal ?? pub.adjuntoRuta,
-              url: `/uploads/${pub.adjuntoRuta}`,
+              url: `/api/uploads/${pub.adjuntoRuta}`,
               tamano: 0,
             }
           : null,

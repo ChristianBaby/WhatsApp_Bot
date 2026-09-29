@@ -28,15 +28,11 @@ const esquema = z.object({
   POSTGRES_HOST: z.string().min(1).default('postgres'),
   POSTGRES_PORT: z.coerce.number().int().positive().default(5432),
 
-  SESSION_SECRET: z.string().min(16, 'debe tener al menos 16 caracteres'),
-  ADMIN_USERNAME: z.string().min(1).default('admin'),
-  ADMIN_PASSWORD: z.string().default(''),
-  ADMIN_EMAIL: z.string().default(''),
-
-  // Login con Google (seccion 8.5, opcional): si faltan, el boton de
-  // "Iniciar sesion con Google" simplemente no aparece en el panel.
-  GOOGLE_CLIENT_ID: z.string().default(''),
-  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  // Identidad y sesion ahora las maneja el ecosistema Ruwark (micro_login +
+  // Api_gateway): el panel deja de tener su propio usuario/contrasena. Este
+  // token es el mismo MICROSERVICE_TOKEN del Gateway — confirma que un
+  // request a /api/* realmente vino de ahi y no directo de internet.
+  MICROSERVICE_TOKEN: z.string().min(16, 'debe tener al menos 16 caracteres'),
 
   GEMINI_API_KEY: z.string().default(''),
   GEMINI_MODEL: z.string().default('gemini-2.5-flash-lite'),
@@ -72,8 +68,4 @@ export const env = {
   urlBaseDatos: `postgres://${encodeURIComponent(cfg.POSTGRES_USER)}:${encodeURIComponent(
     cfg.POSTGRES_PASSWORD,
   )}@${cfg.POSTGRES_HOST}:${cfg.POSTGRES_PORT}/${cfg.POSTGRES_DB}`,
-  googleDisponible: Boolean(cfg.GOOGLE_CLIENT_ID && cfg.GOOGLE_CLIENT_SECRET),
-  // Debe estar registrada tal cual en Google Cloud Console ("URI de
-  // redireccionamiento autorizados" del Client ID OAuth).
-  googleRedirectUri: `${cfg.APP_URL}/api/auth/google/callback`,
 } as const;

@@ -46,7 +46,7 @@ rutasAdjuntos.post(
       tipo,
       nombreOriginal: req.file.originalname,
       tamano: req.file.size,
-      url: `/uploads/${req.file.filename}`,
+      url: `/api/uploads/${req.file.filename}`,
     });
   }),
 );

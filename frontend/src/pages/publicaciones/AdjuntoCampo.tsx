@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Icono } from '../../components/ui/Icono';
-import { api, ErrorApi } from '../../lib/api';
+import { api, ErrorApi, urlAsset } from '../../lib/api';
 import estilos from './AdjuntoCampo.module.css';
 
 export type Adjunto = {
@@ -53,7 +53,7 @@ export function AdjuntoCampo({ valor, onCambio, disabled }: Props) {
         tabIndex={0}
       >
         {valor?.tipo === 'imagen' ? (
-          <img src={valor.url} alt="" className={estilos.miniatura} />
+          <img src={urlAsset(valor.url)} alt="" className={estilos.miniatura} />
         ) : (
           <div className={estilos.iconoVacio}>
             <Icono nombre="subir" tamano={18} color="var(--texto-tenue)" />

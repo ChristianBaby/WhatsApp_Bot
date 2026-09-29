@@ -44,8 +44,7 @@ export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
   } = indicadores;
   const { tema, alternar } = useTema();
 
-  const nombreMostrado =
-    [usuario?.nombre, usuario?.apellido].filter(Boolean).join(' ') || usuario?.email || '';
+  const nombreMostrado = usuario?.nombre || usuario?.email || '';
 
   return (
     <aside className={estilos.sidebar}>

@@ -1,23 +1,51 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import { GATEWAY_URL, limpiarSesion, obtenerAccessToken, obtenerUsuario, type Usuario } from '../lib/authSession';
 
-export type Usuario = { nombre: string | null; apellido: string | null; email: string | null };
+export type { Usuario };
 
 type EstadoAuth = { cargando: boolean; usuario: Usuario | null };
 
-/** Sesion del panel (seccion 8.5). Se consulta una vez al cargar la app. */
+/**
+ * Sesion del panel via el ecosistema Ruwark (micro_login + Api_gateway).
+ * El token/usuario ya quedaron guardados al hacer login (ver Login.tsx);
+ * aca solo se confirma con el Gateway que el token sigue siendo valido —
+ * micro_login puede revocar sesiones en caliente, asi que un token
+ * localmente presente no siempre implica una sesion viva.
+ */
 export function useAuth() {
   const [estado, setEstado] = useState<EstadoAuth>({ cargando: true, usuario: null });
 
   useEffect(() => {
-    api
-      .get<Usuario>('/auth/sesion')
-      .then((usuario) => setEstado({ cargando: false, usuario }))
-      .catch(() => setEstado({ cargando: false, usuario: null }));
+    const token = obtenerAccessToken();
+    const usuario = obtenerUsuario();
+
+    if (!token || !usuario) {
+      setEstado({ cargando: false, usuario: null });
+      return;
+    }
+
+    fetch(`${GATEWAY_URL}/api/auth/verify`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('sesion invalida');
+        setEstado({ cargando: false, usuario });
+      })
+      .catch(() => {
+        limpiarSesion();
+        setEstado({ cargando: false, usuario: null });
+      });
   }, []);
 
   async function cerrarSesion() {
-    await api.post('/auth/logout').catch(() => undefined);
+    const token = obtenerAccessToken();
+    if (token) {
+      await fetch(`${GATEWAY_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => undefined);
+    }
+    limpiarSesion();
     window.location.href = '/login';
   }
 

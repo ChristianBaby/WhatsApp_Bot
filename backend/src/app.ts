@@ -1,14 +1,11 @@
 import express from 'express';
-import session from 'express-session';
-import createPgSessionStore from 'connect-pg-simple';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
-import { pool } from './db/pool.js';
 import { manejadorSSE } from './lib/sse.js';
-import { requiereSesion } from './middleware/auth.js';
+import { requiereIdentidadGateway, requiereTokenGateway } from './middleware/identidadGateway.js';
+import { crearTicketSSE, requiereTicketSSE } from './middleware/ticketSSE.js';
 import { rutasSalud } from './routes/health.js';
-import { rutasAuth } from './routes/auth.js';
 import { rutasNumeros } from './routes/numeros.js';
 import { rutasLeads } from './routes/leads.js';
 import { rutasAdjuntos } from './routes/adjuntos.js';
@@ -26,33 +23,12 @@ const aqui = path.dirname(fileURLToPath(import.meta.url));
 export function crearApp() {
   const app = express();
 
-  // Detras de Traefik/Coolify: necesario para que req.ip y las cookies
-  // seguras funcionen bien.
+  // Detras de Traefik/Coolify: necesario para que req.ip funcione bien.
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
-
-  // Sesion del panel (seccion 8.5), guardada en Postgres: un reinicio del
-  // contenedor no desloguea a nadie. La cookie solo viaja por HTTPS en
-  // produccion (Coolify/Traefik terminan el TLS; trust proxy ya esta seteado).
-  const PgSessionStore = createPgSessionStore(session);
-  app.use(
-    session({
-      store: new PgSessionStore({ pool, tableName: 'session' }),
-      secret: env.SESSION_SECRET,
-      resave: false,
-      saveUninitialized: false,
-      name: 'panel_sesion',
-      cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: env.esProd,
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
-      },
-    }),
-  );
 
   // Log de cada request (sin ruido de estaticos ni del latido de SSE).
   app.use((req, res, next) => {
@@ -68,13 +44,19 @@ export function crearApp() {
   });
 
   // --- API ---
-  // /api/health y /api/auth/* quedan sin proteger a proposito: el
-  // healthcheck de Docker no manda cookies, y el login es justo el paso
-  // anterior a tener una sesion.
+  // /api/health queda sin proteger (lo usa el healthcheck de Docker, que no
+  // pasa por el Gateway). Todo lo demas exige que el request venga del
+  // Api_gateway (identidad ya resuelta por micro_login) — ver
+  // middleware/identidadGateway.ts.
   app.use('/api', rutasSalud);
-  app.use('/api', rutasAuth);
 
-  app.use('/api', requiereSesion);
+  // Assets de publicaciones (imagenes/video): un <img>/<video> del navegador
+  // no manda headers de auth, asi que solo se exige el token del Gateway,
+  // no un usuario. Los nombres de archivo son UUID (ver routes/adjuntos.ts),
+  // no adivinables.
+  app.use('/api/uploads', requiereTokenGateway, express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: true }));
+
+  app.use('/api', requiereIdentidadGateway);
   app.use('/api', rutasNumeros);
   app.use('/api', rutasLeads);
   app.use('/api', rutasAdjuntos);
@@ -85,10 +67,15 @@ export function crearApp() {
   app.use('/api', rutasResumen);
 
   // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).
-  app.get('/api/eventos', requiereSesion, manejadorSSE);
-
-  // Archivos subidos (imagenes/videos de las publicaciones): solo con sesion.
-  app.use('/uploads', requiereSesion, express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: true }));
+  // EventSource no manda Authorization, asi que usa un ticket de un solo uso
+  // en vez del gate normal (ver middleware/ticketSSE.ts). Nombre de ruta
+  // sin prefijo compartido con /api/eventos a proposito: el Gateway deja
+  // pasar /api/whatsapp/eventos sin JWT (ver auth.middleware.js), y si el
+  // ticket colgara de ahi (/api/eventos/ticket) quedaria expuesto igual.
+  app.post('/api/sse-ticket', requiereIdentidadGateway, (_req, res) => {
+    res.json({ ticket: crearTicketSSE() });
+  });
+  app.get('/api/eventos', requiereTicketSSE, manejadorSSE);
 
   // 404 solo para rutas de API; lo demas puede caer al panel.
   app.use('/api', manejadorNoEncontrado);
@@ -99,7 +86,7 @@ export function crearApp() {
   if (env.esProd) {
     const distPanel = path.resolve(aqui, '..', '..', 'frontend', 'dist');
     app.use(express.static(distPanel, { index: false, maxAge: '1h' }));
-    app.get(/^(?!\/api|\/webhooks|\/uploads).*/, (_req, res) => {
+    app.get(/^(?!\/api|\/webhooks).*/, (_req, res) => {
       res.sendFile(path.join(distPanel, 'index.html'));
     });
   }
