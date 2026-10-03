@@ -14,6 +14,13 @@ COPY frontend/package*.json ./
 # para compilar (no para correr, esta etapa nunca llega a produccion).
 RUN npm ci --include=dev
 COPY frontend/ ./
+# Vite incrusta la URL del Gateway en el bundle al compilar, y frontend/.env
+# no viaja al repo: llega como build arg (en Coolify, "Build Variable").
+# Sin ella el panel quedaria apuntando a localhost:8080, asi que se falla
+# el build con un mensaje claro en vez de desplegar un panel roto.
+ARG VITE_GATEWAY_URL
+RUN test -n "$VITE_GATEWAY_URL" || (echo "ERROR: falta la build variable VITE_GATEWAY_URL (URL publica del Api_gateway)" && exit 1)
+ENV VITE_GATEWAY_URL=$VITE_GATEWAY_URL
 RUN npm run build
 
 
