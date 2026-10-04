@@ -9,11 +9,13 @@ type Props = {
   listaId: number | null;
   variantesMensaje: string[];
   catalogoUrl: string | null;
+  /** El mismo adjunto de la publicacion: la prueba debe verse igual que el envio real. */
+  adjunto: { ruta: string; tipo: 'imagen' | 'video' } | null;
   onCerrar: () => void;
 };
 
 /** Envía UN mensaje real de prueba, fuera de cualquier campaña (seccion 3.5). */
-export function ModalPrueba({ numerosDisponibles, listaId, variantesMensaje, catalogoUrl, onCerrar }: Props) {
+export function ModalPrueba({ numerosDisponibles, listaId, variantesMensaje, catalogoUrl, adjunto, onCerrar }: Props) {
   const [telefono, setTelefono] = useState('');
   const [numeroId, setNumeroId] = useState(numerosDisponibles[0]?.id ?? null);
   const [enviando, setEnviando] = useState(false);
@@ -32,6 +34,8 @@ export function ModalPrueba({ numerosDisponibles, listaId, variantesMensaje, cat
         catalogoUrl,
         numeroId,
         telefonoPrueba: telefono.trim(),
+        adjuntoRuta: adjunto?.ruta ?? null,
+        adjuntoTipo: adjunto?.tipo ?? null,
       });
       setMensajeEnviado(resultado.mensaje);
     } catch (err) {
@@ -71,7 +75,15 @@ export function ModalPrueba({ numerosDisponibles, listaId, variantesMensaje, cat
         />
       </div>
 
-      {mensajeEnviado && <div className={estilos.resultado}>✅ Enviado. Texto: "{mensajeEnviado}"</div>}
+      {adjunto && !mensajeEnviado && (
+        <div className={estilos.etiqueta}>Se enviará con el {adjunto.tipo} adjunto a la publicación.</div>
+      )}
+
+      {mensajeEnviado && (
+        <div className={estilos.resultado}>
+          ✅ Enviado{adjunto ? ` con ${adjunto.tipo}` : ''}. Texto: "{mensajeEnviado}"
+        </div>
+      )}
       {error && <div className={estilos.error}>{error}</div>}
 
       <div className={estilos.acciones}>

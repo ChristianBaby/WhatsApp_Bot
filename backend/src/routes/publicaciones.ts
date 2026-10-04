@@ -8,7 +8,7 @@ import * as motor from '../services/publicaciones/motor.js';
 import { construirMensajePrueba, simularDryRun } from '../services/publicaciones/previsualizacion.js';
 import * as leadsRepo from '../services/leads/repositorio.js';
 import * as numerosGestor from '../services/whatsapp/gestor.js';
-import { enviarMensaje, verificarEnWhatsapp } from '../services/whatsapp/envio.js';
+import { enviarMensaje, existeAdjunto, verificarEnWhatsapp } from '../services/whatsapp/envio.js';
 
 export const rutasPublicaciones = Router();
 
@@ -167,6 +167,10 @@ const esquemaEnviarPrueba = z.object({
   catalogoUrl: z.string().trim().nullable().default(null),
   numeroId: z.number().int().positive(),
   telefonoPrueba: z.string().trim().min(6, 'Ingresa un telefono valido'),
+  // Mismo adjunto que llevaria la campana real: sin esto la prueba salia solo
+  // con texto y no reflejaba lo que va a recibir el lead.
+  adjuntoRuta: z.string().nullable().default(null),
+  adjuntoTipo: z.enum(['imagen', 'video']).nullable().default(null),
 });
 
 rutasPublicaciones.post(
@@ -181,9 +185,14 @@ rutasPublicaciones.post(
       throw solicitudInvalida('Ese numero no tiene WhatsApp o no se pudo verificar');
     }
 
-    const mensaje = await construirMensajePrueba(datos);
-    await enviarMensaje(datos.numeroId, telefono, mensaje);
+    const adjunto = datos.adjuntoRuta && datos.adjuntoTipo ? { ruta: datos.adjuntoRuta, tipo: datos.adjuntoTipo } : null;
+    if (adjunto && !(await existeAdjunto(adjunto.ruta))) {
+      throw solicitudInvalida('El archivo adjunto ya no existe en el servidor. Vuelve a subirlo.');
+    }
 
-    res.json({ enviado: true, mensaje });
+    const mensaje = await construirMensajePrueba(datos);
+    await enviarMensaje(datos.numeroId, telefono, mensaje, adjunto);
+
+    res.json({ enviado: true, mensaje, adjuntoTipo: adjunto?.tipo ?? null });
   }),
 );

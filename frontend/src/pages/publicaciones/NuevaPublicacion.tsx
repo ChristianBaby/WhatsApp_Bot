@@ -334,6 +334,7 @@ export function NuevaPublicacion({ publicacionId, onGuardado, onCancelar }: Prop
           listaId={listaId}
           variantesMensaje={variantes}
           catalogoUrl={catalogoUrl.trim() || null}
+          adjunto={adjunto ? { ruta: adjunto.ruta, tipo: adjunto.tipo } : null}
           onCerrar={() => setMostrarModalPrueba(false)}
         />
       )}

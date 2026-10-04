@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { WASocket } from 'baileys';
 import { env } from '../../config/env.js';
@@ -32,6 +33,25 @@ export async function verificarEnWhatsapp(numeroId: number, telefono: string): P
   const sock = socketDeNumero(numeroId);
   const resultados = await sock.onWhatsApp(telefono);
   return (resultados ?? []).some((r) => r.exists);
+}
+
+/**
+ * Ruta absoluta de un adjunto dentro de la carpeta de subidas. Solo acepta un
+ * nombre de archivo simple (como los que genera routes/adjuntos.ts): una ruta
+ * con "../" permitiria mandar por WhatsApp cualquier archivo del servidor.
+ */
+function rutaDeAdjunto(ruta: string): string {
+  if (!ruta || ruta !== path.basename(ruta)) throw new Error(`Ruta de adjunto invalida: ${ruta}`);
+  return path.join(env.rutaSubidas, ruta);
+}
+
+export async function existeAdjunto(ruta: string): Promise<boolean> {
+  try {
+    await fs.access(rutaDeAdjunto(ruta));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function esperar(ms: number): Promise<void> {
@@ -69,7 +89,7 @@ export async function enviarMensaje(
 
   let enviado;
   if (adjunto) {
-    const rutaAbsoluta = path.join(env.rutaSubidas, adjunto.ruta);
+    const rutaAbsoluta = rutaDeAdjunto(adjunto.ruta);
     enviado =
       adjunto.tipo === 'imagen'
         ? await sock.sendMessage(jid, { image: { url: rutaAbsoluta }, caption: texto })
