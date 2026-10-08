@@ -14,6 +14,7 @@ import { rutasConversaciones } from './routes/conversaciones.js';
 import { rutasConfiguracion } from './routes/configuracion.js';
 import { rutasReportes } from './routes/reportes.js';
 import { rutasResumen } from './routes/resumen.js';
+import { rutasContactos } from './routes/contactos.js';
 import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandler.js';
 import { crearLogger } from './lib/logger.js';
 
@@ -54,7 +55,14 @@ export function crearApp() {
   // no manda headers de auth, asi que solo se exige el token del Gateway,
   // no un usuario. Los nombres de archivo son UUID (ver routes/adjuntos.ts),
   // no adivinables.
-  app.use('/api/uploads', requiereTokenGateway, express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: true }));
+  // dotfiles 'deny' es obligatorio: en .listas/ viven los Excel originales de
+  // las listas (datos personales) y NO deben poder descargarse por esta ruta
+  // publica. Con el valor por defecto se servian (verificado en una prueba).
+  app.use(
+    '/api/uploads',
+    requiereTokenGateway,
+    express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: false, dotfiles: 'deny' }),
+  );
 
   // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).
   // EventSource no manda Authorization, asi que usa un ticket de un solo uso
@@ -78,6 +86,7 @@ export function crearApp() {
   app.use('/api', rutasConfiguracion);
   app.use('/api', rutasReportes);
   app.use('/api', rutasResumen);
+  app.use('/api', rutasContactos);
 
   // 404 solo para rutas de API; lo demas puede caer al panel.
   app.use('/api', manejadorNoEncontrado);

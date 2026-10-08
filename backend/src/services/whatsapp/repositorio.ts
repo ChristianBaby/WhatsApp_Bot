@@ -42,9 +42,17 @@ function mapear(fila: FilaNumero): NumeroWhatsapp {
   };
 }
 
+/** Solo los numeros activos: los archivados no se muestran, no se reconectan ni se usan en campanas. */
 export async function listar(): Promise<NumeroWhatsapp[]> {
-  const filas = await consultar<FilaNumero>('SELECT * FROM numeros_whatsapp ORDER BY creado_en ASC');
+  const filas = await consultar<FilaNumero>(
+    'SELECT * FROM numeros_whatsapp WHERE archivado_en IS NULL ORDER BY creado_en ASC',
+  );
   return filas.map(mapear);
+}
+
+/** Archiva el numero: su historial de chats y metricas se conserva (borrarlo los borraria en cascada). */
+export async function archivar(id: number): Promise<void> {
+  await consultarUno('UPDATE numeros_whatsapp SET archivado_en = now() WHERE id = $1', [id]);
 }
 
 export async function obtener(id: number): Promise<NumeroWhatsapp | null> {

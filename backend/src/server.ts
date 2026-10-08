@@ -8,6 +8,9 @@ import { logger } from './lib/logger.js';
 import * as gestorWhatsapp from './services/whatsapp/gestor.js';
 import * as motorPublicaciones from './services/publicaciones/motor.js';
 
+/** Margen para que el contenedor anterior se apague antes de reabrir las sesiones (ver iniciar()). */
+const ESPERA_REANUDAR_MS = 30_000;
+
 /**
  * Arranque del servidor:
  *   1. Crea las carpetas de datos persistentes si no existen.
@@ -25,7 +28,14 @@ async function iniciar(): Promise<void> {
   // No se espera a que terminen de reconectar: cada numero avisa por SSE
   // en cuanto cambia de estado, no hace falta bloquear el arranque del
   // servidor por eso.
-  void gestorWhatsapp.reanudarSesionesGuardadas();
+  //
+  // En produccion se espera unos segundos antes de reconectar: en un
+  // redespliegue, Coolify mantiene el contenedor viejo vivo hasta que el
+  // nuevo pasa el healthcheck. Si los dos abren la MISMA sesion de WhatsApp
+  // a la vez, WhatsApp puede cerrarla (paso tras un despliegue y hubo que
+  // re-escanear el QR). El healthcheck no depende de WhatsApp, asi que esto
+  // no demora el despliegue.
+  setTimeout(() => void gestorWhatsapp.reanudarSesionesGuardadas(), env.esProd ? ESPERA_REANUDAR_MS : 0);
   motorPublicaciones.iniciarMotor();
 
   const app = crearApp();

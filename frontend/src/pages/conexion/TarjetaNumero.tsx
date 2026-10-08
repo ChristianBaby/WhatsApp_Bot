@@ -31,7 +31,13 @@ function detalleEstado(numero: NumeroWhatsapp): string {
   }
 }
 
-export function TarjetaNumero({ numero, qr }: { numero: NumeroWhatsapp; qr: string | null }) {
+type Props = {
+  numero: NumeroWhatsapp;
+  qr: string | null;
+  onEliminado: (id: number) => void;
+};
+
+export function TarjetaNumero({ numero, qr, onEliminado }: Props) {
   const [editando, setEditando] = useState(false);
   const [etiquetaBorrador, setEtiquetaBorrador] = useState(numero.etiqueta);
   const [procesando, setProcesando] = useState(false);
@@ -80,6 +86,21 @@ export function TarjetaNumero({ numero, qr }: { numero: NumeroWhatsapp; qr: stri
     setProcesando(true);
     try {
       await api.post(`/numeros/${numero.id}/cerrar-sesion`);
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  async function eliminar() {
+    const confirmado = window.confirm(
+      `¿Eliminar "${numero.etiqueta}"?\n\nSe cerrará su sesión de WhatsApp y dejará de usarse en campañas. ` +
+        'Sus conversaciones y métricas se conservan.',
+    );
+    if (!confirmado) return;
+    setProcesando(true);
+    try {
+      await api.delete(`/numeros/${numero.id}`);
+      onEliminado(numero.id);
     } finally {
       setProcesando(false);
     }
@@ -148,6 +169,12 @@ export function TarjetaNumero({ numero, qr }: { numero: NumeroWhatsapp; qr: stri
           {numero.estado === 'esperando_qr' && (
             <Boton variante="secundario" onClick={cerrarSesion} disabled={procesando}>
               Cancelar
+            </Boton>
+          )}
+
+          {!editando && (
+            <Boton variante="texto" onClick={() => void eliminar()} disabled={procesando}>
+              Eliminar
             </Boton>
           )}
         </div>

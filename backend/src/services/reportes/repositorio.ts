@@ -1,6 +1,8 @@
 import { consultar, consultarUno } from '../../db/pool.js';
 import type {
   CampanaResumen,
+  DesgloseCampana,
+  DetalleCampana,
   EtapaEmbudo,
   FiltrosReportes,
   FilaLogCampana,
@@ -10,58 +12,75 @@ import type {
 } from './tipos.js';
 
 /**
- * Todas las agregaciones de la pantalla de Reportes (seccion 3.7). Cada
- * funcion arma su propio WHERE porque cada una filtra una columna de
- * fecha distinta (leads.creado_en, publicacion_destinatarios.enviado_en,
- * leads.venta_concretada_en...) — un helper generico de filtros terminaria
- * siendo menos claro que escribirlo directo en cada consulta.
+ * Todas las agregaciones de la pantalla de Reportes (seccion 3.7).
+ *
+ * Las metricas de campanas se calculan sobre los ENVIOS (publicacion_destinatarios):
+ * una respuesta cuenta para el envio al que responde (respondio_en, dentro
+ * de 30 dias). Antes salian de la etapa actual del lead, lo que inflaba la
+ * tasa de una campana con respuestas a otras.
  */
-
-// Cualquier etapa que solo se alcanza despues de que el lead escribio de
-// vuelta al menos una vez (seccion 3.9).
-const ETAPAS_RESPONDIO_O_MAS = [
-  'respondio',
-  'en_conversacion',
-  'interesado',
-  'no_interesado',
-  'duda_precio',
-  'venta_concretada',
-  'descartado',
-];
 
 function rangoFechas(f: FiltrosReportes): [string | null, string | null] {
   return [f.desde, f.hasta];
 }
 
+function tasa(parte: number, total: number): number {
+  return total > 0 ? Math.round((parte / total) * 1000) / 10 : 0;
+}
+
+function minutos(valor: number | null): number | null {
+  return valor === null ? null : Math.round(valor);
+}
+
+// Pidio la baja dentro de los 30 dias posteriores a ESE envio.
+const SQL_DIO_BAJA = `EXISTS (
+  SELECT 1 FROM contactos_bloqueados b
+  WHERE b.telefono = l.telefono AND b.motivo = 'pidio_baja'
+    AND b.creado_en >= pd.enviado_en AND b.creado_en < pd.enviado_en + interval '30 days'
+)`;
+
+// Mediana de minutos entre el envio y la primera respuesta.
+const SQL_MEDIANA_RESPUESTA = `percentile_cont(0.5) WITHIN GROUP (
+  ORDER BY EXTRACT(EPOCH FROM (pd.respondio_en - pd.enviado_en)) / 60
+) FILTER (WHERE pd.respondio_en IS NOT NULL)`;
+
+// Envios del periodo (por fecha de envio) y rubro.
+const SQL_ENVIOS_FILTRADOS = `
+  FROM publicacion_destinatarios pd
+  JOIN leads l ON l.id = pd.lead_id
+  WHERE pd.estado = 'enviado'
+    AND ($1::timestamptz IS NULL OR pd.enviado_en >= $1)
+    AND ($2::timestamptz IS NULL OR pd.enviado_en <= $2)
+    AND ($3::text IS NULL OR l.rubro = $3)`;
+
 export async function obtenerKpis(f: FiltrosReportes): Promise<KpisGenerales> {
   const [desde, hasta] = rangoFechas(f);
 
-  const enviados = await consultarUno<{ total: number }>(
-    `SELECT COUNT(*) AS total
-     FROM publicacion_destinatarios pd
-     JOIN leads l ON l.id = pd.lead_id
-     WHERE pd.estado = 'enviado'
-       AND ($1::timestamptz IS NULL OR pd.enviado_en >= $1)
-       AND ($2::timestamptz IS NULL OR pd.enviado_en <= $2)
-       AND ($3::text IS NULL OR l.rubro = $3)`,
+  const envios = await consultarUno<{
+    enviados: number;
+    entregados: number;
+    leidos: number;
+    respondieron: number;
+    bajas: number;
+    mediana: number | null;
+    leads: number;
+    leads_venta: number;
+  }>(
+    `SELECT
+       COUNT(*)::int AS enviados,
+       COUNT(*) FILTER (WHERE pd.entregado_en IS NOT NULL)::int AS entregados,
+       COUNT(*) FILTER (WHERE pd.leido_en IS NOT NULL)::int AS leidos,
+       COUNT(*) FILTER (WHERE pd.respondio_en IS NOT NULL)::int AS respondieron,
+       COUNT(*) FILTER (WHERE ${SQL_DIO_BAJA})::int AS bajas,
+       ${SQL_MEDIANA_RESPUESTA} AS mediana,
+       COUNT(DISTINCT l.id)::int AS leads,
+       COUNT(DISTINCT l.id) FILTER (WHERE l.etapa_pipeline = 'venta_concretada')::int AS leads_venta
+     ${SQL_ENVIOS_FILTRADOS}`,
     [desde, hasta, f.rubro],
   );
 
-  const pipeline = await consultarUno<{ contactados: number; respondieron: number; total: number; ventas: number }>(
-    `SELECT
-       COUNT(*) FILTER (WHERE etapa_pipeline != 'nuevo') AS contactados,
-       COUNT(*) FILTER (WHERE etapa_pipeline = ANY($3::text[])) AS respondieron,
-       COUNT(*) AS total,
-       COUNT(*) FILTER (WHERE etapa_pipeline = 'venta_concretada') AS ventas
-     FROM leads
-     WHERE ($1::timestamptz IS NULL OR creado_en >= $1)
-       AND ($2::timestamptz IS NULL OR creado_en <= $2)
-       AND ($4::text IS NULL OR rubro = $4)`,
-    [desde, hasta, ETAPAS_RESPONDIO_O_MAS, f.rubro],
-  );
-
   const ventasEnPeriodo = await consultarUno<{ total: number }>(
-    `SELECT COUNT(*) AS total FROM leads
+    `SELECT COUNT(*)::int AS total FROM leads
      WHERE etapa_pipeline = 'venta_concretada'
        AND ($1::timestamptz IS NULL OR venta_concretada_en >= $1)
        AND ($2::timestamptz IS NULL OR venta_concretada_en <= $2)
@@ -69,49 +88,51 @@ export async function obtenerKpis(f: FiltrosReportes): Promise<KpisGenerales> {
     [desde, hasta, f.rubro],
   );
 
-  const contactados = pipeline?.contactados ?? 0;
-  const total = pipeline?.total ?? 0;
-
+  const e = envios!;
   return {
-    mensajesEnviados: enviados?.total ?? 0,
-    tasaRespuesta: contactados > 0 ? Math.round(((pipeline!.respondieron / contactados) * 1000)) / 10 : 0,
+    mensajesEnviados: e.enviados,
+    entregados: e.entregados,
+    leidos: e.leidos,
+    respondieron: e.respondieron,
+    tasaRespuesta: tasa(e.respondieron, e.enviados),
+    tasaLectura: tasa(e.leidos, e.entregados),
+    bajas: e.bajas,
+    tiempoRespuestaMinutos: minutos(e.mediana),
     ventasConcretadas: ventasEnPeriodo?.total ?? 0,
-    tasaConversion: total > 0 ? Math.round(((pipeline!.ventas / total) * 1000)) / 10 : 0,
+    tasaConversion: tasa(e.leads_venta, e.leads),
   };
 }
 
+/** Embudo de los leads a los que se les envio algo en el periodo. */
 export async function obtenerEmbudo(f: FiltrosReportes): Promise<EtapaEmbudo[]> {
   const [desde, hasta] = rangoFechas(f);
 
   const fila = await consultarUno<{
-    nuevo: number;
-    contactado: number;
-    respondio: number;
-    interesado: number;
-    venta_concretada: number;
+    enviados: number;
+    leidos: number;
+    respondieron: number;
+    interesados: number;
+    ventas: number;
   }>(
     `SELECT
-       COUNT(*) AS nuevo,
-       COUNT(*) FILTER (WHERE etapa_pipeline != 'nuevo') AS contactado,
-       COUNT(*) FILTER (WHERE etapa_pipeline = ANY($3::text[])) AS respondio,
-       COUNT(*) FILTER (WHERE etapa_pipeline IN ('interesado', 'venta_concretada')) AS interesado,
-       COUNT(*) FILTER (WHERE etapa_pipeline = 'venta_concretada') AS venta_concretada
-     FROM leads
-     WHERE ($1::timestamptz IS NULL OR creado_en >= $1)
-       AND ($2::timestamptz IS NULL OR creado_en <= $2)
-       AND ($4::text IS NULL OR rubro = $4)`,
-    [desde, hasta, ETAPAS_RESPONDIO_O_MAS, f.rubro],
+       COUNT(DISTINCT l.id)::int AS enviados,
+       COUNT(DISTINCT l.id) FILTER (WHERE pd.leido_en IS NOT NULL)::int AS leidos,
+       COUNT(DISTINCT l.id) FILTER (WHERE pd.respondio_en IS NOT NULL)::int AS respondieron,
+       COUNT(DISTINCT l.id) FILTER (WHERE l.etapa_pipeline IN ('interesado', 'venta_concretada'))::int AS interesados,
+       COUNT(DISTINCT l.id) FILTER (WHERE l.etapa_pipeline = 'venta_concretada')::int AS ventas
+     ${SQL_ENVIOS_FILTRADOS}`,
+    [desde, hasta, f.rubro],
   );
 
-  const total = fila?.nuevo ?? 0;
+  const total = fila?.enviados ?? 0;
   const pct = (valor: number) => (total > 0 ? Math.round((valor / total) * 100) : 0);
 
   return [
-    { etapa: 'Nuevo', valor: fila?.nuevo ?? 0, pct: 100 },
-    { etapa: 'Contactado', valor: fila?.contactado ?? 0, pct: pct(fila?.contactado ?? 0) },
-    { etapa: 'Respondió', valor: fila?.respondio ?? 0, pct: pct(fila?.respondio ?? 0) },
-    { etapa: 'Interesado', valor: fila?.interesado ?? 0, pct: pct(fila?.interesado ?? 0) },
-    { etapa: 'Venta concretada', valor: fila?.venta_concretada ?? 0, pct: pct(fila?.venta_concretada ?? 0) },
+    { etapa: 'Contactados', valor: total, pct: 100 },
+    { etapa: 'Leyeron', valor: fila?.leidos ?? 0, pct: pct(fila?.leidos ?? 0) },
+    { etapa: 'Respondieron', valor: fila?.respondieron ?? 0, pct: pct(fila?.respondieron ?? 0) },
+    { etapa: 'Interesados', valor: fila?.interesados ?? 0, pct: pct(fila?.interesados ?? 0) },
+    { etapa: 'Venta concretada', valor: fila?.ventas ?? 0, pct: pct(fila?.ventas ?? 0) },
   ];
 }
 
@@ -174,54 +195,117 @@ export async function obtenerResumenAutoResponder(f: FiltrosReportes): Promise<R
   };
 }
 
+/** Todas las campanas que ya arrancaron (tambien en curso, pausadas o canceladas), no solo las completadas. */
 export async function listarCampanas(f: FiltrosReportes): Promise<CampanaResumen[]> {
   const [desde, hasta] = rangoFechas(f);
 
   const filas = await consultar<{
     id: number;
     nombre: string;
+    estado: string;
     finalizada_en: string | null;
     iniciada_en: string | null;
     enviados: number;
+    entregados: number;
+    leidos: number;
+    respondieron: number;
+    bajas: number;
     sin_whatsapp: number;
     fallidos: number;
-    respondieron: number;
+    excluidos: number;
+    mediana: number | null;
   }>(
-    `SELECT p.id, p.nombre, p.finalizada_en, p.iniciada_en,
-       COUNT(pd.id) FILTER (WHERE pd.estado = 'enviado')      AS enviados,
-       COUNT(pd.id) FILTER (WHERE pd.estado = 'sin_whatsapp')  AS sin_whatsapp,
-       COUNT(pd.id) FILTER (WHERE pd.estado = 'fallido')       AS fallidos,
-       COUNT(pd.id) FILTER (
-         WHERE pd.estado = 'enviado' AND l.etapa_pipeline = ANY($3::text[])
-       ) AS respondieron
+    `SELECT p.id, p.nombre, p.estado, p.finalizada_en, p.iniciada_en,
+       COUNT(pd.id) FILTER (WHERE pd.estado = 'enviado')::int AS enviados,
+       COUNT(pd.id) FILTER (WHERE pd.entregado_en IS NOT NULL)::int AS entregados,
+       COUNT(pd.id) FILTER (WHERE pd.leido_en IS NOT NULL)::int AS leidos,
+       COUNT(pd.id) FILTER (WHERE pd.respondio_en IS NOT NULL)::int AS respondieron,
+       COUNT(pd.id) FILTER (WHERE pd.estado = 'enviado' AND ${SQL_DIO_BAJA})::int AS bajas,
+       COUNT(pd.id) FILTER (WHERE pd.estado = 'sin_whatsapp')::int AS sin_whatsapp,
+       COUNT(pd.id) FILTER (WHERE pd.estado = 'fallido')::int AS fallidos,
+       COUNT(pd.id) FILTER (WHERE pd.estado = 'excluido')::int AS excluidos,
+       ${SQL_MEDIANA_RESPUESTA} AS mediana
      FROM publicaciones p
      JOIN publicacion_destinatarios pd ON pd.publicacion_id = p.id
      JOIN leads l ON l.id = pd.lead_id
-     WHERE p.estado = 'completada'
-       AND ($1::timestamptz IS NULL OR p.finalizada_en >= $1)
-       AND ($2::timestamptz IS NULL OR p.finalizada_en <= $2)
-       AND ($4::text IS NULL OR l.rubro = $4)
+     WHERE p.iniciada_en IS NOT NULL
+       AND ($1::timestamptz IS NULL OR p.iniciada_en >= $1)
+       AND ($2::timestamptz IS NULL OR p.iniciada_en <= $2)
+       AND ($3::text IS NULL OR l.rubro = $3)
      GROUP BY p.id
-     ORDER BY p.finalizada_en DESC`,
-    [desde, hasta, ['respondio', 'en_conversacion', 'interesado', 'no_interesado', 'duda_precio', 'venta_concretada', 'descartado'], f.rubro],
+     ORDER BY p.iniciada_en DESC`,
+    [desde, hasta, f.rubro],
   );
 
-  return filas.map((fila) => {
-    const duracionMinutos =
+  return filas.map((fila) => ({
+    id: fila.id,
+    nombre: fila.nombre,
+    estado: fila.estado,
+    fecha: fila.iniciada_en,
+    enviados: fila.enviados,
+    entregados: fila.entregados,
+    leidos: fila.leidos,
+    respondieron: fila.respondieron,
+    bajas: fila.bajas,
+    sinWhatsapp: fila.sin_whatsapp,
+    fallidos: fila.fallidos,
+    excluidos: fila.excluidos,
+    tasaRespuesta: tasa(fila.respondieron, fila.enviados),
+    tiempoRespuestaMinutos: minutos(fila.mediana),
+    duracionMinutos:
       fila.iniciada_en && fila.finalizada_en
         ? Math.round((new Date(fila.finalizada_en).getTime() - new Date(fila.iniciada_en).getTime()) / 60000)
-        : null;
-    return {
-      id: fila.id,
-      nombre: fila.nombre,
-      fecha: fila.finalizada_en,
-      enviados: fila.enviados,
-      sinWhatsapp: fila.sin_whatsapp,
-      fallidos: fila.fallidos,
-      tasaRespuesta: fila.enviados > 0 ? Math.round((fila.respondieron / fila.enviados) * 1000) / 10 : 0,
-      duracionMinutos,
-    };
-  });
+        : null,
+  }));
+}
+
+type FilaDesglose = { clave: string; enviados: number; leidos: number; respondieron: number };
+
+function mapearDesglose(filas: FilaDesglose[]): DesgloseCampana[] {
+  return filas.map((f) => ({ ...f, tasaRespuesta: tasa(f.respondieron, f.enviados) }));
+}
+
+const SQL_CONTEOS_DESGLOSE = `
+  COUNT(*)::int AS enviados,
+  COUNT(*) FILTER (WHERE pd.leido_en IS NOT NULL)::int AS leidos,
+  COUNT(*) FILTER (WHERE pd.respondio_en IS NOT NULL)::int AS respondieron`;
+
+/**
+ * Que variante del mensaje, que numero y que hora de envio consiguen mas
+ * respuestas en una campana. La hora se agrupa en la zona del negocio.
+ */
+export async function obtenerDetalleCampana(publicacionId: number, zonaHoraria: string): Promise<DetalleCampana> {
+  const [porVariante, porNumero, porHora] = await Promise.all([
+    consultar<FilaDesglose>(
+      `SELECT COALESCE(LEFT(p.variantes_mensaje[pd.variante_indice + 1], 60), 'Sin registrar') AS clave,
+         ${SQL_CONTEOS_DESGLOSE}
+       FROM publicacion_destinatarios pd JOIN publicaciones p ON p.id = pd.publicacion_id
+       WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
+       GROUP BY pd.variante_indice, p.variantes_mensaje ORDER BY pd.variante_indice NULLS LAST`,
+      [publicacionId],
+    ),
+    consultar<FilaDesglose>(
+      `SELECT COALESCE(n.etiqueta, 'Número eliminado') AS clave, ${SQL_CONTEOS_DESGLOSE}
+       FROM publicacion_destinatarios pd LEFT JOIN numeros_whatsapp n ON n.id = pd.numero_id
+       WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
+       GROUP BY n.id, n.etiqueta ORDER BY enviados DESC`,
+      [publicacionId],
+    ),
+    consultar<FilaDesglose>(
+      `SELECT LPAD(EXTRACT(HOUR FROM pd.enviado_en AT TIME ZONE $2)::text, 2, '0') || ':00' AS clave,
+         ${SQL_CONTEOS_DESGLOSE}
+       FROM publicacion_destinatarios pd
+       WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
+       GROUP BY 1 ORDER BY 1`,
+      [publicacionId, zonaHoraria],
+    ),
+  ]);
+
+  return {
+    porVariante: mapearDesglose(porVariante),
+    porNumero: mapearDesglose(porNumero),
+    porHora: mapearDesglose(porHora),
+  };
 }
 
 export async function obtenerLogCampana(publicacionId: number): Promise<FilaLogCampana[]> {
@@ -231,8 +315,12 @@ export async function obtenerLogCampana(publicacionId: number): Promise<FilaLogC
     estado: string;
     motivo_fallo: string | null;
     enviado_en: string | null;
+    entregado_en: string | null;
+    leido_en: string | null;
+    respondio_en: string | null;
   }>(
-    `SELECT l.empresa, l.telefono, pd.estado, pd.motivo_fallo, pd.enviado_en
+    `SELECT l.empresa, l.telefono, pd.estado, pd.motivo_fallo, pd.enviado_en,
+       pd.entregado_en, pd.leido_en, pd.respondio_en
      FROM publicacion_destinatarios pd
      JOIN leads l ON l.id = pd.lead_id
      WHERE pd.publicacion_id = $1
@@ -245,6 +333,9 @@ export async function obtenerLogCampana(publicacionId: number): Promise<FilaLogC
     estado: f.estado,
     motivoFallo: f.motivo_fallo,
     enviadoEn: f.enviado_en,
+    entregadoEn: f.entregado_en,
+    leidoEn: f.leido_en,
+    respondioEn: f.respondio_en,
   }));
 }
 

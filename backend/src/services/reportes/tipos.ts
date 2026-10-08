@@ -5,9 +5,21 @@ export type FiltrosReportes = {
   rubro: string | null;
 };
 
+/**
+ * KPIs sobre los ENVIOS del periodo (no sobre la etapa actual del lead):
+ * una respuesta cuenta para el envio al que responde, dentro de 30 dias.
+ * entregados/leidos existen solo para envios hechos desde la Fase 2.
+ */
 export type KpisGenerales = {
   mensajesEnviados: number;
+  entregados: number;
+  leidos: number;
+  respondieron: number;
   tasaRespuesta: number;
+  tasaLectura: number;
+  bajas: number;
+  /** Mediana, en minutos, entre el envio y la primera respuesta. */
+  tiempoRespuestaMinutos: number | null;
   ventasConcretadas: number;
   tasaConversion: number;
 };
@@ -33,12 +45,34 @@ export type ResumenAutoResponder = {
 export type CampanaResumen = {
   id: number;
   nombre: string;
+  estado: string;
   fecha: string | null;
   enviados: number;
+  entregados: number;
+  leidos: number;
+  respondieron: number;
+  bajas: number;
   sinWhatsapp: number;
   fallidos: number;
+  excluidos: number;
   tasaRespuesta: number;
+  tiempoRespuestaMinutos: number | null;
   duracionMinutos: number | null;
+};
+
+export type DesgloseCampana = {
+  clave: string;
+  enviados: number;
+  leidos: number;
+  respondieron: number;
+  tasaRespuesta: number;
+};
+
+/** Detalle de una campana: que variante, que numero y que hora funcionan mejor. */
+export type DetalleCampana = {
+  porVariante: DesgloseCampana[];
+  porNumero: DesgloseCampana[];
+  porHora: DesgloseCampana[];
 };
 
 export type FilaLogCampana = {
@@ -47,4 +81,7 @@ export type FilaLogCampana = {
   estado: string;
   motivoFallo: string | null;
   enviadoEn: string | null;
+  entregadoEn: string | null;
+  leidoEn: string | null;
+  respondioEn: string | null;
 };

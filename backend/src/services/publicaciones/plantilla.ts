@@ -1,7 +1,11 @@
 /** Elige una variante al azar (seccion 3.3: evita mandar el mismo string exacto a todos). */
+/** Indice al azar (se guarda por envio para medir que variante responde mejor). */
+export function elegirIndiceVariante(variantes: string[]): number {
+  return variantes.length > 0 ? Math.floor(Math.random() * variantes.length) : 0;
+}
+
 export function elegirVariante(variantes: string[]): string {
-  const indice = Math.floor(Math.random() * variantes.length);
-  return variantes[indice] ?? variantes[0] ?? '';
+  return variantes[elegirIndiceVariante(variantes)] ?? variantes[0] ?? '';
 }
 
 /**

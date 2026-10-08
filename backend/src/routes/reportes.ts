@@ -54,24 +54,43 @@ rutasReportes.get(
   }),
 );
 
+async function campanaDesdeParametro(valor: string | undefined) {
+  const id = Number(valor);
+  if (!Number.isInteger(id) || id <= 0) throw solicitudInvalida('Id invalido');
+  const publicacion = await publicacionesRepo.obtener(id);
+  if (!publicacion) throw noEncontrado('Publicacion no encontrada');
+  return publicacion;
+}
+
+// Que variante, que numero y que hora de envio responden mejor en una campana.
+rutasReportes.get(
+  '/reportes/campanas/:id',
+  manejarAsync(async (req, res) => {
+    const publicacion = await campanaDesdeParametro(req.params.id);
+    res.json(await repo.obtenerDetalleCampana(publicacion.id, process.env.TZ || 'America/Lima'));
+  }),
+);
+
+const fechaLocal = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-PE') : '');
+
 rutasReportes.get(
   '/reportes/campanas/:id/log',
   manejarAsync(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) throw solicitudInvalida('Id invalido');
-
-    const publicacion = await publicacionesRepo.obtener(id);
-    if (!publicacion) throw noEncontrado('Publicacion no encontrada');
+    const publicacion = await campanaDesdeParametro(req.params.id);
+    const id = publicacion.id;
 
     const filas = await repo.obtenerLogCampana(id);
     const csv = filasACsv(
-      ['Empresa', 'Telefono', 'Estado', 'Motivo', 'Enviado'],
+      ['Empresa', 'Telefono', 'Estado', 'Motivo', 'Enviado', 'Entregado', 'Leido', 'Respondio'],
       filas.map((f) => [
         f.empresa,
         `+${f.telefono}`,
         f.estado,
         f.motivoFallo ?? ETIQUETA_ESTADO_ENVIO[f.estado] ?? '',
-        f.enviadoEn ? new Date(f.enviadoEn).toLocaleString('es-PE') : '',
+        fechaLocal(f.enviadoEn),
+        fechaLocal(f.entregadoEn),
+        fechaLocal(f.leidoEn),
+        fechaLocal(f.respondioEn),
       ]),
     );
 

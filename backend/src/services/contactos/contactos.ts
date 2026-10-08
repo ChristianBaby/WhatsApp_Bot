@@ -1,4 +1,4 @@
-import { consultarUno } from '../../db/pool.js';
+import { consultar, consultarUno } from '../../db/pool.js';
 import { normalizarParaWhatsapp } from '../../lib/telefono.js';
 import * as configRepo from '../configuracion/repositorio.js';
 
@@ -26,6 +26,41 @@ export async function bloquear(telefono: string, motivo: 'pidio_baja' | 'manual'
     [telefono, motivo, textoOrigen],
   );
   return Boolean(fila);
+}
+
+export type ContactoBloqueado = {
+  telefono: string;
+  motivo: 'pidio_baja' | 'manual';
+  textoOrigen: string | null;
+  empresa: string | null;
+  creadoEn: string;
+};
+
+/** La lista de "no contactar", con la empresa si el telefono esta en alguna lista de leads. */
+export async function listarBloqueados(): Promise<ContactoBloqueado[]> {
+  const filas = await consultar<{
+    telefono: string;
+    motivo: 'pidio_baja' | 'manual';
+    texto_origen: string | null;
+    empresa: string | null;
+    creado_en: string;
+  }>(
+    `SELECT b.telefono, b.motivo, b.texto_origen, b.creado_en,
+       (SELECT l.empresa FROM leads l WHERE l.telefono = b.telefono ORDER BY l.id DESC LIMIT 1) AS empresa
+     FROM contactos_bloqueados b ORDER BY b.creado_en DESC`,
+  );
+  return filas.map((f) => ({
+    telefono: f.telefono,
+    motivo: f.motivo,
+    textoOrigen: f.texto_origen,
+    empresa: f.empresa,
+    creadoEn: f.creado_en,
+  }));
+}
+
+/** Vuelve a permitir contactarlo (ej. pidio la baja por error y luego escribio interesado). */
+export async function desbloquear(telefono: string): Promise<boolean> {
+  return Boolean(await consultarUno('DELETE FROM contactos_bloqueados WHERE telefono = $1 RETURNING telefono', [telefono]));
 }
 
 /** Saca de las campanas pendientes a un telefono recien bloqueado. Devuelve cuantos destinatarios excluyo. */

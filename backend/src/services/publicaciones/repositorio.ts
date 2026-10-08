@@ -403,10 +403,9 @@ type FilaPendiente = {
 };
 
 /**
- * El siguiente pendiente, pero solo entre los que su numero asignado esta
- * conectado ahora mismo. Asi, si un numero se cae, sus destinatarios
- * simplemente esperan (quedan pendientes) mientras el resto de la campana
- * sigue avanzando con normalidad (seccion 3.1).
+ * El siguiente pendiente. Si su numero asignado no esta conectado (se cayo
+ * o se archivo), se reasigna a uno conectado de la campana: antes esos
+ * destinatarios quedaban esperando para siempre y la campana se pausaba.
  */
 export async function siguientePendiente(
   publicacionId: number,
@@ -418,16 +417,23 @@ export async function siguientePendiente(
     `SELECT pd.id, pd.lead_id, pd.numero_id, l.telefono, l.empresa, l.rubro, l.datos_extra
      FROM publicacion_destinatarios pd
      JOIN leads l ON l.id = pd.lead_id
-     WHERE pd.publicacion_id = $1 AND pd.estado = 'pendiente' AND pd.numero_id = ANY($2::int[])
-     ORDER BY pd.id ASC
+     WHERE pd.publicacion_id = $1 AND pd.estado = 'pendiente'
+     ORDER BY (pd.numero_id = ANY($2::int[])) DESC, pd.id ASC
      LIMIT 1`,
     [publicacionId, numerosConectados],
   );
   if (!fila) return null;
+
+  let numeroId = fila.numero_id;
+  if (!numerosConectados.includes(numeroId)) {
+    numeroId = numerosConectados[fila.id % numerosConectados.length]!;
+    await consultarUno('UPDATE publicacion_destinatarios SET numero_id = $2 WHERE id = $1', [fila.id, numeroId]);
+  }
+
   return {
     destinatarioId: fila.id,
     leadId: fila.lead_id,
-    numeroId: fila.numero_id,
+    numeroId,
     telefono: fila.telefono,
     empresa: fila.empresa,
     rubro: fila.rubro,
@@ -438,15 +444,61 @@ export async function siguientePendiente(
 export async function marcarResultadoDestinatario(
   destinatarioId: number,
   estado: EstadoDestinatario,
-  detalle: { motivoFallo?: string | null; mensajeEnviado?: string | null; numeroId?: number } = {},
+  detalle: {
+    motivoFallo?: string | null;
+    mensajeEnviado?: string | null;
+    numeroId?: number;
+    whatsappId?: string | null;
+    varianteIndice?: number;
+  } = {},
 ): Promise<void> {
   await consultarUno(
     `UPDATE publicacion_destinatarios
      SET estado = $2, motivo_fallo = $3, mensaje_enviado = $4,
          numero_id = COALESCE($5, numero_id),
+         whatsapp_id = COALESCE($6, whatsapp_id),
+         variante_indice = COALESCE($7, variante_indice),
          enviado_en = CASE WHEN $2 = 'enviado' THEN now() ELSE enviado_en END
      WHERE id = $1`,
-    [destinatarioId, estado, detalle.motivoFallo ?? null, detalle.mensajeEnviado ?? null, detalle.numeroId ?? null],
+    [
+      destinatarioId,
+      estado,
+      detalle.motivoFallo ?? null,
+      detalle.mensajeEnviado ?? null,
+      detalle.numeroId ?? null,
+      detalle.whatsappId ?? null,
+      detalle.varianteIndice ?? null,
+    ],
+  );
+}
+
+/**
+ * Confirmaciones de WhatsApp (los "vistos"): entregado y leido. Solo
+ * avanzan; leido implica entregado aunque WhatsApp no haya mandado ese paso.
+ */
+export async function registrarEstadoEntrega(whatsappId: string, estado: 'entregado' | 'leido'): Promise<void> {
+  await consultarUno(
+    `UPDATE publicacion_destinatarios
+     SET entregado_en = COALESCE(entregado_en, now()),
+         leido_en = CASE WHEN $2 = 'leido' THEN COALESCE(leido_en, now()) ELSE leido_en END
+     WHERE whatsapp_id = $1`,
+    [whatsappId, estado],
+  );
+}
+
+/**
+ * Primera respuesta del lead a su envio mas reciente (de los ultimos 30
+ * dias). Es lo que mide la tasa de respuesta real de cada campana.
+ */
+export async function registrarRespuesta(telefono: string): Promise<void> {
+  await consultarUno(
+    `UPDATE publicacion_destinatarios SET respondio_en = now()
+     WHERE id = (
+       SELECT pd.id FROM publicacion_destinatarios pd JOIN leads l ON l.id = pd.lead_id
+       WHERE l.telefono = $1 AND pd.estado = 'enviado' AND pd.enviado_en > now() - interval '30 days'
+       ORDER BY pd.enviado_en DESC LIMIT 1
+     ) AND respondio_en IS NULL`,
+    [telefono],
   );
 }
 

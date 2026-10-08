@@ -8,7 +8,7 @@ import * as leadsRepo from '../leads/repositorio.js';
 import * as configRepo from '../configuracion/repositorio.js';
 import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
 import * as repo from './repositorio.js';
-import { datosPlaceholderDeLead, elegirVariante, sustituirPlaceholders } from './plantilla.js';
+import { datosPlaceholderDeLead, elegirIndiceVariante, sustituirPlaceholders } from './plantilla.js';
 import type { ConfigEnvio, Publicacion } from './tipos.js';
 import type { DestinatarioPendiente } from './repositorio.js';
 
@@ -129,14 +129,19 @@ async function procesarDestinatario(pub: Publicacion, destinatario: Destinatario
       return true;
     }
 
-    const variante = elegirVariante(pub.variantesMensaje);
+    const varianteIndice = elegirIndiceVariante(pub.variantesMensaje);
+    const variante = pub.variantesMensaje[varianteIndice] ?? '';
     let texto = sustituirPlaceholders(variante, datosPlaceholderDeLead(destinatario));
     if (pub.catalogoUrl) texto += `\n\n${pub.catalogoUrl}`;
 
     const adjunto = pub.adjuntoRuta && pub.adjuntoTipo ? { ruta: pub.adjuntoRuta, tipo: pub.adjuntoTipo } : null;
     const whatsappId = await enviarMensaje(destinatario.numeroId, destinatario.telefono, texto, adjunto);
 
-    await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'enviado', { mensajeEnviado: texto });
+    await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'enviado', {
+      mensajeEnviado: texto,
+      whatsappId,
+      varianteIndice,
+    });
     await leadsRepo.marcarContactado(destinatario.leadId);
 
     // No se deja a merced del eco de Baileys: se registra aqui mismo para

@@ -1,0 +1,59 @@
+.bloque {
+  margin-bottom: 20px;
+}
+
+.titulo {
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+  margin-bottom: 4px;
+}
+
+.nota {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin-bottom: 8px;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.6fr;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: var(--texto-menor);
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.clave {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barraFondo {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fondo-neutro);
+  overflow: hidden;
+}
+
+.barra {
+  height: 100%;
+  background: var(--acento);
+}
+
+.numeros {
+  color: var(--texto-suave);
+}
+
+.mejor {
+  color: var(--exito);
+}
+
+@media (max-width: 640px) {
+  .fila {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

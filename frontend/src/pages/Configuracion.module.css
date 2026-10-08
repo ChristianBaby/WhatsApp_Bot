@@ -1,0 +1,73 @@
+.seccion {
+  margin-bottom: 16px;
+}
+
+.tituloSeccion {
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 18px;
+}
+
+.campo {
+  margin-bottom: 16px;
+}
+
+.etiqueta {
+  display: block;
+  font-size: var(--texto-control);
+  font-weight: 700;
+  color: var(--texto-medio);
+  margin-bottom: 4px;
+}
+
+.ayuda {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-base);
+  font-family: inherit;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.conUnidad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unidad {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.guardado {
+  font-size: 12.5px;
+  color: var(--exito);
+  margin-left: 10px;
+}
+
+@media (max-width: 640px) {
+  .grilla {
+    grid-template-columns: 1fr;
+  }
+}

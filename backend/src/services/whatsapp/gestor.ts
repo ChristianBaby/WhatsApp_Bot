@@ -8,6 +8,7 @@ import { crearSesion, type SesionBaileys } from './socket.js';
 import * as repo from './repositorio.js';
 import type { NumeroWhatsapp } from './repositorio.js';
 import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
+import { registrarEstadoEntrega } from '../publicaciones/repositorio.js';
 
 /**
  * Orquesta todas las sesiones de WhatsApp activas (una por numero
@@ -144,6 +145,11 @@ async function iniciar(numeroId: number): Promise<void> {
           )
           .catch((err: unknown) => log.error({ err, numeroId }, 'No se pudo procesar un mensaje entrante'));
       },
+      onEstadoEntrega: (whatsappId, estado) => {
+        registrarEstadoEntrega(whatsappId, estado).catch((err: unknown) =>
+          log.warn({ err, numeroId }, 'No se pudo registrar entregado/leido'),
+        );
+      },
     });
     entrada.sesion = sesion;
   } catch (err) {
@@ -220,6 +226,22 @@ export async function cerrarSesionUsuario(numeroId: number): Promise<NumeroWhats
 
   await finalizarComoDesconectado(numeroId);
   return (await repo.obtener(numeroId)) ?? numero;
+}
+
+/**
+ * "Eliminar" un numero desde el panel: cierra su sesion en WhatsApp (el
+ * dispositivo vinculado desaparece del telefono), borra sus credenciales y
+ * lo archiva. Sus conversaciones y metricas se conservan. Las campanas que
+ * lo usaban siguen con sus otros numeros (ver motor: reasigna pendientes).
+ */
+export async function archivarNumero(numeroId: number): Promise<void> {
+  const numero = await repo.obtener(numeroId);
+  if (!numero) throw noEncontrado('Numero no encontrado');
+
+  await cerrarSesionUsuario(numeroId);
+  await repo.archivar(numeroId);
+  emitir(CANAL_SSE, 'numero:archivado', { id: numeroId });
+  log.info({ numeroId, etiqueta: numero.etiqueta }, 'Numero archivado');
 }
 
 /** Al arrancar el proceso: retoma todos los numeros que no estan ya desconectados. */

@@ -58,6 +58,18 @@ export const manejadorErrores: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
+  // Errores de cliente de middlewares de Express (ej. express.static: 404
+  // archivo inexistente, 403 dotfile denegado). No son fallos del servidor.
+  const estadoHttp = (err as { status?: unknown }).status;
+  if (typeof estadoHttp === 'number' && estadoHttp >= 400 && estadoHttp < 500) {
+    const noEncontrado = estadoHttp === 404;
+    res.status(estadoHttp).json({
+      error: noEncontrado ? 'Archivo no encontrado' : 'Acceso denegado',
+      codigo: noEncontrado ? 'NO_ENCONTRADO' : 'PROHIBIDO',
+    });
+    return;
+  }
+
   log.error({ err, ruta: req.path, metodo: req.method }, 'Error no controlado');
   res.status(500).json({ error: 'Error interno del servidor', codigo: 'ERROR_INTERNO' });
 };

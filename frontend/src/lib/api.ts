@@ -71,7 +71,34 @@ export const urlAsset = (rutaBackend: string): string => {
   return `${PREFIJO}${sinApi}`;
 };
 
+/**
+ * Descarga un archivo del backend (Excel, CSV) a traves del Gateway. Un
+ * <a href="/api/..."> no sirve: no pasa por el Gateway ni lleva el token,
+ * y el backend lo rechaza.
+ */
+async function descargar(ruta: string, reintentando = false): Promise<void> {
+  const token = obtenerAccessToken();
+  const res = await fetch(`${PREFIJO}${ruta}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+
+  if (res.status === 401 && !reintentando && (await refrescarToken())) return descargar(ruta, true);
+  if (!res.ok) {
+    const cuerpo = (await res.json().catch(() => ({}))) as RespuestaError;
+    throw new ErrorApi(cuerpo.error ?? `Error ${res.status}`, res.status, cuerpo.codigo ?? 'ERROR');
+  }
+
+  const disposicion = res.headers.get('Content-Disposition') ?? '';
+  const nombre = /filename="?([^"]+)"?/.exec(disposicion)?.[1] ?? 'descarga';
+  const url = URL.createObjectURL(await res.blob());
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = decodeURIComponent(nombre);
+  enlace.click();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
+  descargar: (ruta: string) => descargar(ruta),
+
   get: <T>(ruta: string) => pedir<T>(ruta),
 
   post: <T>(ruta: string, datos?: unknown) =>

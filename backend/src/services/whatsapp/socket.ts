@@ -33,7 +33,13 @@ type CallbacksSesion = {
   onDesconectado: (motivo: 'logout' | 'error', mensaje?: string) => void;
   /** Cualquier mensaje 1:1 (entrante o saliente) que pase por esta sesion. */
   onMensaje: (mensaje: MensajeRecibido) => void;
+  /** Confirmacion de WhatsApp sobre un mensaje NUESTRO: entregado (✓✓) o leido (✓✓ azul). */
+  onEstadoEntrega: (whatsappId: string, estado: 'entregado' | 'leido') => void;
 };
+
+// proto.WebMessageInfo.Status de WhatsApp: 3 = entregado, 4 = leido, 5 = reproducido (audio/video).
+const ESTADO_ENTREGADO = 3;
+const ESTADO_LEIDO = 4;
 
 /**
  * Saca un texto mostrable de un mensaje de WhatsApp. Para tipos que no son
@@ -172,6 +178,14 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
           pushName: msg.pushName,
         });
       });
+    }
+  });
+
+  sock.ev.on('messages.update', (actualizaciones) => {
+    for (const { key, update } of actualizaciones) {
+      const estado = update.status;
+      if (!key.fromMe || !key.id || typeof estado !== 'number' || estado < ESTADO_ENTREGADO) continue;
+      callbacks.onEstadoEntrega(key.id, estado >= ESTADO_LEIDO ? 'leido' : 'entregado');
     }
   });
 

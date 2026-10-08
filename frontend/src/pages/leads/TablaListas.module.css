@@ -1,6 +1,6 @@
 .encabezado {
   display: grid;
-  grid-template-columns: 1fr 110px 90px 90px 120px;
+  grid-template-columns: 1fr 100px 70px 80px minmax(320px, auto);
   gap: 8px;
   padding: 10px 16px;
   font-size: var(--texto-nano);
@@ -13,7 +13,7 @@
 
 .fila {
   display: grid;
-  grid-template-columns: 1fr 110px 90px 90px 120px;
+  grid-template-columns: 1fr 100px 70px 80px minmax(320px, auto);
   gap: 8px;
   align-items: center;
   padding: 13px 16px;
@@ -87,4 +87,40 @@
 .sinExcluidos {
   font-size: var(--texto-menor);
   color: var(--texto-tenue);
+}
+
+.archivo {
+  font-size: var(--texto-nano);
+  font-weight: 400;
+  color: var(--texto-tenue);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.error {
+  padding: 0 16px 10px 16px;
+  font-size: var(--texto-menor);
+  color: var(--peligro);
+}
+
+@media (max-width: 760px) {
+  .encabezado {
+    display: none;
+  }
+
+  .fila {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .acciones {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }

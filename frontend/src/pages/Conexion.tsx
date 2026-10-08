@@ -35,6 +35,10 @@ export function Conexion() {
         setQrPorNumero((prev) => ({ ...prev, [numero.id]: null }));
       }
     },
+    'numero:archivado': (datos) => {
+      const { id } = datos as { id: number };
+      setNumeros((prev) => (prev ?? []).filter((n) => n.id !== id));
+    },
     'numero:qr': (datos) => {
       const { id, qr } = datos as { id: number; qr: string | null };
       setQrPorNumero((prev) => ({ ...prev, [id]: qr }));
@@ -82,7 +86,12 @@ export function Conexion() {
       {numeros !== null && numeros.length > 0 && (
         <div className={estilos.lista}>
           {numeros.map((numero) => (
-            <TarjetaNumero key={numero.id} numero={numero} qr={qrPorNumero[numero.id] ?? null} />
+            <TarjetaNumero
+              key={numero.id}
+              numero={numero}
+              qr={qrPorNumero[numero.id] ?? null}
+              onEliminado={(id) => setNumeros((prev) => (prev ?? []).filter((n) => n.id !== id))}
+            />
           ))}
         </div>
       )}

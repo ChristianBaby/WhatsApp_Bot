@@ -46,6 +46,8 @@ export type ResumenValidacion = {
 /** Respuesta de POST /listas-leads/previsualizar: nada se guardo todavia. */
 export type PrevisualizacionLista = {
   nombreArchivoOriginal: string;
+  /** Copia del archivo guardada al previsualizar; se asocia a la lista al confirmar. */
+  archivoToken: string | null;
   resumen: ResumenValidacion;
   columnasExtra: string[];
   filasValidas: FilaValida[];
@@ -61,8 +63,34 @@ export type ListaLeads = {
   invalidas: number;
   duplicadas: number;
   columnasExtra: string[];
+  /** Hay copia del archivo original y se puede descargar. */
+  tieneArchivo: boolean;
   creadoEn: string;
   actualizadoEn: string;
+};
+
+/** Un lead en la gestion de una lista. */
+export type LeadGestion = {
+  id: number;
+  telefono: string;
+  empresa: string;
+  rubro: string | null;
+  datosExtra: Record<string, string>;
+  etapaPipeline: string;
+  bloqueado: boolean;
+  ultimoEnvioEn: string | null;
+  /** Ya recibio campanas: no se puede borrar (se perderian sus metricas). */
+  tieneHistorial: boolean;
+};
+
+export type PaginaLeads = { total: number; leads: LeadGestion[] };
+
+export type ContactoBloqueado = {
+  telefono: string;
+  motivo: 'pidio_baja' | 'manual';
+  textoOrigen: string | null;
+  empresa: string | null;
+  creadoEn: string;
 };
 
 export type LeadExcluido = {
@@ -178,7 +206,14 @@ export type ConversacionDetalle = ConversacionResumen & {
 
 export type KpisGenerales = {
   mensajesEnviados: number;
+  entregados: number;
+  leidos: number;
+  respondieron: number;
   tasaRespuesta: number;
+  tasaLectura: number;
+  bajas: number;
+  /** Mediana de minutos entre el envio y la primera respuesta. */
+  tiempoRespuestaMinutos: number | null;
   ventasConcretadas: number;
   tasaConversion: number;
 };
@@ -204,12 +239,33 @@ export type ResumenAutoResponder = {
 export type CampanaResumen = {
   id: number;
   nombre: string;
+  estado: string;
   fecha: string | null;
   enviados: number;
+  entregados: number;
+  leidos: number;
+  respondieron: number;
+  bajas: number;
   sinWhatsapp: number;
   fallidos: number;
+  excluidos: number;
   tasaRespuesta: number;
+  tiempoRespuestaMinutos: number | null;
   duracionMinutos: number | null;
+};
+
+export type DesgloseCampana = {
+  clave: string;
+  enviados: number;
+  leidos: number;
+  respondieron: number;
+  tasaRespuesta: number;
+};
+
+export type DetalleCampana = {
+  porVariante: DesgloseCampana[];
+  porNumero: DesgloseCampana[];
+  porHora: DesgloseCampana[];
 };
 
 export type DatosReportes = {

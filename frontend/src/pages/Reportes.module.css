@@ -139,7 +139,7 @@
 
 .tablaEncabezado {
   display: grid;
-  grid-template-columns: 2fr 1fr 0.8fr 1fr 0.8fr 0.8fr 1fr;
+  grid-template-columns: 2fr 0.9fr 0.8fr 0.7fr 1fr 0.6fr 0.9fr 1.3fr;
   gap: 8px;
   padding: 10px 18px;
   font-size: var(--texto-nano);
@@ -152,7 +152,7 @@
 
 .tablaFila {
   display: grid;
-  grid-template-columns: 2fr 1fr 0.8fr 1fr 0.8fr 0.8fr 1fr;
+  grid-template-columns: 2fr 0.9fr 0.8fr 0.7fr 1fr 0.6fr 0.9fr 1.3fr;
   gap: 8px;
   align-items: center;
   padding: 13px 18px;
@@ -169,4 +169,42 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.kpiSub {
+  font-size: var(--texto-menor);
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.notaKpi {
+  font-size: var(--texto-menor);
+  color: var(--texto-tenue);
+  margin: -6px 0 16px 0;
+}
+
+.estadoCampana {
+  font-size: var(--texto-nano);
+  font-weight: 400;
+  color: var(--texto-tenue);
+}
+
+.accionesCampana {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .tarjetasKpi {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tablaEncabezado {
+    display: none;
+  }
+
+  .tablaFila {
+    grid-template-columns: 1fr 1fr;
+  }
 }

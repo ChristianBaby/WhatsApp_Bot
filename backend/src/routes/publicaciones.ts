@@ -20,10 +20,11 @@ function idDesdeParametro(valor: string | undefined): number {
 }
 
 async function validarListaYNumeros(listaId: number, numeroIds: number[]): Promise<void> {
-  const lista = await leadsRepo.obtener(listaId);
-  if (!lista) throw solicitudInvalida('La lista de leads elegida no existe');
+  // listar() solo trae las activas: una lista archivada no se puede usar en campanas nuevas.
+  const listas = await leadsRepo.listar();
+  if (!listas.some((l) => l.id === listaId)) throw solicitudInvalida('La lista de leads elegida no existe o está archivada');
 
-  const numeros = await numerosGestor.listar();
+  const numeros = await numerosGestor.listar(); // idem: sin numeros archivados
   const idsValidos = new Set(numeros.map((n) => n.id));
   const faltante = numeroIds.find((id) => !idsValidos.has(id));
   if (faltante) throw solicitudInvalida(`El numero elegido (id ${faltante}) no existe`);

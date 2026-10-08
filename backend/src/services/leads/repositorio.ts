@@ -1,5 +1,13 @@
 import { consultar, consultarUno, insertarEnBloque, transaccion } from '../../db/pool.js';
-import type { FilaInvalida, FilaValida, LeadExcluido, ListaLeads, MotivoExclusion } from './tipos.js';
+import type {
+  DatosLead,
+  FilaInvalida,
+  FilaValida,
+  LeadExcluido,
+  LeadGestion,
+  ListaLeads,
+  MotivoExclusion,
+} from './tipos.js';
 
 type FilaListaLeads = {
   id: number;
@@ -10,6 +18,7 @@ type FilaListaLeads = {
   invalidas: number;
   duplicadas: number;
   columnas_extra: string[];
+  archivo_ruta: string | null;
   creado_en: string;
   actualizado_en: string;
 };
@@ -24,14 +33,161 @@ function mapearLista(fila: FilaListaLeads): ListaLeads {
     invalidas: fila.invalidas,
     duplicadas: fila.duplicadas,
     columnasExtra: fila.columnas_extra,
+    tieneArchivo: Boolean(fila.archivo_ruta),
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
 }
 
+/** Listas activas (las archivadas no se muestran ni se pueden elegir en campanas nuevas). */
 export async function listar(): Promise<ListaLeads[]> {
-  const filas = await consultar<FilaListaLeads>('SELECT * FROM listas_leads ORDER BY creado_en DESC');
+  const filas = await consultar<FilaListaLeads>(
+    'SELECT * FROM listas_leads WHERE archivada_en IS NULL ORDER BY creado_en DESC',
+  );
   return filas.map(mapearLista);
+}
+
+export async function rutaArchivo(listaId: number): Promise<{ ruta: string; nombre: string } | null> {
+  const fila = await consultarUno<{ archivo_ruta: string | null; nombre_archivo_original: string | null }>(
+    'SELECT archivo_ruta, nombre_archivo_original FROM listas_leads WHERE id = $1',
+    [listaId],
+  );
+  if (!fila?.archivo_ruta) return null;
+  return { ruta: fila.archivo_ruta, nombre: fila.nombre_archivo_original ?? fila.archivo_ruta };
+}
+
+export async function rutasArchivoEnUso(): Promise<Set<string>> {
+  const filas = await consultar<{ archivo_ruta: string }>(
+    'SELECT archivo_ruta FROM listas_leads WHERE archivo_ruta IS NOT NULL',
+  );
+  return new Set(filas.map((f) => f.archivo_ruta));
+}
+
+// ==================== Gestion de leads de una lista ====================
+
+type FilaLeadGestion = {
+  id: number;
+  telefono: string;
+  empresa: string;
+  rubro: string | null;
+  datos_extra: Record<string, string>;
+  etapa_pipeline: string;
+  bloqueado: boolean;
+  ultimo_envio_en: string | null;
+  tiene_historial: boolean;
+};
+
+export async function listarLeadsDeLista(
+  listaId: number,
+  opciones: { buscar: string | null; pagina: number; tamano: number },
+): Promise<{ total: number; leads: LeadGestion[] }> {
+  const buscar = opciones.buscar ? `%${opciones.buscar}%` : null;
+  const condicion = `l.lista_id = $1 AND ($2::text IS NULL OR l.empresa ILIKE $2 OR l.telefono LIKE $2 OR l.rubro ILIKE $2)`;
+
+  const total = await consultarUno<{ total: number }>(
+    `SELECT COUNT(*)::int AS total FROM leads l WHERE ${condicion}`,
+    [listaId, buscar],
+  );
+  const filas = await consultar<FilaLeadGestion>(
+    `SELECT l.id, l.telefono, l.empresa, l.rubro, l.datos_extra, l.etapa_pipeline,
+       EXISTS (SELECT 1 FROM contactos_bloqueados b WHERE b.telefono = l.telefono) AS bloqueado,
+       (SELECT MAX(pd.enviado_en) FROM publicacion_destinatarios pd WHERE pd.lead_id = l.id) AS ultimo_envio_en,
+       EXISTS (SELECT 1 FROM publicacion_destinatarios pd WHERE pd.lead_id = l.id) AS tiene_historial
+     FROM leads l WHERE ${condicion}
+     ORDER BY l.id ASC
+     LIMIT $3 OFFSET $4`,
+    [listaId, buscar, opciones.tamano, (opciones.pagina - 1) * opciones.tamano],
+  );
+
+  return {
+    total: total?.total ?? 0,
+    leads: filas.map((f) => ({
+      id: f.id,
+      telefono: f.telefono,
+      empresa: f.empresa,
+      rubro: f.rubro,
+      datosExtra: f.datos_extra,
+      etapaPipeline: f.etapa_pipeline,
+      bloqueado: f.bloqueado,
+      ultimoEnvioEn: f.ultimo_envio_en,
+      tieneHistorial: f.tiene_historial,
+    })),
+  };
+}
+
+async function telefonoRepetidoEnLista(listaId: number, telefono: string, excluirLeadId: number | null): Promise<boolean> {
+  return Boolean(
+    await consultarUno('SELECT 1 FROM leads WHERE lista_id = $1 AND telefono = $2 AND id <> COALESCE($3, 0)', [
+      listaId,
+      telefono,
+      excluirLeadId,
+    ]),
+  );
+}
+
+/** Alta manual de un lead (telefono ya normalizado). null si el telefono ya esta en la lista. */
+export async function agregarLead(listaId: number, datos: DatosLead): Promise<number | null> {
+  if (await telefonoRepetidoEnLista(listaId, datos.telefono, null)) return null;
+  return transaccion(async (cliente) => {
+    const { rows } = await cliente.query<{ id: number }>(
+      `INSERT INTO leads (lista_id, telefono, empresa, rubro) VALUES ($1, $2, $3, $4) RETURNING id`,
+      [listaId, datos.telefono, datos.empresa, datos.rubro],
+    );
+    await cliente.query('UPDATE listas_leads SET validas = validas + 1, total_filas = total_filas + 1 WHERE id = $1', [
+      listaId,
+    ]);
+    return rows[0]!.id;
+  });
+}
+
+/** Edita un lead. false si el telefono nuevo ya lo tiene otro lead de la misma lista. */
+export async function actualizarLead(leadId: number, listaId: number, datos: DatosLead): Promise<boolean> {
+  if (await telefonoRepetidoEnLista(listaId, datos.telefono, leadId)) return false;
+  await consultarUno('UPDATE leads SET telefono = $2, empresa = $3, rubro = $4 WHERE id = $1', [
+    leadId,
+    datos.telefono,
+    datos.empresa,
+    datos.rubro,
+  ]);
+  return true;
+}
+
+export async function obtenerListaDeLead(leadId: number): Promise<{ listaId: number; tieneHistorial: boolean } | null> {
+  const fila = await consultarUno<{ lista_id: number; tiene_historial: boolean }>(
+    `SELECT l.lista_id, EXISTS (SELECT 1 FROM publicacion_destinatarios pd WHERE pd.lead_id = l.id) AS tiene_historial
+     FROM leads l WHERE l.id = $1`,
+    [leadId],
+  );
+  return fila ? { listaId: fila.lista_id, tieneHistorial: fila.tiene_historial } : null;
+}
+
+/** Solo leads sin historial de campanas (borrar uno con envios borraria sus metricas en cascada). */
+export async function eliminarLead(leadId: number, listaId: number): Promise<void> {
+  await transaccion(async (cliente) => {
+    await cliente.query('DELETE FROM leads WHERE id = $1', [leadId]);
+    await cliente.query(
+      'UPDATE listas_leads SET validas = GREATEST(validas - 1, 0), total_filas = GREATEST(total_filas - 1, 0) WHERE id = $1',
+      [listaId],
+    );
+  });
+}
+
+/** Estados de las campanas que usaron esta lista (para decidir borrar, archivar o impedir). */
+export async function estadosCampanasDeLista(listaId: number): Promise<string[]> {
+  const filas = await consultar<{ estado: string }>('SELECT estado FROM publicaciones WHERE lista_id = $1', [listaId]);
+  return filas.map((f) => f.estado);
+}
+
+export async function borrarLista(listaId: number): Promise<void> {
+  await consultarUno('DELETE FROM listas_leads WHERE id = $1', [listaId]);
+}
+
+export async function archivarLista(listaId: number): Promise<void> {
+  await consultarUno('UPDATE listas_leads SET archivada_en = now() WHERE id = $1', [listaId]);
+}
+
+export async function guardarArchivo(listaId: number, archivoRuta: string): Promise<void> {
+  await consultarUno('UPDATE listas_leads SET archivo_ruta = $2 WHERE id = $1', [listaId, archivoRuta]);
 }
 
 export async function obtener(id: number): Promise<ListaLeads | null> {

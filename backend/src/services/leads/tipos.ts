@@ -42,8 +42,30 @@ export type ListaLeads = {
   invalidas: number;
   duplicadas: number;
   columnasExtra: string[];
+  /** Hay una copia del archivo subido y se puede descargar. */
+  tieneArchivo: boolean;
   creadoEn: string;
   actualizadoEn: string;
+};
+
+/** Un lead tal como se ve en la gestion de una lista. */
+export type LeadGestion = {
+  id: number;
+  telefono: string;
+  empresa: string;
+  rubro: string | null;
+  datosExtra: Record<string, string>;
+  etapaPipeline: string;
+  bloqueado: boolean;
+  ultimoEnvioEn: string | null;
+  /** Ya se le envio una campana: no se puede borrar sin perder metricas. */
+  tieneHistorial: boolean;
+};
+
+export type DatosLead = {
+  telefono: string;
+  empresa: string;
+  rubro: string | null;
 };
 
 export type LeadExcluido = {

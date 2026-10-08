@@ -57,6 +57,15 @@ rutasNumeros.post(
   }),
 );
 
+// "Eliminar" = archivar: cierra la sesion y lo oculta, pero conserva sus chats y metricas.
+rutasNumeros.delete(
+  '/numeros/:id',
+  manejarAsync(async (req, res) => {
+    await gestor.archivarNumero(idDesdeParametro(req.params.id));
+    res.status(204).end();
+  }),
+);
+
 const esquemaAutoRespuestas = z.object({ activo: z.boolean() });
 
 rutasNumeros.patch(

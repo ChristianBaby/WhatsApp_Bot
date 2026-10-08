@@ -7,6 +7,7 @@ import * as configRepo from '../configuracion/repositorio.js';
 import * as contactos from '../contactos/contactos.js';
 import { clasificarRespuesta, type SugerenciaEtapa } from '../ia/clasificacion.js';
 import { decidirRespuestaAutomatica } from '../ia/autoResponder.js';
+import { registrarRespuesta } from '../publicaciones/repositorio.js';
 import * as repo from './repositorio.js';
 
 const log = crearLogger('conversaciones');
@@ -157,6 +158,10 @@ async function procesar(msg: MensajeCrudo): Promise<void> {
     if (msg.fromMe) cancelarAutoRespuesta(conversacion.id);
     return;
   }
+
+  // Metrica real de respuesta: se atribuye al envio de campana mas reciente
+  // a este telefono (incluso si lo que responde es una baja: tambien cuenta).
+  await registrarRespuesta(msg.telefono);
 
   const quien = lead?.empresa ?? `+${msg.telefono}`;
 
