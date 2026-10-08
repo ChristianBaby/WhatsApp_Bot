@@ -114,6 +114,15 @@ export async function marcarEnConversacion(leadId: number): Promise<void> {
   );
 }
 
+/** Pidio no recibir mas mensajes: deja de ser un prospecto (salvo que ya sea cliente o este cerrado). */
+export async function marcarPidioBaja(leadId: number): Promise<void> {
+  await consultarUno(
+    `UPDATE leads SET etapa_pipeline = 'no_interesado'
+     WHERE id = $1 AND etapa_pipeline NOT IN ('venta_concretada', 'descartado')`,
+    [leadId],
+  );
+}
+
 export type EtapaManual = 'interesado' | 'no_interesado' | 'duda_precio' | 'venta_concretada' | 'descartado';
 
 /**

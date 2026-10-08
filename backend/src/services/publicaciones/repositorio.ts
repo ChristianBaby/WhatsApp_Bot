@@ -1,6 +1,5 @@
 import { consultar, consultarUno, insertarEnBloque, transaccion } from '../../db/pool.js';
 import { noEncontrado } from '../../lib/errors.js';
-import * as leadsRepo from '../leads/repositorio.js';
 import type {
   DatosCreacionPublicacion,
   EstadoDestinatario,
@@ -79,6 +78,7 @@ const SELECT_CON_PROGRESO = `
     COUNT(pd.id) FILTER (WHERE pd.estado = 'enviado')      AS enviados,
     COUNT(pd.id) FILTER (WHERE pd.estado = 'sin_whatsapp')  AS sin_whatsapp,
     COUNT(pd.id) FILTER (WHERE pd.estado = 'fallido')       AS fallidos,
+    COUNT(pd.id) FILTER (WHERE pd.estado = 'excluido')      AS excluidos,
     COUNT(pd.id) FILTER (WHERE pd.estado = 'pendiente')     AS pendientes
   FROM publicaciones p
   JOIN listas_leads ll ON ll.id = p.lista_id
@@ -91,6 +91,7 @@ type FilaConProgreso = FilaPublicacion & {
   enviados: number;
   sin_whatsapp: number;
   fallidos: number;
+  excluidos: number;
   pendientes: number;
 };
 
@@ -103,6 +104,7 @@ function mapearConProgreso(fila: FilaConProgreso): PublicacionConProgreso {
       enviados: fila.enviados,
       sinWhatsapp: fila.sin_whatsapp,
       fallidos: fila.fallidos,
+      excluidos: fila.excluidos,
       pendientes: fila.pendientes,
     },
   };
@@ -238,25 +240,146 @@ export async function contarDestinatarios(publicacionId: number): Promise<number
   return fila?.total ?? 0;
 }
 
-/**
- * Crea un destinatario por cada lead de la lista, repartiendo numero_id en
- * round-robin entre los numeros elegidos (seccion 3.3: repartir la lista
- * entre varios numeros). Se llama una sola vez, al arrancar la publicacion
- * por primera vez — reanudar una pausada NUNCA vuelve a llamar esto.
- */
-export async function generarDestinatarios(publicacionId: number, listaId: number, numeroIds: number[]): Promise<number> {
-  const leadIds = await leadsRepo.listarIdsPorLista(listaId);
-  if (leadIds.length === 0) return 0;
+type FilaCandidato = {
+  lead_id: number;
+  telefono: string;
+  etapa_pipeline: string;
+  bloqueado: boolean;
+  con_asesor: boolean;
+  contactado_reciente: boolean;
+};
 
-  return transaccion(async (cliente) => {
+/**
+ * Por que NO hay que escribirle a este contacto en esta campana, o null si
+ * se le puede escribir. Es la unica fuente de estas reglas (al generar los
+ * destinatarios y al reconfirmar justo antes de cada envio).
+ */
+function motivoExclusion(c: Omit<FilaCandidato, 'lead_id' | 'telefono'>, diasSinRecontactar: number): string | null {
+  if (c.bloqueado) return 'Pidió no recibir mensajes';
+  if (c.etapa_pipeline === 'venta_concretada') return 'Ya es cliente';
+  if (c.etapa_pipeline === 'descartado') return 'Descartado';
+  if (c.con_asesor) return 'En conversación con un asesor';
+  if (c.contactado_reciente) return `Recibió una campaña en los últimos ${diasSinRecontactar} días`;
+  return null;
+}
+
+// Mismas condiciones para una lista entera o para un solo telefono.
+const CONDICIONES_CANDIDATO = `
+  EXISTS (SELECT 1 FROM contactos_bloqueados b WHERE b.telefono = l.telefono) AS bloqueado,
+  EXISTS (SELECT 1 FROM conversaciones c WHERE c.telefono = l.telefono AND c.modo = 'manual') AS con_asesor,
+  EXISTS (
+    SELECT 1 FROM publicacion_destinatarios pd2 JOIN leads l2 ON l2.id = pd2.lead_id
+    WHERE l2.telefono = l.telefono AND pd2.estado = 'enviado' AND pd2.publicacion_id <> $1
+      AND pd2.enviado_en > now() - make_interval(days => $2)
+  ) AS contactado_reciente`;
+
+/**
+ * Crea un destinatario por cada lead de la lista. Los que no hay que
+ * contactar quedan como 'excluido' con su motivo (no desaparecen: se ven en
+ * el progreso y en el log). Los enviables se reparten en round-robin entre
+ * los numeros elegidos (seccion 3.3). Se llama una sola vez, al arrancar la
+ * publicacion por primera vez — reanudar una pausada NUNCA vuelve a llamar esto.
+ */
+/**
+ * Cada lead de la lista con su motivo de exclusion (null = enviable). Lo
+ * usan la generacion real de destinatarios y la simulacion (dry-run), asi
+ * las dos aplican exactamente las mismas reglas. publicacionId = 0 en la
+ * simulacion (todavia no existe).
+ */
+async function clasificarCandidatos(
+  publicacionId: number,
+  listaId: number,
+  diasSinRecontactar: number,
+): Promise<{ leadId: number; motivo: string | null }[]> {
+  const candidatos = await consultar<FilaCandidato>(
+    `SELECT l.id AS lead_id, l.telefono, l.etapa_pipeline, ${CONDICIONES_CANDIDATO}
+     FROM leads l WHERE l.lista_id = $3 ORDER BY l.id`,
+    [publicacionId, diasSinRecontactar, listaId],
+  );
+
+  const telefonosVistos = new Set<string>();
+  return candidatos.map((c) => {
+    let motivo = motivoExclusion(c, diasSinRecontactar);
+    if (!motivo && telefonosVistos.has(c.telefono)) motivo = 'Teléfono repetido en la lista';
+    telefonosVistos.add(c.telefono);
+    return { leadId: c.lead_id, motivo };
+  });
+}
+
+/** Para la simulacion: cuantos se enviarian y cuantos se excluyen por cada motivo. */
+export async function resumirExclusiones(
+  listaId: number,
+  diasSinRecontactar: number,
+): Promise<{ enviables: number[]; excluidosPorMotivo: Record<string, number> }> {
+  const clasificados = await clasificarCandidatos(0, listaId, diasSinRecontactar);
+  const excluidosPorMotivo: Record<string, number> = {};
+  const enviables: number[] = [];
+  for (const c of clasificados) {
+    if (c.motivo) excluidosPorMotivo[c.motivo] = (excluidosPorMotivo[c.motivo] ?? 0) + 1;
+    else enviables.push(c.leadId);
+  }
+  return { enviables, excluidosPorMotivo };
+}
+
+export async function generarDestinatarios(
+  publicacionId: number,
+  listaId: number,
+  numeroIds: number[],
+  diasSinRecontactar: number,
+): Promise<{ total: number; excluidos: number }> {
+  const clasificados = await clasificarCandidatos(publicacionId, listaId, diasSinRecontactar);
+  if (clasificados.length === 0) return { total: 0, excluidos: 0 };
+
+  let enviables = 0;
+  const filas = clasificados.map(({ leadId, motivo }) => {
+    if (motivo) return [publicacionId, leadId, null, 'excluido', motivo];
+    const numeroId = numeroIds[enviables % numeroIds.length];
+    enviables += 1;
+    return [publicacionId, leadId, numeroId, 'pendiente', null];
+  });
+
+  await transaccion(async (cliente) => {
     await insertarEnBloque(
       cliente,
       'publicacion_destinatarios',
-      ['publicacion_id', 'lead_id', 'numero_id'],
-      leadIds.map((leadId, i) => [publicacionId, leadId, numeroIds[i % numeroIds.length]]),
+      ['publicacion_id', 'lead_id', 'numero_id', 'estado', 'motivo_fallo'],
+      filas,
     );
-    return leadIds.length;
   });
+  return { total: clasificados.length, excluidos: clasificados.length - enviables };
+}
+
+/**
+ * Reconfirma justo antes de enviar: entre que se armo la campana y este
+ * envio el contacto puede haber pedido la baja o haber pasado a un asesor.
+ */
+export async function motivoExclusionAlEnviar(
+  publicacionId: number,
+  leadId: number,
+  diasSinRecontactar: number,
+): Promise<string | null> {
+  const fila = await consultarUno<FilaCandidato>(
+    `SELECT l.id AS lead_id, l.telefono, l.etapa_pipeline, ${CONDICIONES_CANDIDATO}
+     FROM leads l WHERE l.id = $3`,
+    [publicacionId, diasSinRecontactar, leadId],
+  );
+  return fila ? motivoExclusion(fila, diasSinRecontactar) : 'El lead ya no existe';
+}
+
+/** Arranque o reanudacion: desde aca se cuenta el limite de mensajes de esta ejecucion. */
+export async function marcarInicioEjecucion(publicacionId: number): Promise<void> {
+  await consultarUno('UPDATE publicaciones SET ejecucion_iniciada_en = now() WHERE id = $1', [publicacionId]);
+}
+
+export async function contarEnviadosEjecucion(publicacionId: number): Promise<number> {
+  const fila = await consultarUno<{ total: number }>(
+    `SELECT COUNT(*)::int AS total
+     FROM publicacion_destinatarios pd JOIN publicaciones p ON p.id = pd.publicacion_id
+     WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
+       AND pd.enviado_en >= COALESCE(p.ejecucion_iniciada_en, p.iniciada_en, '-infinity'::timestamptz)`,
+    [publicacionId],
+  );
+  return fila?.total ?? 0;
 }
 
 export type DestinatarioPendiente = {

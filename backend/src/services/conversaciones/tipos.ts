@@ -4,7 +4,7 @@ export type AutorMensaje = 'lead' | 'yo' | 'bot';
 export type ModoConversacion = 'bot' | 'manual';
 
 /** Por que se paso a modo manual de forma automatica (null = lo tomo el usuario a proposito). */
-export type EscaladoMotivo = 'palabra_clave' | 'baja_confianza';
+export type EscaladoMotivo = 'palabra_clave' | 'baja_confianza' | 'limite_respuestas' | 'pidio_baja';
 
 export type MensajeConversacion = {
   id: number;

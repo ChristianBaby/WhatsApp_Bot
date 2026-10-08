@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { manejarAsync } from '../middleware/errorHandler.js';
 import { solicitudInvalida } from '../lib/errors.js';
 import { emitir } from '../lib/sse.js';
+import { normalizarParaWhatsapp } from '../lib/telefono.js';
 import * as repo from '../services/configuracion/repositorio.js';
 
 export const rutasConfiguracion = Router();
@@ -16,11 +17,22 @@ const CANAL_SSE = 'configuracion';
  * la ruta ya es generica, no hace falta reescribirla despues.
  */
 const ESQUEMAS_POR_CLAVE: Record<string, z.ZodTypeAny> = {
-  telefono_propietario: z.string().max(30),
+  // Vacio = sin avisos; si se llena, tiene que ser un celular real (si no, los
+  // avisos al dueño fallaban en silencio).
+  telefono_propietario: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((v) => v === '' || normalizarParaWhatsapp(v) !== null, 'No es un celular valido'),
   autorespuestas_activo: z.boolean(),
   mensaje_bienvenida: z.string().max(2000),
   base_conocimiento: z.string().max(8000),
   palabras_escalamiento: z.array(z.string().trim().min(1)).max(30),
+  // Fase 1 (proteccion del numero)
+  dias_sin_recontactar: z.number().int().min(0).max(365),
+  limite_respuestas_bot_hora: z.number().int().min(1).max(30),
+  limite_respuestas_bot_dia: z.number().int().min(1).max(200),
+  mensaje_confirmacion_baja: z.string().trim().max(500),
 };
 
 const esquemaCuerpo = z.record(z.string(), z.unknown());

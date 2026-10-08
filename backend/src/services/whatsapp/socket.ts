@@ -128,16 +128,24 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
    * la sesion); lo resolvemos aca para seguir guardando siempre el telefono
    * real, sin importar que formato de JID haya usado WhatsApp esta vez.
    */
-  async function telefonoDesdeJid(jidCrudo: string): Promise<string | null> {
+  async function telefonoDesdeJid(jidCrudo: string, jidAlternativo?: string | null): Promise<string | null> {
     if (jidCrudo.endsWith('@s.whatsapp.net')) return soloTelefono(jidCrudo);
 
     if (jidCrudo.endsWith('@lid')) {
-      const pn = await sock.signalRepository.lidMapping.getPNForLID(jidCrudo).catch(() => null);
-      if (!pn) {
-        logBaileys.warn({ jidCrudo }, 'No se pudo resolver un JID @lid a un telefono; se ignora el mensaje');
-        return null;
+      // Baileys 7 suele traer el telefono real en remoteJidAlt: es lo mas confiable.
+      if (jidAlternativo?.endsWith('@s.whatsapp.net')) return soloTelefono(jidAlternativo);
+
+      // El mapeo lid->telefono se va llenando durante la sesion: si aun no
+      // esta, se reintenta un par de veces antes de dar el mensaje por perdido.
+      for (const esperaMs of [0, 2_000, 5_000]) {
+        if (esperaMs) await new Promise((r) => setTimeout(r, esperaMs));
+        const pn = await sock.signalRepository.lidMapping.getPNForLID(jidCrudo).catch(() => null);
+        if (pn) return soloTelefono(pn);
       }
-      return soloTelefono(pn);
+      // Es la respuesta de un contacto que no se puede asociar a un telefono:
+      // error (no warn) para que se vea en los logs.
+      logBaileys.error({ jidCrudo }, 'Mensaje perdido: no se pudo resolver un JID @lid a un telefono');
+      return null;
     }
 
     return null; // grupos (@g.us), estados (@broadcast), etc.
@@ -154,7 +162,7 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
       const texto = extraerTexto(msg);
       if (!texto) continue; // reaccion, recibo de lectura, etc. — nada que guardar
 
-      void telefonoDesdeJid(jidCrudo).then((telefono) => {
+      void telefonoDesdeJid(jidCrudo, msg.key.remoteJidAlt).then((telefono) => {
         if (!telefono) return;
         callbacks.onMensaje({
           telefono,

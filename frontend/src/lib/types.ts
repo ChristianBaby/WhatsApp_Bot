@@ -82,6 +82,8 @@ export type ResumenProgreso = {
   enviados: number;
   sinWhatsapp: number;
   fallidos: number;
+  /** No se les envia: baja, cliente, con asesor, contactado hace poco o repetido. */
+  excluidos: number;
   pendientes: number;
 };
 
@@ -125,7 +127,10 @@ export type MuestraDryRun = {
 };
 
 export type ResultadoDryRun = {
+  /** Los que realmente recibirían el mensaje (ya sin los excluidos). */
   totalDestinatarios: number;
+  /** Motivo -> cantidad de contactos que la campaña no va a contactar. */
+  excluidosPorMotivo: Record<string, number>;
   duracionEstimadaMinutos: number;
   muestras: MuestraDryRun[];
 };
@@ -142,7 +147,7 @@ export type MensajeConversacion = {
 };
 
 export type ModoConversacion = 'bot' | 'manual';
-export type EscaladoMotivo = 'palabra_clave' | 'baja_confianza';
+export type EscaladoMotivo = 'palabra_clave' | 'baja_confianza' | 'limite_respuestas' | 'pidio_baja';
 
 export type ConversacionResumen = {
   id: number;

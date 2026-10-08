@@ -12,6 +12,7 @@ const ETIQUETA_ESTADO_ENVIO: Record<string, string> = {
   enviado: '',
   sin_whatsapp: 'No tiene WhatsApp',
   fallido: '',
+  excluido: '', // el motivo concreto (baja, cliente, contactado hace poco...) viene en motivo_fallo
   pendiente: 'No llegó a procesarse',
 };
 

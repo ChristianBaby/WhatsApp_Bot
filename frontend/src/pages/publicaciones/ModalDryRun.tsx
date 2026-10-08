@@ -3,6 +3,9 @@ import type { ResultadoDryRun } from '../../lib/types';
 import estilos from './ModalDryRun.module.css';
 
 export function ModalDryRun({ resultado, onCerrar }: { resultado: ResultadoDryRun; onCerrar: () => void }) {
+  const exclusiones = Object.entries(resultado.excluidosPorMotivo);
+  const totalExcluidos = exclusiones.reduce((suma, [, n]) => suma + n, 0);
+
   return (
     <Modal titulo="Resultado de la simulación" onCerrar={onCerrar} ancho>
       <div className={estilos.resumen}>
@@ -14,7 +17,19 @@ export function ModalDryRun({ resultado, onCerrar }: { resultado: ResultadoDryRu
           <span className={estilos.statValor}>~{resultado.duracionEstimadaMinutos} min</span>
           <span className={estilos.statLabel}>Duración estimada</span>
         </div>
+        {totalExcluidos > 0 && (
+          <div className={estilos.stat}>
+            <span className={estilos.statValor}>{totalExcluidos}</span>
+            <span className={estilos.statLabel}>Excluidos</span>
+          </div>
+        )}
       </div>
+
+      {totalExcluidos > 0 && (
+        <p style={{ color: 'var(--texto-suave)', fontSize: 13 }}>
+          No se les enviará: {exclusiones.map(([motivo, n]) => `${motivo} (${n})`).join(' · ')}.
+        </p>
+      )}
 
       {resultado.muestras.length === 0 ? (
         <p style={{ color: 'var(--texto-suave)', fontSize: 13 }}>

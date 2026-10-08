@@ -1,5 +1,5 @@
 import { solicitudInvalida } from '../../lib/errors.js';
-import { normalizarTelefono } from '../../lib/telefono.js';
+import { normalizarParaWhatsapp } from '../../lib/telefono.js';
 import { CANDIDATOS_EMPRESA, CANDIDATOS_RUBRO, CANDIDATOS_TELEFONO, encontrarColumna, normalizarEncabezado } from './columnas.js';
 import type { ArchivoParseado } from './parseo.js';
 import type { FilaInvalida, FilaValida, ResultadoValidacion } from './tipos.js';
@@ -10,9 +10,6 @@ import type { FilaInvalida, FilaValida, ResultadoValidacion } from './tipos.js';
  * funcion de entrada/salida, facil de probar y de ajustar. La deteccion de
  * columnas (que encabezado es telefono/empresa/rubro) vive en columnas.ts.
  */
-
-const TELEFONO_DIGITOS_MIN = 8;
-const TELEFONO_DIGITOS_MAX = 15;
 
 /**
  * Nombre de columna -> nombre de variable de plantilla. "Contacto" y
@@ -74,8 +71,10 @@ export function validarArchivo(archivo: ArchivoParseado): ResultadoValidacion {
       continue;
     }
 
-    const telefono = normalizarTelefono(telefonoCrudo);
-    if (telefono.length < TELEFONO_DIGITOS_MIN || telefono.length > TELEFONO_DIGITOS_MAX) {
+    // Con codigo de pais: asi 987654321 y 51987654321 son el mismo contacto
+    // (duplicado) y WhatsApp lo reconoce al enviar.
+    const telefono = normalizarParaWhatsapp(telefonoCrudo);
+    if (!telefono) {
       filasInvalidas.push({ filaNumero: fila.filaNumero, motivo: 'telefono_invalido', datoReferencia: telefonoCrudo });
       continue;
     }

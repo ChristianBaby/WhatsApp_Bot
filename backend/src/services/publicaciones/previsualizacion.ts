@@ -1,5 +1,6 @@
 import * as leadsRepo from '../leads/repositorio.js';
 import * as configRepo from '../configuracion/repositorio.js';
+import { resumirExclusiones } from './repositorio.js';
 import { DATOS_PLACEHOLDER_MUESTRA, datosPlaceholderDeLead, elegirVariante, sustituirPlaceholders } from './plantilla.js';
 
 /**
@@ -16,7 +17,10 @@ export type MuestraDryRun = {
 };
 
 export type ResultadoDryRun = {
+  /** Los que REALMENTE recibirian el mensaje (ya sin los excluidos). */
   totalDestinatarios: number;
+  /** Motivo -> cantidad (baja, cliente, con asesor, contactado hace poco, repetido). */
+  excluidosPorMotivo: Record<string, number>;
   duracionEstimadaMinutos: number;
   muestras: MuestraDryRun[];
 };
@@ -48,7 +52,12 @@ export async function simularDryRun(
     numeroIds: number[];
   } & ParametrosRitmo,
 ): Promise<ResultadoDryRun> {
-  const leads = await leadsRepo.listarPorLista(datos.listaId);
+  // Mismas exclusiones que la campana real: si no, la simulacion prometia
+  // enviar (y tardar) mas de lo que despues hacia.
+  const dias = Number((await configRepo.obtenerValor<number>('dias_sin_recontactar')) ?? 30);
+  const { enviables, excluidosPorMotivo } = await resumirExclusiones(datos.listaId, dias);
+  const idsEnviables = new Set(enviables);
+  const leads = (await leadsRepo.listarPorLista(datos.listaId)).filter((l) => idsEnviables.has(l.id));
   const ritmo = await resolverRitmo(datos);
 
   const total = leads.length;
@@ -70,7 +79,7 @@ export async function simularDryRun(
     };
   });
 
-  return { totalDestinatarios: total, duracionEstimadaMinutos, muestras };
+  return { totalDestinatarios: total, excluidosPorMotivo, duracionEstimadaMinutos, muestras };
 }
 
 /** Arma el texto final para "enviar prueba a un numero", usando un lead real como muestra si hay uno disponible. */

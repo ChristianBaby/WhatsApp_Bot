@@ -34,6 +34,9 @@ const esquema = z.object({
   // request a /api/* realmente vino de ahi y no directo de internet.
   MICROSERVICE_TOKEN: z.string().min(16, 'debe tener al menos 16 caracteres'),
 
+  // Se antepone a los telefonos que llegan sin codigo de pais (Excel, panel).
+  CODIGO_PAIS: z.string().regex(/^\d{1,3}$/, 'solo digitos, ej. 51').default('51'),
+
   GEMINI_API_KEY: z.string().default(''),
   GEMINI_MODEL: z.string().default('gemini-2.5-flash-lite'),
 

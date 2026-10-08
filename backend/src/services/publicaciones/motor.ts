@@ -1,7 +1,7 @@
 import { crearLogger } from '../../lib/logger.js';
 import { emitir } from '../../lib/sse.js';
 import { noEncontrado, solicitudInvalida } from '../../lib/errors.js';
-import { normalizarTelefono } from '../../lib/telefono.js';
+import { telefonoDueno } from '../contactos/contactos.js';
 import { idsNumerosConectados } from '../whatsapp/gestor.js';
 import { NumeroNoConectadoError, enviarMensaje, verificarEnWhatsapp } from '../whatsapp/envio.js';
 import * as leadsRepo from '../leads/repositorio.js';
@@ -83,10 +83,8 @@ async function completar(publicacionId: number): Promise<void> {
 /** Resumen final de la campaña por WhatsApp al terminar (seccion 3.7). */
 async function avisarCampanaTerminada(publicacionId: number): Promise<void> {
   try {
-    const telefonoDueno = await configRepo.obtenerValor<string>('telefono_propietario');
-    if (!telefonoDueno) return;
-    const destino = normalizarTelefono(telefonoDueno);
-    if (destino.length < 8) return;
+    const destino = await telefonoDueno();
+    if (!destino) return;
 
     const pub = await repo.obtenerConProgreso(publicacionId);
     if (!pub) return;
@@ -99,7 +97,7 @@ async function avisarCampanaTerminada(publicacionId: number): Promise<void> {
 
     const texto = [
       `✅ Campaña "${pub.nombre}" terminada${duracion !== null ? ` en ${duracion} min` : ''}.`,
-      `Enviados: ${progreso.enviados} · Sin WhatsApp: ${progreso.sinWhatsapp} · Fallidos: ${progreso.fallidos}`,
+      `Enviados: ${progreso.enviados} · Sin WhatsApp: ${progreso.sinWhatsapp} · Fallidos: ${progreso.fallidos} · Excluidos: ${progreso.excluidos}`,
       `Total: ${progreso.totalDestinatarios} contactos`,
     ].join('\n');
 
@@ -112,12 +110,23 @@ async function avisarCampanaTerminada(publicacionId: number): Promise<void> {
   }
 }
 
-async function procesarDestinatario(pub: Publicacion, destinatario: DestinatarioPendiente): Promise<void> {
+/**
+ * Devuelve true si hubo trafico con WhatsApp (envio, intento fallido o
+ * consulta de existencia) y por lo tanto corresponde la pausa anti-bloqueo;
+ * false si se excluyo sin tocar WhatsApp (se pasa al siguiente sin esperar).
+ */
+async function procesarDestinatario(pub: Publicacion, destinatario: DestinatarioPendiente): Promise<boolean> {
   try {
+    const motivo = await repo.motivoExclusionAlEnviar(pub.id, destinatario.leadId, await diasSinRecontactar());
+    if (motivo) {
+      await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'excluido', { motivoFallo: motivo });
+      return false;
+    }
+
     const tieneWhatsapp = await verificarEnWhatsapp(destinatario.numeroId, destinatario.telefono);
     if (!tieneWhatsapp) {
       await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'sin_whatsapp');
-      return;
+      return true;
     }
 
     const variante = elegirVariante(pub.variantesMensaje);
@@ -142,10 +151,12 @@ async function procesarDestinatario(pub: Publicacion, destinatario: Destinatario
       texto,
       whatsappId,
     });
+    return true;
   } catch (err) {
     const motivo = err instanceof NumeroNoConectadoError ? err.message : (err as Error).message;
     await repo.marcarResultadoDestinatario(destinatario.destinatarioId, 'fallido', { motivoFallo: motivo });
     log.warn({ err, publicacionId: pub.id, leadId: destinatario.leadId }, 'Fallo el envio a un destinatario');
+    return true;
   } finally {
     emitirProgreso(pub.id);
   }
@@ -163,8 +174,13 @@ async function procesarUnPaso(pub: Publicacion): Promise<void> {
   const progreso = await repo.obtenerConProgreso(actual.id);
   if (!progreso) return;
 
-  if (progreso.progreso.enviados >= config.maxMensajes) {
-    await pausar(actual.id, `Se alcanzo el limite de ${config.maxMensajes} mensajes configurado para esta campaña.`);
+  // Por ejecucion, no el total historico: antes, al llegar al limite la
+  // campana se pausaba y al reanudarla se volvia a pausar en el acto.
+  if ((await repo.contarEnviadosEjecucion(actual.id)) >= config.maxMensajes) {
+    await pausar(
+      actual.id,
+      `Se enviaron ${config.maxMensajes} mensajes en esta ejecución (el límite configurado). Reanúdala para enviar el siguiente tramo.`,
+    );
     return;
   }
 
@@ -186,7 +202,8 @@ async function procesarUnPaso(pub: Publicacion): Promise<void> {
     return;
   }
 
-  await procesarDestinatario(actual, siguiente);
+  const huboTrafico = await procesarDestinatario(actual, siguiente);
+  if (!huboTrafico) return; // excluido sin tocar WhatsApp: el siguiente sale en el proximo tick, sin pausa ni lote
 
   const loteActual = await repo.incrementarLoteActual(actual.id);
   if (loteActual >= config.tamanoLote) {
@@ -199,12 +216,22 @@ async function procesarUnPaso(pub: Publicacion): Promise<void> {
   }
 }
 
+async function diasSinRecontactar(): Promise<number> {
+  return Number((await configRepo.obtenerValor<number>('dias_sin_recontactar')) ?? 30);
+}
+
 async function iniciarPublicacion(pub: Publicacion): Promise<Publicacion> {
   const yaGenerados = await repo.contarDestinatarios(pub.id);
   if (yaGenerados === 0) {
-    const total = await repo.generarDestinatarios(pub.id, pub.listaId, pub.numeroIds);
-    log.info({ publicacionId: pub.id, total }, 'Destinatarios generados');
+    const { total, excluidos } = await repo.generarDestinatarios(
+      pub.id,
+      pub.listaId,
+      pub.numeroIds,
+      await diasSinRecontactar(),
+    );
+    log.info({ publicacionId: pub.id, total, excluidos }, 'Destinatarios generados');
   }
+  await repo.marcarInicioEjecucion(pub.id);
   const actualizada = await repo.cambiarEstado(pub.id, { estado: 'en_curso', iniciadaEn: new Date().toISOString() });
   emitirProgreso(pub.id);
   log.info({ publicacionId: pub.id }, 'Publicacion iniciada');
@@ -276,6 +303,7 @@ export async function reanudarPublicacion(publicacionId: number): Promise<Public
     await repo.actualizar(publicacionId, { programadaPara: new Date().toISOString() });
     await repo.cambiarEstado(publicacionId, { estado: 'programada' });
   } else {
+    await repo.marcarInicioEjecucion(publicacionId);
     await repo.cambiarEstado(publicacionId, { estado: 'en_curso' });
   }
 

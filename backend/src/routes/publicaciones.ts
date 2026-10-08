@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { manejarAsync } from '../middleware/errorHandler.js';
 import { noEncontrado, solicitudInvalida } from '../lib/errors.js';
-import { normalizarTelefono } from '../lib/telefono.js';
+import { normalizarParaWhatsapp } from '../lib/telefono.js';
+import { estaBloqueado } from '../services/contactos/contactos.js';
 import * as repo from '../services/publicaciones/repositorio.js';
 import * as motor from '../services/publicaciones/motor.js';
 import { construirMensajePrueba, simularDryRun } from '../services/publicaciones/previsualizacion.js';
@@ -177,8 +178,11 @@ rutasPublicaciones.post(
   '/publicaciones/enviar-prueba',
   manejarAsync(async (req, res) => {
     const datos = esquemaEnviarPrueba.parse(req.body);
-    const telefono = normalizarTelefono(datos.telefonoPrueba);
-    if (telefono.length < 8) throw solicitudInvalida('El telefono de prueba no es valido');
+    const telefono = normalizarParaWhatsapp(datos.telefonoPrueba);
+    if (!telefono) throw solicitudInvalida('El telefono de prueba no es un celular valido');
+    if (await estaBloqueado(telefono)) {
+      throw solicitudInvalida('Ese numero pidio no recibir mensajes: no se le puede enviar la prueba');
+    }
 
     const tieneWhatsapp = await verificarEnWhatsapp(datos.numeroId, telefono);
     if (!tieneWhatsapp) {

@@ -1,5 +1,6 @@
 export type EstadoPublicacion = 'borrador' | 'programada' | 'en_curso' | 'pausada' | 'completada' | 'cancelada';
-export type EstadoDestinatario = 'pendiente' | 'enviado' | 'sin_whatsapp' | 'fallido';
+/** excluido: no se le envia (baja, cliente, con asesor, contactado hace poco, repetido); el motivo queda en motivo_fallo. */
+export type EstadoDestinatario = 'pendiente' | 'enviado' | 'sin_whatsapp' | 'fallido' | 'excluido';
 export type TipoAdjunto = 'imagen' | 'video';
 
 export type Publicacion = {
@@ -34,6 +35,7 @@ export type ResumenProgreso = {
   enviados: number;
   sinWhatsapp: number;
   fallidos: number;
+  excluidos: number;
   pendientes: number;
 };
 

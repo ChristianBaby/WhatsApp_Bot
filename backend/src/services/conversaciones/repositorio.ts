@@ -164,6 +164,38 @@ export async function obtenerOCrearConversacion(datos: {
   return creada!;
 }
 
+/** Estado actual (modo, bienvenida...) para decidir en el momento de auto-responder, no al recibir. */
+export async function obtenerCruda(conversacionId: number): Promise<FilaConversacionCruda | null> {
+  return consultarUno<FilaConversacionCruda>(`SELECT ${CAMPOS_CRUDOS} FROM conversaciones WHERE id = $1`, [conversacionId]);
+}
+
+/**
+ * Lo que el lead escribio desde la ultima vez que le respondimos (bot o
+ * persona). Si mando 3 mensajes seguidos, se contestan juntos una sola vez.
+ */
+export async function mensajesLeadSinResponder(conversacionId: number): Promise<string[]> {
+  const filas = await consultar<{ texto: string }>(
+    `SELECT texto FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND autor = 'lead'
+       AND creado_en > COALESCE(
+         (SELECT MAX(creado_en) FROM mensajes_conversacion WHERE conversacion_id = $1 AND autor IN ('bot', 'yo')),
+         '-infinity'::timestamptz)
+     ORDER BY creado_en ASC`,
+    [conversacionId],
+  );
+  return filas.map((f) => f.texto);
+}
+
+/** Respuestas automaticas en esta conversacion en los ultimos N minutos (freno anti-bucle). */
+export async function contarRespuestasBot(conversacionId: number, minutos: number): Promise<number> {
+  const fila = await consultarUno<{ total: number }>(
+    `SELECT COUNT(*)::int AS total FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND autor = 'bot' AND creado_en > now() - make_interval(mins => $2)`,
+    [conversacionId, minutos],
+  );
+  return fila?.total ?? 0;
+}
+
 export async function contarMensajes(conversacionId: number): Promise<number> {
   const fila = await consultarUno<{ total: number }>(
     'SELECT COUNT(*) AS total FROM mensajes_conversacion WHERE conversacion_id = $1',

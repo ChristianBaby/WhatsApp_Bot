@@ -39,10 +39,8 @@ export function TarjetaCampana({ publicacion: pub, onEditar }: Props) {
   const puedeCancelar = pub.estado !== 'completada' && pub.estado !== 'cancelada';
   const puedeReanudar = pub.estado === 'pausada';
 
-  const pct =
-    progreso.totalDestinatarios > 0
-      ? Math.round(((progreso.enviados + progreso.sinWhatsapp + progreso.fallidos) / progreso.totalDestinatarios) * 100)
-      : 0;
+  const procesados = progreso.enviados + progreso.sinWhatsapp + progreso.fallidos + progreso.excluidos;
+  const pct = progreso.totalDestinatarios > 0 ? Math.round((procesados / progreso.totalDestinatarios) * 100) : 0;
 
   async function cancelar() {
     if (!window.confirm(`¿Cancelar "${pub.nombre}"? Esta acción no se puede deshacer.`)) return;
@@ -81,7 +79,8 @@ export function TarjetaCampana({ publicacion: pub, onEditar }: Props) {
         <div>
           <div className={estilos.progresoFila}>
             <span>
-              {progreso.enviados + progreso.sinWhatsapp + progreso.fallidos} de {progreso.totalDestinatarios} procesados
+              {procesados} de {progreso.totalDestinatarios} procesados
+              {progreso.excluidos > 0 && ` · ${progreso.excluidos} excluidos`}
             </span>
             <span>{pct}%</span>
           </div>
@@ -96,6 +95,11 @@ export function TarjetaCampana({ publicacion: pub, onEditar }: Props) {
           <span>✅ {progreso.enviados} enviados</span>
           <span>🚫 {progreso.sinWhatsapp} sin WhatsApp</span>
           <span>❌ {progreso.fallidos} fallidos</span>
+          {progreso.excluidos > 0 && (
+            <span title="Bajas, clientes, chats con asesor, contactados hace poco o teléfonos repetidos">
+              ⛔ {progreso.excluidos} excluidos
+            </span>
+          )}
         </div>
       )}
 

@@ -98,6 +98,16 @@ export function DetalleConversacion({ conversacion, onVerFicha }: Props) {
           {conversacion.escaladoMotivo === 'baja_confianza' && (
             <div className={estilos.bannerSubnota}>El bot no pudo responder esta consulta con confianza.</div>
           )}
+          {conversacion.escaladoMotivo === 'limite_respuestas' && (
+            <div className={estilos.bannerSubnota}>
+              El bot alcanzó su límite de respuestas en este chat (posible conversación con otro bot o respuesta automática).
+            </div>
+          )}
+          {conversacion.escaladoMotivo === 'pidio_baja' && (
+            <div className={estilos.bannerSubnota}>
+              Este contacto pidió no recibir más mensajes: está fuera de las campañas y de las respuestas automáticas.
+            </div>
+          )}
         </div>
       )}
 
