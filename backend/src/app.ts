@@ -56,6 +56,19 @@ export function crearApp() {
   // no adivinables.
   app.use('/api/uploads', requiereTokenGateway, express.static(env.rutaSubidas, { maxAge: '7d', fallthrough: true }));
 
+  // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).
+  // EventSource no manda Authorization, asi que usa un ticket de un solo uso
+  // en vez del gate normal (ver middleware/ticketSSE.ts). DEBE ir antes de
+  // app.use('/api', requiereIdentidadGateway): si no, ese gate lo rechaza
+  // primero (no hay usuario) y el panel nunca recibe el QR ni los chats en
+  // vivo. Nombre de ruta sin prefijo compartido con /api/eventos a
+  // proposito: el Gateway deja pasar /api/whatsapp/eventos sin JWT (ver
+  // auth.middleware.js), y si el ticket colgara de ahi quedaria expuesto.
+  app.post('/api/sse-ticket', requiereIdentidadGateway, (_req, res) => {
+    res.json({ ticket: crearTicketSSE() });
+  });
+  app.get('/api/eventos', requiereTokenGateway, requiereTicketSSE, manejadorSSE);
+
   app.use('/api', requiereIdentidadGateway);
   app.use('/api', rutasNumeros);
   app.use('/api', rutasLeads);
@@ -65,17 +78,6 @@ export function crearApp() {
   app.use('/api', rutasConfiguracion);
   app.use('/api', rutasReportes);
   app.use('/api', rutasResumen);
-
-  // Canal de eventos en vivo (QR, progreso de campana, respuestas nuevas).
-  // EventSource no manda Authorization, asi que usa un ticket de un solo uso
-  // en vez del gate normal (ver middleware/ticketSSE.ts). Nombre de ruta
-  // sin prefijo compartido con /api/eventos a proposito: el Gateway deja
-  // pasar /api/whatsapp/eventos sin JWT (ver auth.middleware.js), y si el
-  // ticket colgara de ahi (/api/eventos/ticket) quedaria expuesto igual.
-  app.post('/api/sse-ticket', requiereIdentidadGateway, (_req, res) => {
-    res.json({ ticket: crearTicketSSE() });
-  });
-  app.get('/api/eventos', requiereTicketSSE, manejadorSSE);
 
   // 404 solo para rutas de API; lo demas puede caer al panel.
   app.use('/api', manejadorNoEncontrado);
