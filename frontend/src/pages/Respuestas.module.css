@@ -1,8 +1,20 @@
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;
+  /* minmax(0, 1fr): sin esto la fila crece con el contenido (min-height:auto
+     de los items de grid) y el hilo del chat nunca muestra su scroll: los
+     mensajes de abajo quedaban cortados sin poder desplazarse. */
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100vh - 170px);
   min-height: 460px;
+  overflow: hidden;
+}
+
+.columnaLista,
+.columnaDetalle {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .columnaLista {

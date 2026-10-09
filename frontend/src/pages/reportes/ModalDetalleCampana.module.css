@@ -51,6 +51,17 @@
   color: var(--exito);
 }
 
+/* Texto completo de la variante, para comparar cual funciono mejor. */
+.textoVariante {
+  margin: 4px 0 8px 0;
+  padding: 8px 10px;
+  border-radius: var(--radio-control);
+  background: var(--fondo-neutro);
+  font-size: var(--texto-menor);
+  color: var(--texto-medio);
+  white-space: pre-wrap;
+}
+
 @media (max-width: 640px) {
   .fila {
     grid-template-columns: 1fr;

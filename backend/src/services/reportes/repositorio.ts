@@ -259,42 +259,107 @@ export async function listarCampanas(f: FiltrosReportes): Promise<CampanaResumen
   }));
 }
 
-type FilaDesglose = { clave: string; enviados: number; leidos: number; respondieron: number };
+type FilaDesglose = {
+  clave: string;
+  texto: string | null;
+  enviados: number;
+  leidos: number;
+  respondieron: number;
+  interesados: number;
+  bajas: number;
+};
 
 function mapearDesglose(filas: FilaDesglose[]): DesgloseCampana[] {
   return filas.map((f) => ({ ...f, tasaRespuesta: tasa(f.respondieron, f.enviados) }));
 }
 
+// Interesado = la etapa actual del lead (la confirma el usuario, o es cliente).
 const SQL_CONTEOS_DESGLOSE = `
   COUNT(*)::int AS enviados,
   COUNT(*) FILTER (WHERE pd.leido_en IS NOT NULL)::int AS leidos,
-  COUNT(*) FILTER (WHERE pd.respondio_en IS NOT NULL)::int AS respondieron`;
+  COUNT(*) FILTER (WHERE pd.respondio_en IS NOT NULL)::int AS respondieron,
+  COUNT(*) FILTER (WHERE l.etapa_pipeline IN ('interesado', 'venta_concretada'))::int AS interesados,
+  COUNT(*) FILTER (WHERE ${SQL_DIO_BAJA})::int AS bajas`;
+
+function escaparRegex(texto: string): string {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Plantilla -> expresion que reconoce un mensaje ya enviado con ella: las
+ * {variables} pueden ser cualquier texto y al final puede venir el link del
+ * catalogo (se agrega con un salto de linea doble).
+ */
+function regexDePlantilla(plantilla: string): RegExp {
+  const partes = plantilla.split(/\{[^{}]+\}/).map(escaparRegex);
+  return new RegExp(`^${partes.join('[\\s\\S]*?')}(\\n\\n[\\s\\S]*)?$`);
+}
+
+/**
+ * Envios hechos antes de que se registrara la variante (Fase 2): se deduce
+ * comparando el texto enviado con cada plantilla. Si encaja con varias, gana
+ * la de mas texto fijo (la mas especifica). Se guarda, asi solo pasa una vez.
+ */
+async function reconstruirVariantes(publicacionId: number): Promise<void> {
+  const pendientes = await consultar<{ id: number; mensaje_enviado: string }>(
+    `SELECT id, mensaje_enviado FROM publicacion_destinatarios
+     WHERE publicacion_id = $1 AND estado = 'enviado' AND variante_indice IS NULL AND mensaje_enviado IS NOT NULL`,
+    [publicacionId],
+  );
+  if (pendientes.length === 0) return;
+
+  const pub = await consultarUno<{ variantes_mensaje: string[] }>(
+    'SELECT variantes_mensaje FROM publicaciones WHERE id = $1',
+    [publicacionId],
+  );
+  const plantillas = (pub?.variantes_mensaje ?? []).map((texto, indice) => ({
+    indice,
+    regex: regexDePlantilla(texto),
+    fijo: texto.replace(/\{[^{}]+\}/g, '').length,
+  }));
+
+  for (const fila of pendientes) {
+    const coincidencias = plantillas.filter((p) => p.regex.test(fila.mensaje_enviado));
+    if (coincidencias.length === 0) continue;
+    const mejor = coincidencias.reduce((a, b) => (b.fijo > a.fijo ? b : a));
+    await consultarUno('UPDATE publicacion_destinatarios SET variante_indice = $2 WHERE id = $1', [fila.id, mejor.indice]);
+  }
+}
 
 /**
  * Que variante del mensaje, que numero y que hora de envio consiguen mas
  * respuestas en una campana. La hora se agrupa en la zona del negocio.
  */
 export async function obtenerDetalleCampana(publicacionId: number, zonaHoraria: string): Promise<DetalleCampana> {
+  await reconstruirVariantes(publicacionId);
+
   const [porVariante, porNumero, porHora] = await Promise.all([
     consultar<FilaDesglose>(
-      `SELECT COALESCE(LEFT(p.variantes_mensaje[pd.variante_indice + 1], 60), 'Sin registrar') AS clave,
+      `SELECT CASE WHEN pd.variante_indice IS NULL THEN 'Sin identificar'
+                   ELSE 'Variante ' || (pd.variante_indice + 1) END AS clave,
+         p.variantes_mensaje[pd.variante_indice + 1] AS texto,
          ${SQL_CONTEOS_DESGLOSE}
-       FROM publicacion_destinatarios pd JOIN publicaciones p ON p.id = pd.publicacion_id
+       FROM publicacion_destinatarios pd
+       JOIN publicaciones p ON p.id = pd.publicacion_id
+       JOIN leads l ON l.id = pd.lead_id
        WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
        GROUP BY pd.variante_indice, p.variantes_mensaje ORDER BY pd.variante_indice NULLS LAST`,
       [publicacionId],
     ),
     consultar<FilaDesglose>(
-      `SELECT COALESCE(n.etiqueta, 'Número eliminado') AS clave, ${SQL_CONTEOS_DESGLOSE}
-       FROM publicacion_destinatarios pd LEFT JOIN numeros_whatsapp n ON n.id = pd.numero_id
+      `SELECT COALESCE(n.etiqueta, 'Número eliminado') AS clave, NULL AS texto, ${SQL_CONTEOS_DESGLOSE}
+       FROM publicacion_destinatarios pd
+       JOIN leads l ON l.id = pd.lead_id
+       LEFT JOIN numeros_whatsapp n ON n.id = pd.numero_id
        WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
        GROUP BY n.id, n.etiqueta ORDER BY enviados DESC`,
       [publicacionId],
     ),
     consultar<FilaDesglose>(
       `SELECT LPAD(EXTRACT(HOUR FROM pd.enviado_en AT TIME ZONE $2)::text, 2, '0') || ':00' AS clave,
-         ${SQL_CONTEOS_DESGLOSE}
+         NULL AS texto, ${SQL_CONTEOS_DESGLOSE}
        FROM publicacion_destinatarios pd
+       JOIN leads l ON l.id = pd.lead_id
        WHERE pd.publicacion_id = $1 AND pd.estado = 'enviado'
        GROUP BY 1 ORDER BY 1`,
       [publicacionId, zonaHoraria],

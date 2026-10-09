@@ -186,6 +186,25 @@ export async function mensajesLeadSinResponder(conversacionId: number): Promise<
   return filas.map((f) => f.texto);
 }
 
+export async function existeMensaje(whatsappId: string): Promise<boolean> {
+  return Boolean(await consultarUno('SELECT 1 FROM mensajes_conversacion WHERE whatsapp_id = $1', [whatsappId]));
+}
+
+/** Ultimos mensajes, de mas antiguo a mas reciente (contexto para la IA). */
+export async function obtenerUltimosMensajes(
+  conversacionId: number,
+  limite: number,
+): Promise<{ autor: AutorMensaje; texto: string }[]> {
+  const filas = await consultar<{ autor: AutorMensaje; texto: string }>(
+    `SELECT autor, texto FROM (
+       SELECT autor, texto, creado_en, id FROM mensajes_conversacion
+       WHERE conversacion_id = $1 ORDER BY creado_en DESC, id DESC LIMIT $2
+     ) ultimos ORDER BY creado_en ASC, id ASC`,
+    [conversacionId, limite],
+  );
+  return filas;
+}
+
 /** Respuestas automaticas en esta conversacion en los ultimos N minutos (freno anti-bucle). */
 export async function contarRespuestasBot(conversacionId: number, minutos: number): Promise<number> {
   const fila = await consultarUno<{ total: number }>(

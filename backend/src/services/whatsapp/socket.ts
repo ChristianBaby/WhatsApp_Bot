@@ -4,6 +4,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason,
+  downloadMediaMessage,
   type WAMessage,
   type WASocket,
 } from 'baileys';
@@ -24,6 +25,8 @@ type MensajeRecibido = {
   texto: string;
   whatsappId: string | null;
   pushName?: string | null;
+  /** Nota de voz: descarga perezosa (solo si se va a transcribir). */
+  audio?: { descargar: () => Promise<Buffer>; mimeType: string; segundos: number } | null;
 };
 
 type CallbacksSesion = {
@@ -168,6 +171,16 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
       const texto = extraerTexto(msg);
       if (!texto) continue; // reaccion, recibo de lectura, etc. — nada que guardar
 
+      const notaDeVoz = msg.message?.audioMessage;
+      const audio = notaDeVoz
+        ? {
+            mimeType: notaDeVoz.mimetype ?? 'audio/ogg',
+            segundos: notaDeVoz.seconds ?? 0,
+            descargar: () =>
+              downloadMediaMessage(msg, 'buffer', {}, { logger: logBaileys, reuploadRequest: sock.updateMediaMessage }),
+          }
+        : null;
+
       void telefonoDesdeJid(jidCrudo, msg.key.remoteJidAlt).then((telefono) => {
         if (!telefono) return;
         callbacks.onMensaje({
@@ -176,6 +189,7 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
           texto,
           whatsappId: msg.key.id ?? null,
           pushName: msg.pushName,
+          audio,
         });
       });
     }

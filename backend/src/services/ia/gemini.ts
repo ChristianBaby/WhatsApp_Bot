@@ -25,7 +25,11 @@ if (!cliente) {
  * devuelve null en vez de lanzar — quien llama decide el "modo seguro"
  * (no sugerir nada / escalar a un asesor humano).
  */
-export async function generarJSON<T>(prompt: string, schema: Schema): Promise<T | null> {
+export async function generarJSON<T>(
+  prompt: string,
+  schema: Schema,
+  opciones: { instruccionSistema?: string; temperatura?: number } = {},
+): Promise<T | null> {
   if (!cliente) return null;
 
   try {
@@ -33,9 +37,13 @@ export async function generarJSON<T>(prompt: string, schema: Schema): Promise<T 
       model: env.GEMINI_MODEL,
       contents: prompt,
       config: {
+        // Las reglas van como instruccion de sistema, separadas del texto del
+        // cliente: asi un "ignora tus instrucciones" dentro de un mensaje no
+        // tiene el mismo peso que las reglas del negocio.
+        ...(opciones.instruccionSistema ? { systemInstruction: opciones.instruccionSistema } : {}),
         responseMimeType: 'application/json',
         responseSchema: schema,
-        temperature: 0.2, // respuestas consistentes, no creativas
+        temperature: opciones.temperatura ?? 0.2, // respuestas consistentes, no creativas
       },
     });
 
@@ -44,6 +52,40 @@ export async function generarJSON<T>(prompt: string, schema: Schema): Promise<T 
     return JSON.parse(texto) as T;
   } catch (err) {
     log.warn({ err }, 'Fallo la llamada a Gemini');
+    return null;
+  }
+}
+
+export function iaDisponible(): boolean {
+  return cliente !== null;
+}
+
+/**
+ * Transcribe una nota de voz (WhatsApp manda audio/ogg con opus, que Gemini
+ * acepta). null si no hay IA o falla: quien llama deja "🎤 Audio de voz".
+ */
+export async function transcribirAudio(audio: Buffer, mimeType: string): Promise<string | null> {
+  if (!cliente) return null;
+  try {
+    const respuesta = await cliente.models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType: mimeType.split(';')[0] || 'audio/ogg', data: audio.toString('base64') } },
+            {
+              text: 'Transcribe literalmente esta nota de voz en español. Devuelve solo la transcripción, sin comentarios. Si no se entiende nada, devuelve una cadena vacía.',
+            },
+          ],
+        },
+      ],
+      config: { temperature: 0 },
+    });
+    const texto = respuesta.text?.trim();
+    return texto ? texto : null;
+  } catch (err) {
+    log.warn({ err }, 'No se pudo transcribir un audio');
     return null;
   }
 }

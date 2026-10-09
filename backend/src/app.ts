@@ -15,6 +15,7 @@ import { rutasConfiguracion } from './routes/configuracion.js';
 import { rutasReportes } from './routes/reportes.js';
 import { rutasResumen } from './routes/resumen.js';
 import { rutasContactos } from './routes/contactos.js';
+import { rutasConocimiento } from './routes/conocimiento.js';
 import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandler.js';
 import { crearLogger } from './lib/logger.js';
 
@@ -87,6 +88,7 @@ export function crearApp() {
   app.use('/api', rutasReportes);
   app.use('/api', rutasResumen);
   app.use('/api', rutasContactos);
+  app.use('/api', rutasConocimiento);
 
   // 404 solo para rutas de API; lo demas puede caer al panel.
   app.use('/api', manejadorNoEncontrado);

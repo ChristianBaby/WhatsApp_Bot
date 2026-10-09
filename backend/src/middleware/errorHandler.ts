@@ -33,7 +33,7 @@ export const manejadorErrores: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof MulterError) {
     const mensaje =
       err.code === 'LIMIT_FILE_SIZE'
-        ? 'El archivo es demasiado grande (maximo 8MB).'
+        ? 'El archivo es demasiado grande (máximo: listas 8 MB, imágenes/videos 16 MB, documentos de conocimiento 500 KB).'
         : 'No se pudo procesar el archivo subido.';
     log.warn({ err: err.message, ruta: req.path }, 'Error de subida de archivo');
     res.status(400).json({ error: mensaje, codigo: 'ARCHIVO_INVALIDO' });

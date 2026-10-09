@@ -94,7 +94,7 @@ export function Respuestas() {
           <div className={estilos.columnaLista}>
             <ListaConversaciones conversaciones={conversaciones} seleccionadaId={seleccionadaId} onSeleccionar={seleccionar} />
           </div>
-          <div>
+          <div className={estilos.columnaDetalle}>
             {detalle ? (
               <DetalleConversacion conversacion={detalle} onVerFicha={() => setMostrarFicha(true)} />
             ) : (

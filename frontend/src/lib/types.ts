@@ -256,9 +256,13 @@ export type CampanaResumen = {
 
 export type DesgloseCampana = {
   clave: string;
+  /** Texto completo de la plantilla (solo en el desglose por variante). */
+  texto: string | null;
   enviados: number;
   leidos: number;
   respondieron: number;
+  interesados: number;
+  bajas: number;
   tasaRespuesta: number;
 };
 

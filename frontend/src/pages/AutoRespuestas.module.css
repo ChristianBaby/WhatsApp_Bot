@@ -1,3 +1,7 @@
+.seccion {
+  margin-bottom: 16px;
+}
+
 .filaInterruptor {
   display: flex;
   justify-content: space-between;

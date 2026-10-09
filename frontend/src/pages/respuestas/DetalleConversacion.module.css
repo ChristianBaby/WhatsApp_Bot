@@ -101,6 +101,9 @@
 
 .hilo {
   flex: 1;
+  /* Sin min-height:0 un item flex no se encoge por debajo de su contenido y
+     overflow-y nunca se activa. */
+  min-height: 0;
   overflow-y: auto;
   padding: 18px;
   display: flex;

@@ -5,6 +5,7 @@ import { Boton } from '../../components/ui/Boton';
 import { api } from '../../lib/api';
 import { formatearFechaHora, formatearHora } from '../../lib/fecha';
 import type { PublicacionConProgreso } from '../../lib/types';
+import { ModalDetalleCampana } from '../reportes/ModalDetalleCampana';
 import { ESTADO_INFO } from './estado';
 import estilos from './TarjetaCampana.module.css';
 
@@ -38,6 +39,9 @@ export function TarjetaCampana({ publicacion: pub, onEditar }: Props) {
   const puedeEditar = pub.estado === 'borrador' || pub.estado === 'programada';
   const puedeCancelar = pub.estado !== 'completada' && pub.estado !== 'cancelada';
   const puedeReanudar = pub.estado === 'pausada';
+  // Respuestas por variante del mensaje, por numero y por hora (ver Reportes).
+  const tieneResultados = progreso.enviados > 0;
+  const [verResultados, setVerResultados] = useState(false);
 
   const procesados = progreso.enviados + progreso.sinWhatsapp + progreso.fallidos + progreso.excluidos;
   const pct = progreso.totalDestinatarios > 0 ? Math.round((procesados / progreso.totalDestinatarios) * 100) : 0;
@@ -105,8 +109,13 @@ export function TarjetaCampana({ publicacion: pub, onEditar }: Props) {
 
       {pub.estado === 'pausada' && pub.motivoPausa && <div className={estilos.motivoPausa}>⏸ {pub.motivoPausa}</div>}
 
-      {(puedeEditar || puedeCancelar || puedeReanudar) && (
+      {(puedeEditar || puedeCancelar || puedeReanudar || tieneResultados) && (
         <div className={estilos.acciones}>
+          {tieneResultados && (
+            <Boton variante="secundario" onClick={() => setVerResultados(true)}>
+              Resultados
+            </Boton>
+          )}
           {puedeEditar && (
             <Boton variante="secundario" onClick={onEditar} disabled={procesando}>
               Editar
@@ -124,6 +133,8 @@ export function TarjetaCampana({ publicacion: pub, onEditar }: Props) {
           )}
         </div>
       )}
+
+      {verResultados && <ModalDetalleCampana campana={pub} onCerrar={() => setVerResultados(false)} />}
     </Tarjeta>
   );
 }

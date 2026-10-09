@@ -27,7 +27,9 @@ const ESQUEMAS_POR_CLAVE: Record<string, z.ZodTypeAny> = {
     .refine((v) => v === '' || normalizarParaWhatsapp(v) !== null, 'No es un celular valido'),
   autorespuestas_activo: z.boolean(),
   mensaje_bienvenida: z.string().max(2000),
-  base_conocimiento: z.string().max(8000),
+  // Fase 3: la base de conocimiento ahora son documentos (routes/conocimiento.ts).
+  nombre_negocio: z.string().trim().max(120),
+  instrucciones_ia: z.string().trim().max(3000),
   palabras_escalamiento: z.array(z.string().trim().min(1)).max(30),
   // Fase 1 (proteccion del numero)
   dias_sin_recontactar: z.number().int().min(0).max(365),

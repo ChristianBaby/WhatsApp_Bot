@@ -15,19 +15,24 @@ function Desglose({ titulo, filas, nota }: { titulo: string; filas: DesgloseCamp
         <div className={estilos.nota}>Sin envíos todavía.</div>
       ) : (
         filas.map((f) => (
-          <div className={estilos.fila} key={f.clave}>
-            <div className={estilos.clave} title={f.clave}>
-              {f.clave}
+          <div key={f.clave}>
+            <div className={estilos.fila}>
+              <div className={estilos.clave} title={f.clave}>
+                {f.clave}
+                {f.tasaRespuesta === mejor && mejor > 0 && filas.length > 1 && <span className={estilos.mejor}> ★ la mejor</span>}
+              </div>
+              <div className={estilos.barraFondo}>
+                <div className={estilos.barra} style={{ width: `${Math.min(100, f.tasaRespuesta)}%` }} />
+              </div>
+              <div className={estilos.numeros}>
+                <strong className={f.tasaRespuesta === mejor && mejor > 0 ? estilos.mejor : undefined}>
+                  {f.tasaRespuesta}%
+                </strong>{' '}
+                · {f.respondieron}/{f.enviados} respondieron · {f.leidos} leídos · {f.interesados} interesados
+                {f.bajas > 0 && ` · ${f.bajas} bajas`}
+              </div>
             </div>
-            <div className={estilos.barraFondo}>
-              <div className={estilos.barra} style={{ width: `${Math.min(100, f.tasaRespuesta)}%` }} />
-            </div>
-            <div className={estilos.numeros}>
-              <strong className={f.tasaRespuesta === mejor && mejor > 0 ? estilos.mejor : undefined}>
-                {f.tasaRespuesta}%
-              </strong>{' '}
-              · {f.respondieron}/{f.enviados} respondieron · {f.leidos} leídos
-            </div>
+            {f.texto && <div className={estilos.textoVariante}>{f.texto}</div>}
           </div>
         ))
       )}
@@ -36,7 +41,13 @@ function Desglose({ titulo, filas, nota }: { titulo: string; filas: DesgloseCamp
 }
 
 /** Qué variante del mensaje, qué número y qué hora de envío consiguen más respuestas. */
-export function ModalDetalleCampana({ campana, onCerrar }: { campana: CampanaResumen; onCerrar: () => void }) {
+export function ModalDetalleCampana({
+  campana,
+  onCerrar,
+}: {
+  campana: Pick<CampanaResumen, 'id' | 'nombre'>;
+  onCerrar: () => void;
+}) {
   const [detalle, setDetalle] = useState<DetalleCampana | null>(null);
 
   useEffect(() => {
@@ -52,7 +63,7 @@ export function ModalDetalleCampana({ campana, onCerrar }: { campana: CampanaRes
           <Desglose
             titulo="Por variante del mensaje"
             filas={detalle.porVariante}
-            nota="Úsalo para quedarte con la variante que más responde en tus próximas campañas."
+            nota="Qué mensaje consiguió más respuestas e interesados. Úsalo para quedarte con el que mejor funciona."
           />
           <Desglose titulo="Por número de WhatsApp" filas={detalle.porNumero} />
           <Desglose

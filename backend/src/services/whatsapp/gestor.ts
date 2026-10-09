@@ -141,6 +141,7 @@ async function iniciar(numeroId: number): Promise<void> {
               texto: mensaje.texto,
               whatsappId: mensaje.whatsappId,
               pushName: mensaje.pushName,
+              audio: mensaje.audio,
             }),
           )
           .catch((err: unknown) => log.error({ err, numeroId }, 'No se pudo procesar un mensaje entrante'));

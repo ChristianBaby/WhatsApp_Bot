@@ -7,6 +7,8 @@ import * as configRepo from '../configuracion/repositorio.js';
 import * as contactos from '../contactos/contactos.js';
 import { clasificarRespuesta, type SugerenciaEtapa } from '../ia/clasificacion.js';
 import { decidirRespuestaAutomatica } from '../ia/autoResponder.js';
+import { contextoDeConversacion } from '../ia/contexto.js';
+import { transcribirAudio } from '../ia/gemini.js';
 import { registrarRespuesta } from '../publicaciones/repositorio.js';
 import * as repo from './repositorio.js';
 
@@ -30,7 +32,25 @@ export type MensajeCrudo = {
   texto: string;
   whatsappId: string | null;
   pushName?: string | null;
+  /** Nota de voz: se descarga solo si hay que transcribirla. */
+  audio?: { descargar: () => Promise<Buffer>; mimeType: string; segundos: number } | null;
 };
+
+/** Notas de voz mas largas no se transcriben (cuota de Gemini): pasan a un asesor como siempre. */
+const AUDIO_MAX_SEGUNDOS = 180;
+
+/** "🎤 <lo que dijo>" si se pudo transcribir; si no, el texto generico de siempre. */
+async function textoDeAudio(msg: MensajeCrudo): Promise<string> {
+  const audio = msg.audio;
+  if (!audio || msg.fromMe || audio.segundos > AUDIO_MAX_SEGUNDOS) return msg.texto;
+  try {
+    const transcripcion = await transcribirAudio(await audio.descargar(), audio.mimeType);
+    return transcripcion ? `🎤 ${transcripcion}` : msg.texto;
+  } catch (err) {
+    log.warn({ err }, 'No se pudo descargar una nota de voz para transcribirla');
+    return msg.texto;
+  }
+}
 
 // ==================== Cola por conversacion ====================
 //
@@ -127,7 +147,13 @@ export function procesarMensaje(msg: MensajeCrudo): Promise<void> {
   return enCola(claveConversacion(msg.numeroId, msg.telefono), () => procesar(msg));
 }
 
-async function procesar(msg: MensajeCrudo): Promise<void> {
+async function procesar(original: MensajeCrudo): Promise<void> {
+  // Nota de voz: se transcribe una sola vez (no si es un evento repetido de
+  // Baileys) y la transcripcion pasa a ser el texto del mensaje para todo lo
+  // demas: historial, deteccion de bajas, clasificacion y respuesta de la IA.
+  const repetido = original.whatsappId ? await repo.existeMensaje(original.whatsappId) : false;
+  const msg = original.audio && !repetido ? { ...original, texto: await textoDeAudio(original) } : original;
+
   log.info({ numeroId: msg.numeroId, telefono: msg.telefono, fromMe: msg.fromMe }, 'Mensaje de WhatsApp recibido');
 
   // El dueño recibe los avisos desde el numero del bot: si los contesta, eso
@@ -266,8 +292,8 @@ async function autoResponder(conversacionId: number, numeroId: number, telefono:
   ]);
   if (!activoGlobal || !numero?.autoRespuestasActivo) return;
 
-  const pendientes = await repo.mensajesLeadSinResponder(conversacionId);
-  if (pendientes.length === 0) return; // ya le contesto alguien
+  const armado = await contextoDeConversacion(conversacionId, telefono, !conversacion.bienvenida_enviada_en);
+  if (!armado) return; // ya le contesto alguien
 
   // Freno anti-bucle: muchos negocios tienen respuestas automaticas de
   // WhatsApp Business; sin tope, bot y bot se contestan indefinidamente.
@@ -284,27 +310,16 @@ async function autoResponder(conversacionId: number, numeroId: number, telefono:
     return;
   }
 
-  const [mensajeBienvenida, baseConocimiento, palabrasEscalamiento] = await Promise.all([
-    configRepo.obtenerValor<string>('mensaje_bienvenida'),
-    configRepo.obtenerValor<string>('base_conocimiento'),
-    configRepo.obtenerValor<string[]>('palabras_escalamiento'),
-  ]);
-
-  const decision = await decidirRespuestaAutomatica({
-    texto: pendientes.join('\n'),
-    esPrimerMensaje: !conversacion.bienvenida_enviada_en,
-    baseConocimiento: baseConocimiento ?? '',
-    mensajeBienvenida: mensajeBienvenida ?? '',
-    palabrasEscalamiento: palabrasEscalamiento ?? [],
-  });
+  const decision = await decidirRespuestaAutomatica(armado.contexto);
 
   if (decision.tipo === 'silencio') return;
 
   if (decision.tipo === 'escalar') {
     const palabra = decision.motivo === 'palabra_clave' ? decision.palabra : null;
+    const razon = decision.motivo === 'baja_confianza' ? (decision.razon ?? null) : null;
     await repo.cambiarModo(conversacionId, 'manual', decision.motivo, palabra);
     emitirConversacion(conversacionId);
-    log.info({ conversacionId, motivo: decision.motivo, palabra }, 'Conversacion escalada a modo manual');
+    log.info({ conversacionId, motivo: decision.motivo, palabra, razon }, 'Conversacion escalada a modo manual');
     return;
   }
 
