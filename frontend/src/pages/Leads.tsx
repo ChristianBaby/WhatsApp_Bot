@@ -45,7 +45,7 @@ export function Leads() {
     }
   }
 
-  async function alConfirmar(nombre: string) {
+  async function alConfirmar(nombre: string, nichoId: number | null) {
     if (!previsualizacion) return;
     setGuardando(true);
     setError(null);
@@ -54,6 +54,7 @@ export function Leads() {
         nombre,
         nombreArchivoOriginal: previsualizacion.nombreArchivoOriginal,
         archivoToken: previsualizacion.archivoToken,
+        nichoId,
         columnasExtra: previsualizacion.columnasExtra,
         filasValidas: previsualizacion.filasValidas,
         filasInvalidas: previsualizacion.filasInvalidas,
@@ -106,7 +107,7 @@ export function Leads() {
               <PrevisualizacionCarga
                 previsualizacion={previsualizacion}
                 guardando={guardando}
-                onConfirmar={(nombre) => void alConfirmar(nombre)}
+                onConfirmar={(nombre, nichoId) => void alConfirmar(nombre, nichoId)}
                 onCancelar={() => {
                   setPrevisualizacion(null);
                   setError(null);

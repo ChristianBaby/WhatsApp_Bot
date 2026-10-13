@@ -9,6 +9,7 @@ import { parsearArchivo } from '../services/leads/parseo.js';
 import { validarArchivo } from '../services/leads/validacion.js';
 import * as archivos from '../services/leads/archivos.js';
 import * as repo from '../services/leads/repositorio.js';
+import * as nichos from '../services/ia/nichos.js';
 
 export const rutasLeads = Router();
 
@@ -74,6 +75,7 @@ const esquemaConfirmacion = z.object({
   nombre: z.string().trim().min(1, 'El nombre de la lista no puede estar vacio').max(120),
   nombreArchivoOriginal: z.string().min(1),
   archivoToken: z.string().nullable().optional(),
+  nichoId: z.number().int().positive().nullable().optional(),
   columnasExtra: z.array(z.string()),
   filasValidas: z.array(esquemaFilaValida).max(5000),
   filasInvalidas: z.array(esquemaFilaInvalida).max(5000),
@@ -86,7 +88,12 @@ rutasLeads.post(
     if (datos.filasValidas.length === 0) {
       throw solicitudInvalida('No hay filas validas para guardar. Revisa el archivo e intenta de nuevo.');
     }
+    if (datos.nichoId && !(await nichos.existe(datos.nichoId))) throw solicitudInvalida('El nicho elegido no existe');
     const lista = await repo.crear(datos);
+    if (datos.nichoId) {
+      await repo.actualizarLista(lista.id, { nichoId: datos.nichoId });
+      lista.nichoId = datos.nichoId;
+    }
 
     // La copia es un extra: si no esta (token viejo o invalido), la lista se guarda igual.
     const token = datos.archivoToken;
@@ -102,6 +109,23 @@ rutasLeads.get(
   '/listas-leads',
   manejarAsync(async (_req, res) => {
     res.json(await repo.listar());
+  }),
+);
+
+// Renombrar o cambiar el nicho de una lista.
+rutasLeads.patch(
+  '/listas-leads/:id',
+  manejarAsync(async (req, res) => {
+    const lista = await listaDesdeParametro(req.params.id);
+    const cambios = z
+      .object({
+        nombre: z.string().trim().min(1).max(120).optional(),
+        nichoId: z.number().int().positive().nullable().optional(),
+      })
+      .parse(req.body);
+    if (cambios.nichoId && !(await nichos.existe(cambios.nichoId))) throw solicitudInvalida('El nicho elegido no existe');
+    await repo.actualizarLista(lista.id, cambios);
+    res.json(await repo.obtener(lista.id));
   }),
 );
 

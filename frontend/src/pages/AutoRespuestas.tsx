@@ -14,6 +14,7 @@ type ConfiguracionCruda = {
   mensaje_bienvenida?: string;
   palabras_escalamiento?: string[];
   nombre_negocio?: string;
+  nombre_asistente?: string;
   instrucciones_ia?: string;
 };
 
@@ -21,6 +22,7 @@ export function AutoRespuestas() {
   const [cargando, setCargando] = useState(true);
   const [activo, setActivo] = useState(false);
   const [nombreNegocio, setNombreNegocio] = useState('');
+  const [nombreAsistente, setNombreAsistente] = useState('');
   const [instrucciones, setInstrucciones] = useState('');
   const [bienvenida, setBienvenida] = useState('');
   const [palabras, setPalabras] = useState<string[]>([]);
@@ -33,6 +35,7 @@ export function AutoRespuestas() {
     void api.get<ConfiguracionCruda>('/configuracion').then((cfg) => {
       setActivo(cfg.autorespuestas_activo ?? false);
       setNombreNegocio(cfg.nombre_negocio ?? '');
+      setNombreAsistente(cfg.nombre_asistente ?? '');
       setInstrucciones(cfg.instrucciones_ia ?? '');
       setBienvenida(cfg.mensaje_bienvenida ?? '');
       setPalabras(cfg.palabras_escalamiento ?? []);
@@ -52,6 +55,7 @@ export function AutoRespuestas() {
       await api.patch('/configuracion', {
         autorespuestas_activo: activo,
         nombre_negocio: nombreNegocio,
+        nombre_asistente: nombreAsistente,
         instrucciones_ia: instrucciones,
         mensaje_bienvenida: bienvenida,
         palabras_escalamiento: palabras,
@@ -94,6 +98,21 @@ export function AutoRespuestas() {
             value={nombreNegocio}
             onChange={(e) => setNombreNegocio(e.target.value)}
             placeholder="Ej. Universoft Systems"
+          />
+        </div>
+
+        <div className={estilos.campo}>
+          <label className={estilos.etiqueta}>Nombre con el que se presenta</label>
+          <div className={estilos.ayuda}>
+            Se presenta así en el primer mensaje ("Buenas tardes, le saluda Christian de …"), saludando según la hora de
+            Perú. Si le preguntan si es un bot, responde: "Le atiende el asistente de {nombreNegocio || 'su negocio'}; si
+            prefiere, le paso con un asesor."
+          </div>
+          <input
+            className={estilos.textarea}
+            value={nombreAsistente}
+            onChange={(e) => setNombreAsistente(e.target.value)}
+            placeholder="Ej. Christian"
           />
         </div>
 

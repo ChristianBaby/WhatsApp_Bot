@@ -19,6 +19,35 @@ async function ultimoMensajeCampana(telefono: string): Promise<string | null> {
   return fila?.mensaje_enviado ?? null;
 }
 
+/** Nicho de la lista mas reciente en la que esta este telefono (null = sin nicho: solo documentos generales). */
+async function nichoDeTelefono(telefono: string): Promise<number | null> {
+  const fila = await consultarUno<{ nicho_id: number | null }>(
+    `SELECT ll.nicho_id FROM leads l JOIN listas_leads ll ON ll.id = l.lista_id
+     WHERE l.telefono = $1 ORDER BY l.id DESC LIMIT 1`,
+    [telefono],
+  );
+  return fila?.nicho_id ?? null;
+}
+
+/**
+ * Dia y hora de Peru (o de TZ), para que la IA salude segun el momento
+ * ("buenos dias" / "buenas tardes" / "buenas noches") y sepa si es horario
+ * de atencion.
+ */
+export function momentoLocal(ahora = new Date()): { descripcion: string; saludo: string } {
+  const zona = process.env.TZ || 'America/Lima';
+  const descripcion = new Intl.DateTimeFormat('es-PE', {
+    timeZone: zona,
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(ahora);
+  const hora = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zona, hour: '2-digit', hour12: false }).format(ahora));
+  const saludo = hora >= 5 && hora < 12 ? 'Buenos días' : hora >= 12 && hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+  return { descripcion, saludo };
+}
+
 /**
  * Todo lo que la IA necesita para responder: configuracion del negocio,
  * conocimiento relevante, datos del lead, la campana que recibio y la
@@ -30,24 +59,32 @@ export async function armarContexto(datos: {
   mensajesNuevos: string[];
   historial: MensajeHistorial[];
   esPrimerMensaje: boolean;
-}): Promise<{ contexto: ContextoAutoResponder; fuentes: string[] }> {
-  const [mensajeBienvenida, palabrasEscalamiento, nombreNegocio, instrucciones] = await Promise.all([
+  /** Solo para "Probar la IA": fuerza un nicho. Si no, sale de la lista del lead. */
+  nichoId?: number | null;
+}): Promise<{ contexto: ContextoAutoResponder; fuentes: string[]; nichoId: number | null }> {
+  const [mensajeBienvenida, palabrasEscalamiento, nombreNegocio, instrucciones, nombreAsistente] = await Promise.all([
     configRepo.obtenerValor<string>('mensaje_bienvenida'),
     configRepo.obtenerValor<string[]>('palabras_escalamiento'),
     configRepo.obtenerValor<string>('nombre_negocio'),
     configRepo.obtenerValor<string>('instrucciones_ia'),
+    configRepo.obtenerValor<string>('nombre_asistente'),
   ]);
 
   const lead = datos.telefono ? await leadsRepo.buscarPorTelefono(datos.telefono) : null;
   const mensajeCampana = datos.telefono ? await ultimoMensajeCampana(datos.telefono) : null;
+  const nichoId =
+    datos.nichoId !== undefined ? datos.nichoId : datos.telefono ? await nichoDeTelefono(datos.telefono) : null;
 
   // Para elegir secciones de conocimiento importa lo ultimo que se hablo.
   const consulta = [...datos.historial.slice(-4).map((m) => m.texto), ...datos.mensajesNuevos].join('\n');
-  const { texto: conocimiento, fuentes } = await seleccionarContexto(consulta);
+  const { texto: conocimiento, fuentes } = await seleccionarContexto(consulta, nichoId);
 
   return {
     fuentes,
+    nichoId,
     contexto: {
+      nombreAsistente: nombreAsistente ?? '',
+      momento: momentoLocal(),
       mensajesNuevos: datos.mensajesNuevos,
       historial: datos.historial,
       esPrimerMensaje: datos.esPrimerMensaje,

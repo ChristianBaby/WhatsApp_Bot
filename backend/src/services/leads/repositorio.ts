@@ -19,6 +19,7 @@ type FilaListaLeads = {
   duplicadas: number;
   columnas_extra: string[];
   archivo_ruta: string | null;
+  nicho_id: number | null;
   creado_en: string;
   actualizado_en: string;
 };
@@ -34,6 +35,7 @@ function mapearLista(fila: FilaListaLeads): ListaLeads {
     duplicadas: fila.duplicadas,
     columnasExtra: fila.columnas_extra,
     tieneArchivo: Boolean(fila.archivo_ruta),
+    nichoId: fila.nicho_id,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
@@ -184,6 +186,14 @@ export async function borrarLista(listaId: number): Promise<void> {
 
 export async function archivarLista(listaId: number): Promise<void> {
   await consultarUno('UPDATE listas_leads SET archivada_en = now() WHERE id = $1', [listaId]);
+}
+
+/** nichoId null = sin nicho (la IA usa solo los documentos generales con sus leads). */
+export async function actualizarLista(listaId: number, cambios: { nombre?: string; nichoId?: number | null }): Promise<void> {
+  await consultarUno(
+    `UPDATE listas_leads SET nombre = COALESCE($2, nombre), nicho_id = CASE WHEN $3 THEN $4 ELSE nicho_id END WHERE id = $1`,
+    [listaId, cambios.nombre ?? null, cambios.nichoId !== undefined, cambios.nichoId ?? null],
+  );
 }
 
 export async function guardarArchivo(listaId: number, archivoRuta: string): Promise<void> {

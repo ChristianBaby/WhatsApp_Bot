@@ -3,6 +3,7 @@ import { Boton } from '../../components/ui/Boton';
 import { Badge } from '../../components/ui/Badge';
 import { api, ErrorApi } from '../../lib/api';
 import { formatearFecha } from '../../lib/fecha';
+import { SelectorNicho, useNichos, type Nicho } from '../../lib/nichos';
 import type { LeadExcluido, ListaLeads } from '../../lib/types';
 import { LeadsDeLista } from './LeadsDeLista';
 import { ETIQUETA_MOTIVO, TONO_MOTIVO } from './motivos';
@@ -12,11 +13,12 @@ type Panel = 'leads' | 'excluidas' | null;
 
 type PropsFila = {
   lista: ListaLeads;
+  nichos: Nicho[];
   onEliminada: (id: number, accion: 'eliminada' | 'archivada') => void;
   onCambio: () => void;
 };
 
-function FilaLista({ lista, onEliminada, onCambio }: PropsFila) {
+function FilaLista({ lista, nichos, onEliminada, onCambio }: PropsFila) {
   const [panel, setPanel] = useState<Panel>(null);
   const [excluidos, setExcluidos] = useState<LeadExcluido[] | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -67,6 +69,19 @@ function FilaLista({ lista, onEliminada, onCambio }: PropsFila) {
         <div className={estilos.nombre}>
           {lista.nombre}
           {lista.nombreArchivoOriginal && <div className={estilos.archivo}>{lista.nombreArchivoOriginal}</div>}
+          <SelectorNicho
+            className={estilos.selectorNicho}
+            nichos={nichos}
+            valor={lista.nichoId}
+            etiquetaNinguno="Sin nicho"
+            disabled={procesando}
+            onCambio={(nichoId) =>
+              void ejecutar(async () => {
+                await api.patch(`/listas-leads/${lista.id}`, { nichoId });
+                onCambio();
+              })
+            }
+          />
         </div>
         <div className={estilos.fecha}>{formatearFecha(lista.creadoEn)}</div>
         <div className={estilos.validas}>{lista.validas}</div>
@@ -133,6 +148,7 @@ type Props = {
 };
 
 export function TablaListas({ listas, onEliminada, onCambio }: Props) {
+  const nichos = useNichos();
   return (
     <div>
       <div className={estilos.encabezado}>
@@ -143,7 +159,7 @@ export function TablaListas({ listas, onEliminada, onCambio }: Props) {
         <div />
       </div>
       {listas.map((lista) => (
-        <FilaLista key={lista.id} lista={lista} onEliminada={onEliminada} onCambio={onCambio} />
+        <FilaLista key={lista.id} lista={lista} nichos={nichos} onEliminada={onEliminada} onCambio={onCambio} />
       ))}
     </div>
   );

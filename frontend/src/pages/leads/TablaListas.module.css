@@ -97,6 +97,21 @@
   text-overflow: ellipsis;
 }
 
+/* Nicho de la lista: define que documentos usa la IA con estos leads. */
+.selectorNicho {
+  display: block;
+  margin-top: 4px;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-nano);
+  font-family: inherit;
+  font-weight: 400;
+  color: var(--texto-medio);
+  background: transparent;
+}
+
 .acciones {
   display: flex;
   flex-wrap: wrap;

@@ -44,6 +44,8 @@ export type ListaLeads = {
   columnasExtra: string[];
   /** Hay una copia del archivo subido y se puede descargar. */
   tieneArchivo: boolean;
+  /** Nicho de la lista: define que documentos usa la IA con sus leads. */
+  nichoId: number | null;
   creadoEn: string;
   actualizadoEn: string;
 };

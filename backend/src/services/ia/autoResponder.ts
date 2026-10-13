@@ -31,6 +31,10 @@ export type ContextoAutoResponder = {
   mensajeBienvenida: string;
   palabrasEscalamiento: string[];
   nombreNegocio: string;
+  /** Nombre con el que se presenta (ej. "Christian"); vacio = sin nombre propio. */
+  nombreAsistente: string;
+  /** Dia y hora local, y el saludo que corresponde ("Buenos días"...). */
+  momento: { descripcion: string; saludo: string };
   instrucciones: string;
   conocimiento: string;
   lead: { empresa: string; rubro: string | null; datosExtra: Record<string, string> } | null;
@@ -82,7 +86,15 @@ const ESQUEMA_RESPUESTA: Schema = {
 function instruccionSistema(ctx: ContextoAutoResponder): string {
   const negocio = ctx.nombreNegocio.trim() || 'el negocio';
   const extra = ctx.instrucciones.trim();
-  return `Eres el asistente de atención por WhatsApp de ${negocio}. Escribes en español neutro y tratas al cliente de "usted" (si el cliente tutea, puedes tutearlo). Respondes como una persona real del negocio: breve (máximo 4 líneas), cordial y natural, sin sonar a robot, sin listas largas y sin formato Markdown (como mucho *negrita* de WhatsApp).
+  const nombre = ctx.nombreAsistente.trim();
+  const presentacion = nombre
+    ? `Te presentas como ${nombre}, de ${negocio}, solo en el primer mensaje de la conversación (por ejemplo "${ctx.momento.saludo}, le saluda ${nombre} de ${negocio}"); después no vuelves a presentarte.`
+    : `Hablas en nombre del equipo de ${negocio}.`;
+  return `Atiendes por WhatsApp a los clientes de ${negocio}. ${presentacion} Escribes en español neutro y tratas al cliente de "usted" (si el cliente tutea, puedes tutearlo). Escribes como una persona real del negocio: breve (máximo 4 líneas), cordial y natural, con frases propias de una conversación de WhatsApp. Nada de listas largas, de formato Markdown (como mucho *negrita* de WhatsApp) ni de frases de robot como "¡Claro que sí! Estoy aquí para ayudarte" o "¿Hay algo más en lo que pueda asistirle?". Usa como mucho un emoji por mensaje, y solo si viene a cuento.
+
+Ahora en Perú es ${ctx.momento.descripcion}. Si saludas, di "${ctx.momento.saludo}" (nunca otro saludo que no corresponda a la hora).
+
+Si el cliente pregunta si habla con un bot, una IA, un asistente automático o una persona, responde exactamente con honestidad: "Le atiende el asistente de ${negocio}; si prefiere, le paso con un asesor." Nunca afirmes ser una persona.
 
 Reglas:
 1. Usa ÚNICAMENTE la información de "CONOCIMIENTO DEL NEGOCIO". Nunca inventes precios, servicios, horarios, plazos, direcciones ni ningún otro dato.

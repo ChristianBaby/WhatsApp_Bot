@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Boton } from '../../components/ui/Boton';
 import { api, ErrorApi } from '../../lib/api';
+import { useNichos } from '../../lib/nichos';
 import estilos from './ProbarIA.module.css';
 
 type Decision =
@@ -15,6 +16,7 @@ type ResultadoPrueba = {
   decision: Decision;
   fuentes: string[];
   lead: string | null;
+  nichoId: number | null;
   mensajeCampana: string | null;
 };
 
@@ -32,6 +34,9 @@ function describirEscalado(d: Extract<Decision, { tipo: 'escalar' }>): string {
 export function ProbarIA() {
   const [mensaje, setMensaje] = useState('');
   const [telefono, setTelefono] = useState('');
+  const nichos = useNichos();
+  // 'auto' = el nicho de la lista del lead simulado (sin lead: solo generales).
+  const [nicho, setNicho] = useState<'auto' | 'general' | number>('auto');
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [ultimo, setUltimo] = useState<ResultadoPrueba | null>(null);
   const [probando, setProbando] = useState(false);
@@ -49,6 +54,7 @@ export function ProbarIA() {
         mensaje: texto,
         telefono: telefono.trim() || undefined,
         historial,
+        ...(nicho === 'auto' ? {} : { nichoId: nicho === 'general' ? null : nicho }),
       });
       const d = resultado.decision;
       const respuesta: Turno =
@@ -85,6 +91,24 @@ export function ProbarIA() {
         onChange={(e) => setTelefono(e.target.value)}
         disabled={turnos.length > 0}
       />
+
+      <select
+        className={estilos.input}
+        value={String(nicho)}
+        disabled={turnos.length > 0}
+        onChange={(e) => {
+          const v = e.target.value;
+          setNicho(v === 'auto' || v === 'general' ? v : Number(v));
+        }}
+      >
+        <option value="auto">Nicho: el del lead simulado (sin lead, solo documentos generales)</option>
+        <option value="general">Nicho: solo documentos generales</option>
+        {nichos.map((n) => (
+          <option key={n.id} value={n.id}>
+            Nicho: {n.nombre}
+          </option>
+        ))}
+      </select>
 
       {turnos.length > 0 && (
         <div className={estilos.hilo}>
@@ -133,6 +157,9 @@ export function ProbarIA() {
         <div className={estilos.detalle}>
           {!ultimo.iaDisponible && <div>⚠️ La IA no está configurada en el servidor: solo se ve el comportamiento sin IA.</div>}
           {ultimo.lead && <div>Simulando a: {ultimo.lead}</div>}
+          <div>
+            Nicho usado: {ultimo.nichoId ? (nichos.find((n) => n.id === ultimo.nichoId)?.nombre ?? ultimo.nichoId) : 'ninguno (solo generales)'}
+          </div>
           <div>
             Documentos que leyó la IA:{' '}
             {ultimo.fuentes.length ? ultimo.fuentes.join(' · ') : 'ninguno (no hay documentos activos)'}

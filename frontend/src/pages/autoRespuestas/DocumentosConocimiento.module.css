@@ -6,6 +6,15 @@
   margin-bottom: 12px;
 }
 
+.selector {
+  padding: 6px 8px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-size: var(--texto-control);
+  font-family: inherit;
+  max-width: 220px;
+}
+
 .fila {
   display: flex;
   align-items: center;

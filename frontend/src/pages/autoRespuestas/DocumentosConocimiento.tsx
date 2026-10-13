@@ -4,6 +4,7 @@ import { Interruptor } from '../../components/ui/Interruptor';
 import { Modal } from '../../components/ui/Modal';
 import { api, ErrorApi } from '../../lib/api';
 import { formatearFecha } from '../../lib/fecha';
+import { SelectorNicho, useNichos } from '../../lib/nichos';
 import estilos from './DocumentosConocimiento.module.css';
 
 export type DocumentoConocimiento = {
@@ -11,11 +12,15 @@ export type DocumentoConocimiento = {
   nombre: string;
   contenido: string;
   activo: boolean;
+  /** null = General: lo usa la IA con todos los leads. */
+  nichoId: number | null;
   caracteres: number;
   actualizadoEn: string;
 };
 
-type Edicion = { id: number | null; nombre: string; contenido: string };
+type Edicion = { id: number | null; nombre: string; contenido: string; nichoId: number | null };
+
+const GENERAL = 'General (todos los nichos)';
 
 function mensajeError(err: unknown, porDefecto: string): string {
   return err instanceof ErrorApi ? err.message : porDefecto;
@@ -31,6 +36,9 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const entrada = useRef<HTMLInputElement>(null);
+  const nichos = useNichos();
+  // Nicho con el que se suben los proximos archivos.
+  const [nichoSubida, setNichoSubida] = useState<number | null>(null);
 
   async function cargar() {
     const datos = await api.get<{ documentos: DocumentoConocimiento[] }>('/conocimiento');
@@ -60,6 +68,7 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
     if (!archivos || archivos.length === 0) return;
     const datos = new FormData();
     for (const archivo of Array.from(archivos)) datos.append('archivos', archivo);
+    datos.append('nichoId', nichoSubida === null ? '' : String(nichoSubida));
     void ejecutar(() => api.post('/conocimiento/archivos', datos), 'No se pudieron subir los documentos').finally(() => {
       if (entrada.current) entrada.current.value = '';
     });
@@ -67,7 +76,7 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
 
   async function guardarEdicion() {
     if (!edicion) return;
-    const cuerpo = { nombre: edicion.nombre, contenido: edicion.contenido };
+    const cuerpo = { nombre: edicion.nombre, contenido: edicion.contenido, nichoId: edicion.nichoId };
     const ok = await ejecutar(
       () => (edicion.id ? api.patch(`/conocimiento/${edicion.id}`, cuerpo) : api.post('/conocimiento', cuerpo)),
       'No se pudo guardar el documento',
@@ -92,10 +101,18 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
       )}
 
       <div className={estilos.barra}>
+        <SelectorNicho
+          className={estilos.selector}
+          nichos={nichos}
+          valor={nichoSubida}
+          onCambio={setNichoSubida}
+          etiquetaNinguno={GENERAL}
+          disabled={procesando}
+        />
         <Boton variante="secundario" onClick={() => entrada.current?.click()} disabled={procesando}>
           ⬆ Subir archivos .md
         </Boton>
-        <Boton variante="texto" onClick={() => setEdicion({ id: null, nombre: '', contenido: '' })} disabled={procesando}>
+        <Boton variante="texto" onClick={() => setEdicion({ id: null, nombre: '', contenido: '', nichoId: nichoSubida })} disabled={procesando}>
           + Escribir documento
         </Boton>
         <input
@@ -126,6 +143,16 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
               {doc.caracteres.toLocaleString('es-PE')} caracteres · actualizado {formatearFecha(doc.actualizadoEn)}
             </div>
           </div>
+          <SelectorNicho
+            className={estilos.selector}
+            nichos={nichos}
+            valor={doc.nichoId}
+            etiquetaNinguno="General"
+            disabled={procesando}
+            onCambio={(nichoId) =>
+              void ejecutar(() => api.patch(`/conocimiento/${doc.id}`, { nichoId }), 'No se pudo cambiar el nicho')
+            }
+          />
           <Interruptor
             activo={doc.activo}
             onCambio={(activo) =>
@@ -136,7 +163,7 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
           />
           <Boton
             variante="texto"
-            onClick={() => setEdicion({ id: doc.id, nombre: doc.nombre, contenido: doc.contenido })}
+            onClick={() => setEdicion({ id: doc.id, nombre: doc.nombre, contenido: doc.contenido, nichoId: doc.nichoId })}
             disabled={procesando}
           >
             Ver / editar
@@ -161,6 +188,13 @@ export function DocumentosConocimiento({ iaDisponible }: { iaDisponible: boolean
             placeholder="Nombre (ej. precios.md)"
             value={edicion.nombre}
             onChange={(e) => setEdicion({ ...edicion, nombre: e.target.value })}
+          />
+          <SelectorNicho
+            className={estilos.input}
+            nichos={nichos}
+            valor={edicion.nichoId}
+            onCambio={(nichoId) => setEdicion({ ...edicion, nichoId })}
+            etiquetaNinguno={GENERAL}
           />
           <textarea
             className={estilos.editor}

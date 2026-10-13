@@ -11,6 +11,8 @@ export type DocumentoConocimiento = {
   nombre: string;
   contenido: string;
   activo: boolean;
+  /** null = General (vale para todos los nichos). */
+  nichoId: number | null;
   caracteres: number;
   actualizadoEn: string;
 };
@@ -20,6 +22,7 @@ type FilaDocumento = {
   nombre: string;
   contenido: string;
   activo: boolean;
+  nicho_id: number | null;
   actualizado_en: string;
 };
 
@@ -29,6 +32,7 @@ function mapear(f: FilaDocumento): DocumentoConocimiento {
     nombre: f.nombre,
     contenido: f.contenido,
     activo: f.activo,
+    nichoId: f.nicho_id,
     caracteres: f.contenido.length,
     actualizadoEn: f.actualizado_en,
   };
@@ -39,23 +43,32 @@ export async function listar(): Promise<DocumentoConocimiento[]> {
   return filas.map(mapear);
 }
 
-export async function crear(nombre: string, contenido: string): Promise<DocumentoConocimiento> {
+export async function crear(nombre: string, contenido: string, nichoId: number | null = null): Promise<DocumentoConocimiento> {
   const fila = await consultarUno<FilaDocumento>(
-    'INSERT INTO documentos_conocimiento (nombre, contenido) VALUES ($1, $2) RETURNING *',
-    [nombre, contenido],
+    'INSERT INTO documentos_conocimiento (nombre, contenido, nicho_id) VALUES ($1, $2, $3) RETURNING *',
+    [nombre, contenido, nichoId],
   );
   return mapear(fila!);
 }
 
 export async function actualizar(
   id: number,
-  cambios: { nombre?: string; contenido?: string; activo?: boolean },
+  // nichoId: undefined = no se toca; null = pasa a General.
+  cambios: { nombre?: string; contenido?: string; activo?: boolean; nichoId?: number | null },
 ): Promise<DocumentoConocimiento> {
   const fila = await consultarUno<FilaDocumento>(
     `UPDATE documentos_conocimiento
-     SET nombre = COALESCE($2, nombre), contenido = COALESCE($3, contenido), activo = COALESCE($4, activo)
+     SET nombre = COALESCE($2, nombre), contenido = COALESCE($3, contenido), activo = COALESCE($4, activo),
+         nicho_id = CASE WHEN $5 THEN $6 ELSE nicho_id END
      WHERE id = $1 RETURNING *`,
-    [id, cambios.nombre ?? null, cambios.contenido ?? null, cambios.activo ?? null],
+    [
+      id,
+      cambios.nombre ?? null,
+      cambios.contenido ?? null,
+      cambios.activo ?? null,
+      cambios.nichoId !== undefined,
+      cambios.nichoId ?? null,
+    ],
   );
   if (!fila) throw noEncontrado('Documento no encontrado');
   return mapear(fila);
@@ -127,8 +140,11 @@ export type ContextoConocimiento = {
  * presupuesto, van completos; si no, solo las secciones que mas se parecen
  * a la conversacion (por palabras en comun, priorizando el titulo).
  */
-export async function seleccionarContexto(consulta: string): Promise<ContextoConocimiento> {
-  const documentos = (await listar()).filter((d) => d.activo && d.contenido.trim());
+export async function seleccionarContexto(consulta: string, nichoId: number | null = null): Promise<ContextoConocimiento> {
+  // Generales + los del nicho del lead. Sin nicho: solo los generales.
+  const documentos = (await listar()).filter(
+    (d) => d.activo && d.contenido.trim() && (d.nichoId === null || d.nichoId === nichoId),
+  );
   const total = documentos.reduce((suma, d) => suma + d.contenido.length, 0);
 
   if (total <= PRESUPUESTO_CARACTERES) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Boton } from '../../components/ui/Boton';
 import { Badge } from '../../components/ui/Badge';
+import { SelectorNicho, useNichos } from '../../lib/nichos';
 import type { PrevisualizacionLista } from '../../lib/types';
 import { ETIQUETA_MOTIVO, TONO_MOTIVO } from './motivos';
 import estilos from './PrevisualizacionCarga.module.css';
@@ -8,7 +9,7 @@ import estilos from './PrevisualizacionCarga.module.css';
 type Props = {
   previsualizacion: PrevisualizacionLista;
   guardando: boolean;
-  onConfirmar: (nombre: string) => void;
+  onConfirmar: (nombre: string, nichoId: number | null) => void;
   onCancelar: () => void;
 };
 
@@ -23,6 +24,8 @@ const FILAS_TABLA_MAX = 200;
 export function PrevisualizacionCarga({ previsualizacion, guardando, onConfirmar, onCancelar }: Props) {
   const { nombreArchivoOriginal, resumen, columnasExtra, filasValidas, filasInvalidas } = previsualizacion;
   const [nombre, setNombre] = useState(() => nombreArchivoOriginal.replace(/\.(csv|xlsx)$/i, ''));
+  const nichos = useNichos();
+  const [nichoId, setNichoId] = useState<number | null>(null);
 
   const puedeConfirmar = nombre.trim().length > 0 && resumen.validas > 0 && !guardando;
   const filasAMostrar = filasValidas.slice(0, FILAS_TABLA_MAX);
@@ -68,6 +71,21 @@ export function PrevisualizacionCarga({ previsualizacion, guardando, onConfirmar
           Ninguna fila pasó la validación. Corrige el archivo origen e intenta de nuevo.
         </p>
       )}
+
+      <div className={estilos.campo}>
+        <label className={estilos.etiquetaCampo} htmlFor="nicho-lista">
+          Nicho de estos leads
+        </label>
+        <SelectorNicho
+          id="nicho-lista"
+          className={estilos.input}
+          nichos={nichos}
+          valor={nichoId}
+          onCambio={setNichoId}
+          etiquetaNinguno="Sin nicho (la IA usa solo los documentos generales)"
+          disabled={guardando}
+        />
+      </div>
 
       <div className={estilos.campo}>
         <label className={estilos.etiquetaCampo} htmlFor="nombre-lista">
@@ -152,7 +170,7 @@ export function PrevisualizacionCarga({ previsualizacion, guardando, onConfirmar
         <Boton variante="secundario" onClick={onCancelar} disabled={guardando}>
           Cancelar
         </Boton>
-        <Boton onClick={() => onConfirmar(nombre.trim())} disabled={!puedeConfirmar}>
+        <Boton onClick={() => onConfirmar(nombre.trim(), nichoId)} disabled={!puedeConfirmar}>
           {guardando ? 'Guardando…' : `Confirmar carga (${resumen.validas} leads)`}
         </Boton>
       </div>

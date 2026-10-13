@@ -8,6 +8,7 @@ import * as conocimiento from '../services/ia/conocimiento.js';
 import { armarContexto } from '../services/ia/contexto.js';
 import { decidirRespuestaAutomatica } from '../services/ia/autoResponder.js';
 import { iaDisponible } from '../services/ia/gemini.js';
+import * as nichos from '../services/ia/nichos.js';
 
 /** Base de conocimiento de la IA (documentos .md) y "Probar la IA". */
 export const rutasConocimiento = Router();
@@ -31,6 +32,32 @@ function idDesdeParametro(valor: string | undefined): number {
   return id;
 }
 
+/** null = General. Un id que no existe es un error (no se guarda en silencio como General). */
+const esquemaNichoId = z.number().int().positive().nullable();
+
+async function validarNicho(nichoId: number | null | undefined): Promise<void> {
+  if (nichoId && !(await nichos.existe(nichoId))) throw solicitudInvalida('El nicho elegido no existe');
+}
+
+// --- Nichos ---
+
+rutasConocimiento.get(
+  '/nichos',
+  manejarAsync(async (_req, res) => {
+    res.json(await nichos.listar());
+  }),
+);
+
+rutasConocimiento.post(
+  '/nichos',
+  manejarAsync(async (req, res) => {
+    const { nombre } = z.object({ nombre: z.string().trim().min(2, 'Escribe el nombre del nicho').max(80) }).parse(req.body);
+    const creado = await nichos.crear(nombre);
+    if (!creado) throw solicitudInvalida('Ya existe un nicho con ese nombre');
+    res.status(201).json(creado);
+  }),
+);
+
 rutasConocimiento.get(
   '/conocimiento',
   manejarAsync(async (_req, res) => {
@@ -44,12 +71,16 @@ rutasConocimiento.post(
   manejarAsync(async (req, res) => {
     const archivos = (req.files as Express.Multer.File[] | undefined) ?? [];
     if (archivos.length === 0) throw solicitudInvalida('Elige al menos un archivo .md');
+    // En multipart llega como texto: '' o ausente = General.
+    const crudo = typeof req.body?.nichoId === 'string' ? req.body.nichoId.trim() : '';
+    const nichoId = crudo ? esquemaNichoId.parse(Number(crudo)) : null;
+    await validarNicho(nichoId);
 
     const creados = [];
     for (const archivo of archivos) {
       const contenido = archivo.buffer.toString('utf8').replace(/^﻿/, '').trim();
       if (!contenido) throw solicitudInvalida(`"${archivo.originalname}" está vacío`);
-      creados.push(await conocimiento.crear(archivo.originalname, contenido));
+      creados.push(await conocimiento.crear(archivo.originalname, contenido, nichoId));
     }
     res.status(201).json(creados);
   }),
@@ -63,15 +94,20 @@ const esquemaDocumento = z.object({
 rutasConocimiento.post(
   '/conocimiento',
   manejarAsync(async (req, res) => {
-    const { nombre, contenido } = esquemaDocumento.parse(req.body);
-    res.status(201).json(await conocimiento.crear(nombre, contenido));
+    const { nombre, contenido, nichoId } = esquemaDocumento.extend({ nichoId: esquemaNichoId.default(null) }).parse(req.body);
+    await validarNicho(nichoId);
+    res.status(201).json(await conocimiento.crear(nombre, contenido, nichoId));
   }),
 );
 
 rutasConocimiento.patch(
   '/conocimiento/:id',
   manejarAsync(async (req, res) => {
-    const cambios = esquemaDocumento.partial().extend({ activo: z.boolean().optional() }).parse(req.body);
+    const cambios = esquemaDocumento
+      .partial()
+      .extend({ activo: z.boolean().optional(), nichoId: esquemaNichoId.optional() })
+      .parse(req.body);
+    await validarNicho(cambios.nichoId);
     res.json(await conocimiento.actualizar(idDesdeParametro(req.params.id), cambios));
   }),
 );
@@ -94,6 +130,8 @@ const esquemaPrueba = z.object({
     .array(z.object({ autor: z.enum(['lead', 'yo', 'bot']), texto: z.string().max(2000) }))
     .max(30)
     .default([]),
+  /** Opcional: probar con los documentos de un nicho (null = solo generales). Si no viene, sale del lead. */
+  nichoId: esquemaNichoId.optional(),
 });
 
 rutasConocimiento.post(
@@ -103,11 +141,13 @@ rutasConocimiento.post(
     const telefono = datos.telefono ? normalizarParaWhatsapp(datos.telefono) : null;
     if (datos.telefono && !telefono) throw solicitudInvalida('El teléfono no es un celular válido');
 
-    const { contexto, fuentes } = await armarContexto({
+    await validarNicho(datos.nichoId);
+    const { contexto, fuentes, nichoId } = await armarContexto({
       telefono,
       mensajesNuevos: [datos.mensaje],
       historial: datos.historial,
       esPrimerMensaje: datos.historial.length === 0,
+      nichoId: datos.nichoId,
     });
     const decision = await decidirRespuestaAutomatica(contexto);
 
@@ -116,6 +156,7 @@ rutasConocimiento.post(
       decision,
       fuentes,
       lead: contexto.lead?.empresa ?? null,
+      nichoId,
       mensajeCampana: contexto.mensajeCampana,
     });
   }),
