@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { WASocket } from 'baileys';
+import type { AnyMessageContent, WASocket } from 'baileys';
 import { env } from '../../config/env.js';
 import { crearLogger } from '../../lib/logger.js';
 import { obtenerSocket } from './gestor.js';
@@ -98,5 +98,42 @@ export async function enviarMensaje(
     enviado = await sock.sendMessage(jid, { text: texto });
   }
 
+  return enviado?.key.id ?? null;
+}
+
+export type TipoArchivoEnvio = 'imagen' | 'video' | 'audio' | 'documento';
+
+export type ArchivoEnvio = {
+  rutaAbsoluta: string;
+  tipo: TipoArchivoEnvio;
+  mime: string;
+  nombre: string;
+};
+
+/**
+ * Envia un archivo desde el chat del panel (foto, video, audio o documento).
+ * Sin "escribiendo...": es una persona mandando un archivo, no un texto.
+ * Devuelve el whatsapp_id, igual que enviarMensaje.
+ */
+export async function enviarArchivo(
+  numeroId: number,
+  telefono: string,
+  archivo: ArchivoEnvio,
+  leyenda: string | null,
+): Promise<string | null> {
+  const sock = socketDeNumero(numeroId);
+  const url = { url: archivo.rutaAbsoluta };
+  const caption = leyenda ?? undefined;
+
+  const contenido: AnyMessageContent =
+    archivo.tipo === 'imagen'
+      ? { image: url, caption }
+      : archivo.tipo === 'video'
+        ? { video: url, caption, mimetype: archivo.mime }
+        : archivo.tipo === 'audio'
+          ? { audio: url, mimetype: archivo.mime }
+          : { document: url, mimetype: archivo.mime, fileName: archivo.nombre, caption };
+
+  const enviado = await sock.sendMessage(jidDeTelefono(telefono), contenido);
   return enviado?.key.id ?? null;
 }

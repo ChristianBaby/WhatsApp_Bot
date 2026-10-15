@@ -11,6 +11,7 @@ import { contextoDeConversacion } from '../ia/contexto.js';
 import { transcribirAudio } from '../ia/gemini.js';
 import { registrarRespuesta } from '../publicaciones/repositorio.js';
 import * as repo from './repositorio.js';
+import type { MediaInfo, TipoMensaje } from './tipos.js';
 
 const log = crearLogger('conversaciones');
 const CANAL_SSE = 'conversaciones';
@@ -32,6 +33,10 @@ export type MensajeCrudo = {
   texto: string;
   whatsappId: string | null;
   pushName?: string | null;
+  tipo?: TipoMensaje;
+  media?: MediaInfo | null;
+  /** Mensaje original serializado, para bajar el adjunto cuando alguien lo abra en el panel. */
+  mediaDescarga?: string | null;
   /** Nota de voz: se descarga solo si hay que transcribirla. */
   audio?: { descargar: () => Promise<Buffer>; mimeType: string; segundos: number } | null;
 };
@@ -120,7 +125,7 @@ async function enviarComoBot(conversacionId: number, numeroId: number, telefono:
   });
   if (whatsappId === null) return false;
 
-  const guardado = await repo.agregarMensaje(conversacionId, 'bot', texto, whatsappId);
+  const guardado = await repo.agregarMensaje(conversacionId, 'bot', texto, whatsappId, { estadoEntrega: 'enviado' });
   emitirConversacion(conversacionId);
   if (guardado) emitir(CANAL_SSE, 'mensaje:nuevo', { conversacionId, mensaje: guardado });
   return true;
@@ -170,7 +175,12 @@ async function procesar(original: MensajeCrudo): Promise<void> {
   });
   const eraNoLeida = conversacion.no_leidos > 0;
 
-  const guardado = await repo.agregarMensaje(conversacion.id, msg.fromMe ? 'yo' : 'lead', msg.texto, msg.whatsappId);
+  const guardado = await repo.agregarMensaje(conversacion.id, msg.fromMe ? 'yo' : 'lead', msg.texto, msg.whatsappId, {
+    tipo: msg.tipo,
+    media: msg.media,
+    mediaDescarga: msg.mediaDescarga,
+    estadoEntrega: msg.fromMe ? 'enviado' : null,
+  });
   if (!guardado) return; // ya estaba guardado (evento repetido de Baileys)
 
   emitirConversacion(conversacion.id);

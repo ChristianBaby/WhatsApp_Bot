@@ -169,11 +169,42 @@ export type ResultadoDryRun = {
 
 export type AutorMensaje = 'lead' | 'yo' | 'bot';
 
+export type TipoMensaje =
+  | 'texto'
+  | 'imagen'
+  | 'video'
+  | 'audio'
+  | 'nota_voz'
+  | 'documento'
+  | 'sticker'
+  | 'ubicacion'
+  | 'contacto';
+
+export type MediaInfo = {
+  mime: string | null;
+  nombre: string | null;
+  segundos: number | null;
+  tamano: number | null;
+  leyenda: string | null;
+};
+
+export type EstadoEntrega = 'enviado' | 'entregado' | 'leido';
+
 export type MensajeConversacion = {
   id: number;
   autor: AutorMensaje;
   texto: string;
+  tipo: TipoMensaje;
+  media: MediaInfo | null;
+  estadoEntrega: EstadoEntrega | null;
   creadoEn: string;
+};
+
+export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor';
+
+export type PaginaConversaciones = {
+  conversaciones: ConversacionResumen[];
+  siguienteCursor: string | null;
 };
 
 export type ModoConversacion = 'bot' | 'manual';
@@ -185,6 +216,8 @@ export type ConversacionResumen = {
   numeroId: number;
   telefono: string;
   nombreContacto: string | null;
+  /** Como lo guardo el usuario en su telefono. */
+  nombreAgenda: string | null;
   empresa: string | null;
   rubro: string | null;
   etapaPipeline: string | null;
@@ -201,7 +234,9 @@ export type ConversacionResumen = {
 
 export type ConversacionDetalle = ConversacionResumen & {
   notas: string | null;
+  /** Solo la ultima pagina; los anteriores se cargan al subir en el chat. */
   mensajes: MensajeConversacion[];
+  hayMasMensajes: boolean;
 };
 
 // --- Reportes (seccion 3.7) ---

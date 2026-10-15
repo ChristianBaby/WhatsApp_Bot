@@ -96,8 +96,26 @@ async function descargar(ruta: string, reintentando = false): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Un archivo privado (foto, audio, documento de un chat) como Blob, con el
+ * token: un <img src> directo no lo lleva y el backend lo rechazaria.
+ */
+async function blob(ruta: string, reintentando = false): Promise<Blob> {
+  const token = obtenerAccessToken();
+  const res = await fetch(`${PREFIJO}${ruta}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+
+  if (res.status === 401 && !reintentando && (await refrescarToken())) return blob(ruta, true);
+  if (!res.ok) {
+    const cuerpo = (await res.json().catch(() => ({}))) as RespuestaError;
+    throw new ErrorApi(cuerpo.error ?? `Error ${res.status}`, res.status, cuerpo.codigo ?? 'ERROR');
+  }
+  return res.blob();
+}
+
 export const api = {
   descargar: (ruta: string) => descargar(ruta),
+
+  blob: (ruta: string) => blob(ruta),
 
   get: <T>(ruta: string) => pedir<T>(ruta),
 

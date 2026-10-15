@@ -42,6 +42,7 @@ export function useEstadoPanel(): IndicadoresSidebar {
     'numero:actualizado': cargar,
     'publicacion:actualizada': cargar,
     'conversacion:actualizada': cargar,
+    'conversaciones:sincronizadas': cargar,
   });
 
   return {

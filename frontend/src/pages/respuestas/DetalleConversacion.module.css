@@ -174,3 +174,160 @@
   flex-shrink: 0;
   flex-wrap: wrap;
 }
+
+.cargandoAnteriores {
+  text-align: center;
+  font-size: 11px;
+  color: var(--texto-tenue);
+  padding: 4px 0 8px 0;
+}
+
+.separadorDia {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 10px 0;
+}
+
+.separadorDia span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--texto-suave);
+  background: var(--fondo-sutil-2);
+  border-radius: 8px;
+  padding: 3px 10px;
+}
+
+.check {
+  margin-left: 3px;
+  letter-spacing: -2px;
+}
+
+.checkLeido {
+  color: #7dd3fc;
+  opacity: 1;
+}
+
+.enlace {
+  color: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.leyenda {
+  margin-top: 6px;
+}
+
+/* Tamaño fijo antes de cargar: así las fotos que llegan no empujan el chat. */
+.cajaImagen {
+  width: 240px;
+  max-width: 100%;
+  height: 180px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(127, 127, 127, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.imagen {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+  display: block;
+}
+
+.cajaSticker {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sticker {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.marcadorMedia {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.video {
+  width: 280px;
+  max-width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+.audio {
+  width: 260px;
+  max-width: 100%;
+  display: block;
+}
+
+.botonMedia {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  border-radius: 14px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.botonMedia:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.documento {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.documentoIcono {
+  font-size: 22px;
+}
+
+.documentoDatos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.documentoNombre {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documentoDetalle {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.botonAdjuntar {
+  border: 1px solid var(--borde-control);
+  background: transparent;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.botonAdjuntar:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

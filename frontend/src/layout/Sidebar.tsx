@@ -90,7 +90,7 @@ export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
                 )}
 
                 {seccion.id === 'respuestas' && respuestasNoLeidas > 0 && (
-                  <span className={estilos.noLeidos} title="Respuestas sin leer">
+                  <span className={estilos.noLeidos} title="Chats sin leer">
                     {respuestasNoLeidas}
                   </span>
                 )}

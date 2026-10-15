@@ -8,6 +8,8 @@ import { crearSesion, type SesionBaileys } from './socket.js';
 import * as repo from './repositorio.js';
 import type { NumeroWhatsapp } from './repositorio.js';
 import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
+import { actualizarAgenda, importarHistorial } from '../conversaciones/historial.js';
+import * as conversacionesRepo from '../conversaciones/repositorio.js';
 import { registrarEstadoEntrega } from '../publicaciones/repositorio.js';
 
 /**
@@ -141,15 +143,32 @@ async function iniciar(numeroId: number): Promise<void> {
               texto: mensaje.texto,
               whatsappId: mensaje.whatsappId,
               pushName: mensaje.pushName,
+              tipo: mensaje.tipo,
+              media: mensaje.media,
+              mediaDescarga: mensaje.mediaDescarga,
               audio: mensaje.audio,
             }),
           )
           .catch((err: unknown) => log.error({ err, numeroId }, 'No se pudo procesar un mensaje entrante'));
       },
+      onHistorial: (lote) => {
+        void importarHistorial(numeroId, lote);
+      },
+      onContactos: (contactos) => {
+        actualizarAgenda(numeroId, contactos).catch((err: unknown) =>
+          log.warn({ err, numeroId }, 'No se pudieron actualizar los nombres de la agenda'),
+        );
+      },
       onEstadoEntrega: (whatsappId, estado) => {
         registrarEstadoEntrega(whatsappId, estado).catch((err: unknown) =>
           log.warn({ err, numeroId }, 'No se pudo registrar entregado/leido'),
         );
+        conversacionesRepo
+          .actualizarEstadoEntrega(whatsappId, estado)
+          .then((cambio) => {
+            if (cambio) emitir('conversaciones', 'mensaje:estado', { ...cambio, estado });
+          })
+          .catch((err: unknown) => log.warn({ err, numeroId }, 'No se pudo actualizar el check del mensaje'));
       },
     });
     entrada.sesion = sesion;
