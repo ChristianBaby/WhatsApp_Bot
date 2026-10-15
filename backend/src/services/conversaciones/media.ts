@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../../config/env.js';
-import { noEncontrado } from '../../lib/errors.js';
+import { ErrorApp, noEncontrado } from '../../lib/errors.js';
 import { crearLogger } from '../../lib/logger.js';
 import { obtenerSocket } from '../whatsapp/gestor.js';
 import { descargarMediaGuardada } from '../whatsapp/socket.js';
 import type { TipoArchivoEnvio } from '../whatsapp/envio.js';
+import { hayEspacioParaDescargar, marcarUsado } from './limpiezaArchivos.js';
 import * as repo from './repositorio.js';
 
 const log = crearLogger('chat-media');
@@ -67,13 +68,24 @@ export async function obtenerArchivoMedia(
       () => true,
       () => false,
     );
-    if (existe) return { rutaAbsoluta, mime, nombre };
+    if (existe) {
+      await marcarUsado(mensajeId);
+      return { rutaAbsoluta, mime, nombre };
+    }
   }
 
   if (!datos.mediaDescarga) throw noEncontrado('El archivo ya no está disponible');
 
   const enCurso = descargasEnCurso.get(mensajeId);
   if (enCurso) return enCurso;
+
+  if (!(await hayEspacioParaDescargar())) {
+    throw new ErrorApp(
+      'El servidor está casi sin espacio: por ahora no se descargan más archivos. Revisa Configuración → Archivos de los chats.',
+      507,
+      'SIN_ESPACIO',
+    );
+  }
 
   const descarga = (async () => {
     const contenido = await descargarMediaGuardada(obtenerSocket(numeroId), datos.mediaDescarga!).catch((err: unknown) => {

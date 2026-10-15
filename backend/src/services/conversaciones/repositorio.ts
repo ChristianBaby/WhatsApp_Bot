@@ -367,8 +367,10 @@ export async function agregarMensaje(
 ): Promise<MensajeConversacion | null> {
   const fila = await consultarUno<FilaMensaje>(
     `INSERT INTO mensajes_conversacion
-       (conversacion_id, autor, texto, whatsapp_id, tipo, media, media_descarga, media_archivo, estado_entrega, creado_en)
-     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, COALESCE($10::timestamptz, now()))
+       (conversacion_id, autor, texto, whatsapp_id, tipo, media, media_descarga, media_archivo, estado_entrega, creado_en,
+        media_usado_en)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::text, $9, COALESCE($10::timestamptz, now()),
+             CASE WHEN $8::text IS NOT NULL THEN now() END)
      ON CONFLICT (whatsapp_id) WHERE whatsapp_id IS NOT NULL DO NOTHING
      RETURNING ${CAMPOS_MENSAJE}`,
     [
@@ -427,7 +429,10 @@ export async function obtenerMediaDeMensaje(conversacionId: number, mensajeId: n
 
 /** El archivo ya se descargo una vez: las siguientes veces se sirve del disco. */
 export async function guardarArchivoMedia(mensajeId: number, archivo: string): Promise<void> {
-  await consultarUno('UPDATE mensajes_conversacion SET media_archivo = $2 WHERE id = $1', [mensajeId, archivo]);
+  await consultarUno('UPDATE mensajes_conversacion SET media_archivo = $2, media_usado_en = now() WHERE id = $1', [
+    mensajeId,
+    archivo,
+  ]);
 }
 
 /**
@@ -437,7 +442,8 @@ export async function guardarArchivoMedia(mensajeId: number, archivo: string): P
  */
 export async function asociarArchivoLocal(whatsappId: string, archivo: string): Promise<void> {
   await consultarUno(
-    `UPDATE mensajes_conversacion SET media_archivo = $2, estado_entrega = COALESCE(estado_entrega, 'enviado')
+    `UPDATE mensajes_conversacion
+     SET media_archivo = $2, media_usado_en = now(), estado_entrega = COALESCE(estado_entrega, 'enviado')
      WHERE whatsapp_id = $1`,
     [whatsappId, archivo],
   );

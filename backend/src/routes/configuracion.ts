@@ -5,6 +5,7 @@ import { solicitudInvalida } from '../lib/errors.js';
 import { emitir } from '../lib/sse.js';
 import { normalizarParaWhatsapp } from '../lib/telefono.js';
 import * as repo from '../services/configuracion/repositorio.js';
+import { limpiarAhora, resumenAlmacenamiento } from '../services/conversaciones/limpiezaArchivos.js';
 
 export const rutasConfiguracion = Router();
 
@@ -45,6 +46,9 @@ const ESQUEMAS_POR_CLAVE: Record<string, z.ZodTypeAny> = {
   max_mensajes_por_ejecucion: z.number().int().min(1).max(5000),
   horario_inicio: z.string().regex(HORA, 'Formato HH:MM'),
   horario_fin: z.string().regex(HORA, 'Formato HH:MM'),
+  // Archivos de los chats (ver services/conversaciones/limpiezaArchivos.ts). 0 = no borrar por antiguedad.
+  dias_conservar_archivos: z.number().int().min(0).max(3650),
+  conservar_documentos: z.boolean(),
 };
 
 /** Reglas entre claves: se validan sobre el resultado final (lo guardado + lo nuevo). */
@@ -94,5 +98,22 @@ rutasConfiguracion.patch(
     const actualizado = await repo.obtenerTodos();
     emitir(CANAL_SSE, 'configuracion:actualizada', actualizado);
     res.json(actualizado);
+  }),
+);
+
+/** Cuanto ocupan los archivos de los chats en el servidor y cuanto disco queda. */
+rutasConfiguracion.get(
+  '/almacenamiento',
+  manejarAsync(async (_req, res) => {
+    res.json(await resumenAlmacenamiento());
+  }),
+);
+
+/** Boton "Limpiar ahora": aplica las mismas reglas que la limpieza automatica. */
+rutasConfiguracion.post(
+  '/almacenamiento/limpiar',
+  manejarAsync(async (_req, res) => {
+    await limpiarAhora();
+    res.json(await resumenAlmacenamiento());
   }),
 );

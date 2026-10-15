@@ -4,6 +4,7 @@ import { EncabezadoPagina } from '../components/ui/EncabezadoPagina';
 import { EstadoVacio } from '../components/ui/EstadoVacio';
 import { Tarjeta } from '../components/ui/Tarjeta';
 import { api, ErrorApi } from '../lib/api';
+import { Almacenamiento } from './configuracion/Almacenamiento';
 import estilos from './Configuracion.module.css';
 
 type Valores = {
@@ -19,6 +20,8 @@ type Valores = {
   max_mensajes_por_ejecucion: number;
   horario_inicio: string;
   horario_fin: string;
+  dias_conservar_archivos: number;
+  conservar_documentos: boolean;
 };
 
 const CLAVES = [
@@ -34,6 +37,8 @@ const CLAVES = [
   'max_mensajes_por_ejecucion',
   'horario_inicio',
   'horario_fin',
+  'dias_conservar_archivos',
+  'conservar_documentos',
 ] as const satisfies readonly (keyof Valores)[];
 
 type CampoNumero = { clave: keyof Valores; etiqueta: string; ayuda: string; unidad: string };
@@ -120,11 +125,13 @@ export function Configuracion() {
         max_mensajes_por_ejecucion: cfg.max_mensajes_por_ejecucion ?? 200,
         horario_inicio: cfg.horario_inicio ?? '09:00',
         horario_fin: cfg.horario_fin ?? '19:00',
+        dias_conservar_archivos: cfg.dias_conservar_archivos ?? 30,
+        conservar_documentos: cfg.conservar_documentos ?? true,
       });
     });
   }, []);
 
-  function cambiar(clave: keyof Valores, valor: string | number) {
+  function cambiar(clave: keyof Valores, valor: string | number | boolean) {
     setValores((prev) => (prev ? { ...prev, [clave]: valor } : prev));
   }
 
@@ -219,6 +226,43 @@ export function Configuracion() {
                 <div className={estilos.ayuda}>Fuera de este horario las campañas esperan (hora de Perú).</div>
               </div>
             </div>
+          </Tarjeta>
+
+          <Tarjeta className={estilos.seccion}>
+            <div className={estilos.tituloSeccion}>Archivos de los chats</div>
+            <div className={estilos.ayuda} style={{ marginBottom: 14 }}>
+              Las fotos, videos, audios y documentos se bajan de WhatsApp solo cuando alguien los abre en el panel, y
+              quedan guardados en el servidor (no en tu computadora). Para que no llenen el disco, se borra la copia de lo
+              que nadie abrió en un tiempo; si se vuelve a abrir, se pide de nuevo a WhatsApp. Ojo: WhatsApp no guarda los
+              archivos para siempre, así que un archivo muy antiguo puede ya no estar disponible.
+            </div>
+            <div className={estilos.grilla}>
+              <Numero
+                campo={{
+                  clave: 'dias_conservar_archivos',
+                  etiqueta: 'Borrar la copia si nadie lo abre en',
+                  unidad: 'días',
+                  ayuda: '0 = no borrar nunca por antigüedad. Si el disco baja de 5 GB libres, igual se limpia lo de más de 7 días.',
+                }}
+                valores={valores}
+                cambiar={cambiar}
+              />
+              <div className={estilos.campo}>
+                <label className={estilos.etiqueta}>
+                  <input
+                    type="checkbox"
+                    checked={valores.conservar_documentos}
+                    onChange={(e) => cambiar('conservar_documentos', e.target.checked)}
+                    style={{ marginRight: 8 }}
+                  />
+                  Conservar siempre los documentos
+                </label>
+                <div className={estilos.ayuda}>
+                  PDFs, cotizaciones, contratos… nunca se borran (ocupan poco y suelen ser importantes).
+                </div>
+              </div>
+            </div>
+            <Almacenamiento />
           </Tarjeta>
 
           {error && <p style={{ color: 'var(--peligro)', fontSize: 13 }}>{error}</p>}
