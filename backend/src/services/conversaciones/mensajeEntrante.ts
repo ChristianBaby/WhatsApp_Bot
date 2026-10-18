@@ -11,7 +11,7 @@ import { contextoDeConversacion } from '../ia/contexto.js';
 import { transcribirAudio } from '../ia/gemini.js';
 import { registrarRespuesta } from '../publicaciones/repositorio.js';
 import * as repo from './repositorio.js';
-import type { MediaInfo, TipoMensaje } from './tipos.js';
+import type { ExtraMensaje, MediaInfo, TipoMensaje } from './tipos.js';
 
 const log = crearLogger('conversaciones');
 const CANAL_SSE = 'conversaciones';
@@ -35,6 +35,7 @@ export type MensajeCrudo = {
   pushName?: string | null;
   tipo?: TipoMensaje;
   media?: MediaInfo | null;
+  extra?: ExtraMensaje | null;
   /** Mensaje original serializado, para bajar el adjunto cuando alguien lo abra en el panel. */
   mediaDescarga?: string | null;
   /** Nota de voz: se descarga solo si hay que transcribirla. */
@@ -178,6 +179,7 @@ async function procesar(original: MensajeCrudo): Promise<void> {
   const guardado = await repo.agregarMensaje(conversacion.id, msg.fromMe ? 'yo' : 'lead', msg.texto, msg.whatsappId, {
     tipo: msg.tipo,
     media: msg.media,
+    extra: msg.extra,
     mediaDescarga: msg.mediaDescarga,
     estadoEntrega: msg.fromMe ? 'enviado' : null,
   });

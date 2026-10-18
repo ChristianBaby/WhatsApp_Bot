@@ -178,7 +178,9 @@ export type TipoMensaje =
   | 'documento'
   | 'sticker'
   | 'ubicacion'
-  | 'contacto';
+  | 'contacto'
+  | 'encuesta'
+  | 'llamada';
 
 export type MediaInfo = {
   mime: string | null;
@@ -186,7 +188,33 @@ export type MediaInfo = {
   segundos: number | null;
   tamano: number | null;
   leyenda: string | null;
+  ancho?: number | null;
+  alto?: number | null;
+  /** Miniatura borrosa (data URL) que se ve mientras baja la foto. */
+  miniatura?: string | null;
+  gif?: boolean;
+  circular?: boolean;
 };
+
+export type ExtraMensaje = {
+  cita?: { whatsappId: string; autor: 'yo' | 'lead'; texto: string } | null;
+  reenviado?: 'una' | 'muchas' | null;
+  ubicacion?: {
+    lat: number;
+    lng: number;
+    nombre: string | null;
+    direccion: string | null;
+    enVivo: boolean;
+    miniatura: string | null;
+  } | null;
+  contactos?: { nombre: string; telefonos: string[] }[] | null;
+  encuesta?: { pregunta: string; opciones: string[]; maxSeleccion: number; votos: Record<string, string[]> } | null;
+  enlace?: { url: string; titulo: string | null; descripcion: string | null; miniatura: string | null } | null;
+  llamada?: { video: boolean; perdida: boolean } | null;
+  verUnaVez?: boolean;
+};
+
+export type Reacciones = { yo?: string; lead?: string };
 
 export type EstadoEntrega = 'enviado' | 'entregado' | 'leido';
 
@@ -198,6 +226,11 @@ export type MensajeConversacion = {
   media: MediaInfo | null;
   estadoEntrega: EstadoEntrega | null;
   creadoEn: string;
+  whatsappId: string | null;
+  extra: ExtraMensaje | null;
+  reacciones: Reacciones | null;
+  editado: boolean;
+  eliminado: boolean;
 };
 
 export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor';

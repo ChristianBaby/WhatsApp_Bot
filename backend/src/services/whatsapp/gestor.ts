@@ -9,6 +9,7 @@ import * as repo from './repositorio.js';
 import type { NumeroWhatsapp } from './repositorio.js';
 import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
 import { actualizarAgenda, importarHistorial } from '../conversaciones/historial.js';
+import { aplicarCambio, registrarLlamada } from '../conversaciones/cambiosMensaje.js';
 import * as conversacionesRepo from '../conversaciones/repositorio.js';
 import { registrarEstadoEntrega } from '../publicaciones/repositorio.js';
 
@@ -145,6 +146,7 @@ async function iniciar(numeroId: number): Promise<void> {
               pushName: mensaje.pushName,
               tipo: mensaje.tipo,
               media: mensaje.media,
+              extra: mensaje.extra,
               mediaDescarga: mensaje.mediaDescarga,
               audio: mensaje.audio,
             }),
@@ -169,6 +171,16 @@ async function iniciar(numeroId: number): Promise<void> {
             if (cambio) emitir('conversaciones', 'mensaje:estado', { ...cambio, estado });
           })
           .catch((err: unknown) => log.warn({ err, numeroId }, 'No se pudo actualizar el check del mensaje'));
+      },
+      onCambioMensaje: (cambio) => {
+        aplicarCambio(cambio).catch((err: unknown) =>
+          log.warn({ err, numeroId, cambio: cambio.tipo }, 'No se pudo aplicar una reaccion, edicion o eliminacion'),
+        );
+      },
+      onLlamada: (llamada) => {
+        registrarLlamada(numeroId, llamada).catch((err: unknown) =>
+          log.warn({ err, numeroId }, 'No se pudo registrar una llamada'),
+        );
       },
     });
     entrada.sesion = sesion;

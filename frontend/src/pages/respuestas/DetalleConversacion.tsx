@@ -1,12 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '../../components/ui/Badge';
 import { Boton } from '../../components/ui/Boton';
 import { api, ErrorApi } from '../../lib/api';
-import { formatearFecha, formatearHora } from '../../lib/fecha';
-import type { ConversacionDetalle, MensajeConversacion } from '../../lib/types';
-import { ContenidoMensaje } from './ContenidoMensaje';
+import { formatearFecha } from '../../lib/fecha';
+import type { ConversacionDetalle } from '../../lib/types';
+import { Burbuja } from './Burbuja';
 import { ETAPA_INFO, infoEtapa } from './etapa';
 import { nombreDeChat } from './nombreChat';
+import { Visor } from './Visor';
 import estilos from './DetalleConversacion.module.css';
 
 type Props = {
@@ -31,13 +32,8 @@ function etiquetaDia(iso: string): string {
   return formatearFecha(iso);
 }
 
-function Checks({ mensaje }: { mensaje: MensajeConversacion }) {
-  if (mensaje.autor === 'lead' || !mensaje.estadoEntrega) return null;
-  if (mensaje.estadoEntrega === 'enviado') return <span className={estilos.check}>✓</span>;
-  return (
-    <span className={`${estilos.check} ${mensaje.estadoEntrega === 'leido' ? estilos.checkLeido : ''}`}>✓✓</span>
-  );
-}
+/** Cuanto queda resaltado el mensaje al que se salta desde una cita. */
+const RESALTADO_MS = 1600;
 
 export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnteriores }: Props) {
   const [texto, setTexto] = useState('');
@@ -45,10 +41,36 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
   const [error, setError] = useState<string | null>(null);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [cargandoAnteriores, setCargandoAnteriores] = useState(false);
+  const [visorId, setVisorId] = useState<number | null>(null);
+  const [resaltadoId, setResaltadoId] = useState<string | null>(null);
   const hiloRef = useRef<HTMLDivElement>(null);
   const archivoRef = useRef<HTMLInputElement>(null);
 
   const mensajes = conversacion.mensajes;
+  const porWhatsappId = useMemo(
+    () => new Map(mensajes.filter((m) => m.whatsappId).map((m) => [m.whatsappId!, m])),
+    [mensajes],
+  );
+  // Lo que se puede recorrer en el visor: fotos y videos (no GIFs ni notas de video) que siguen en el chat.
+  const fotosYVideos = useMemo(
+    () =>
+      mensajes.filter(
+        (m) =>
+          !m.eliminado &&
+          m.media &&
+          (m.tipo === 'imagen' || (m.tipo === 'video' && !m.media.gif && !m.media.circular)),
+      ),
+    [mensajes],
+  );
+
+  /** Salta al mensaje citado (si esta cargado) y lo resalta un momento. */
+  function irACita(whatsappId: string) {
+    const destino = hiloRef.current?.querySelector(`[data-wid="${CSS.escape(whatsappId)}"]`);
+    if (!destino) return;
+    destino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setResaltadoId(whatsappId);
+    setTimeout(() => setResaltadoId((actual) => (actual === whatsappId ? null : actual)), RESALTADO_MS);
+  }
   const primeroId = mensajes[0]?.id ?? null;
   const ultimo = mensajes[mensajes.length - 1];
 
@@ -82,10 +104,11 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     recordarScroll();
   }, [conversacion.id, primeroId, ultimo]);
 
-  // Cambiar de conversacion cierra cualquier "Corregir" que haya quedado abierto.
+  // Cambiar de conversacion cierra cualquier "Corregir" o visor que haya quedado abierto.
   useEffect(() => {
     setCorrigiendo(false);
     setError(null);
+    setVisorId(null);
   }, [conversacion.id]);
 
   async function alDesplazar() {
@@ -219,7 +242,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
         {mensajes.map((m, i) => {
           const dia = etiquetaDia(m.creadoEn);
           const diaAnterior = i > 0 ? etiquetaDia(mensajes[i - 1]!.creadoEn) : null;
-          const propio = m.autor !== 'lead';
+          const citaId = m.extra?.cita?.whatsappId;
           return (
             <div key={m.id}>
               {dia !== diaAnterior && (
@@ -227,19 +250,29 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
                   <span>{dia}</span>
                 </div>
               )}
-              <div className={estilos.filaBurbuja} style={{ justifyContent: propio ? 'flex-end' : 'flex-start' }}>
-                <div className={`${estilos.burbuja} ${propio ? estilos.burbujaYo : estilos.burbujaLead}`}>
-                  {m.autor === 'bot' && <div className={estilos.etiquetaBot}>🤖 Bot</div>}
-                  <ContenidoMensaje conversacionId={conversacion.id} mensaje={m} />
-                  <div className={estilos.horaBurbuja}>
-                    {formatearHora(m.creadoEn)} <Checks mensaje={m} />
-                  </div>
-                </div>
-              </div>
+              <Burbuja
+                conversacionId={conversacion.id}
+                mensaje={m}
+                nombreContacto={nombre}
+                citado={citaId ? porWhatsappId.get(citaId) : undefined}
+                resaltado={resaltadoId === m.whatsappId}
+                onIrACita={irACita}
+                onAbrirVisor={setVisorId}
+              />
             </div>
           );
         })}
       </div>
+
+      {visorId !== null && (
+        <Visor
+          conversacionId={conversacion.id}
+          items={fotosYVideos}
+          inicialId={visorId}
+          nombreContacto={nombre}
+          onCerrar={() => setVisorId(null)}
+        />
+      )}
 
       {sugerencia && (
         <div className={estilos.tarjetaSugerencia}>

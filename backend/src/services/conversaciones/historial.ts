@@ -56,6 +56,8 @@ async function importar(numeroId: number, lote: LoteHistorial): Promise<void> {
       tipo: m.tipo,
       media: m.media,
       mediaDescarga: m.mediaDescarga,
+      extra: m.extra,
+      reacciones: m.reacciones,
     });
     porTelefono.set(m.telefono, lista);
   }

@@ -180,6 +180,15 @@ export function Respuestas() {
       );
       if (mensaje.autor === 'lead' && conversacionId === seleccionadaId) marcarLeidaEnSegundos(conversacionId);
     },
+    // Reaccion, edicion o "eliminar para todos" sobre un mensaje que ya se ve.
+    'mensaje:actualizado': (datos) => {
+      const { conversacionId, mensaje } = datos as { conversacionId: number; mensaje: MensajeConversacion };
+      setDetalle((prev) =>
+        prev && prev.id === conversacionId
+          ? { ...prev, mensajes: prev.mensajes.map((m) => (m.id === mensaje.id ? mensaje : m)) }
+          : prev,
+      );
+    },
     'mensaje:estado': (datos) => {
       const { conversacionId, mensajeId, estado } = datos as {
         conversacionId: number;

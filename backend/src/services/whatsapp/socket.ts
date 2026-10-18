@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import makeWASocket, {
@@ -7,13 +8,16 @@ import makeWASocket, {
   downloadMediaMessage,
   normalizeMessageContent,
   BufferJSON,
+  WAMessageStubType,
   type Contact,
+  type WACallEvent,
   type WAMessage,
   type WASocket,
+  type proto,
 } from 'baileys';
 import { env } from '../../config/env.js';
 import { crearLogger } from '../../lib/logger.js';
-import type { MediaInfo, TipoMensaje } from '../conversaciones/tipos.js';
+import type { ExtraMensaje, MediaInfo, Reacciones, TipoMensaje } from '../conversaciones/tipos.js';
 
 /**
  * Una sola conexion de Baileys para UN numero. No sabe nada de reintentos,
@@ -31,6 +35,9 @@ export type MensajeRecibido = {
   pushName?: string | null;
   tipo: TipoMensaje;
   media: MediaInfo | null;
+  extra: ExtraMensaje | null;
+  /** Reacciones que ya trae un mensaje del historial. */
+  reacciones: Reacciones | null;
   /** El mensaje original serializado (BufferJSON): para bajar el adjunto solo cuando alguien lo abre. */
   mediaDescarga: string | null;
   /** Fecha real del mensaje segun WhatsApp. */
@@ -69,11 +76,33 @@ type CallbacksSesion = {
   onContactos: (contactos: ContactoAgenda[]) => void;
   /** Confirmacion de WhatsApp sobre un mensaje NUESTRO: entregado (✓✓) o leido (✓✓ azul). */
   onEstadoEntrega: (whatsappId: string, estado: 'entregado' | 'leido') => void;
+  /** Algo cambio en un mensaje ya guardado: una reaccion, una edicion o se elimino. */
+  onCambioMensaje: (cambio: CambioMensaje) => void;
+  /** Una llamada entrante ya termino (atendida o perdida). */
+  onLlamada: (llamada: LlamadaRecibida) => void;
+};
+
+export type CambioMensaje =
+  /** emoji null = quito la reaccion. */
+  | { tipo: 'reaccion'; whatsappId: string; deMi: boolean; emoji: string | null }
+  | { tipo: 'editado'; whatsappId: string; texto: string; leyenda: string | null }
+  | { tipo: 'eliminado'; whatsappId: string };
+
+export type LlamadaRecibida = {
+  telefono: string;
+  /** Id de la llamada (no es un mensaje: se guarda con el prefijo "llamada-"). */
+  id: string;
+  fecha: Date;
+  video: boolean;
+  perdida: boolean;
 };
 
 // proto.WebMessageInfo.Status de WhatsApp: 3 = entregado, 4 = leido, 5 = reproducido (audio/video).
 const ESTADO_ENTREGADO = 3;
 const ESTADO_LEIDO = 4;
+
+/** Si una llamada no avisa como termino, se da por cerrada a los 3 minutos. */
+const LLAMADA_MAX_ESPERA_MS = 3 * 60 * 1000;
 
 /** Los numeros grandes de WhatsApp (fechas, tamanos) llegan como number o como Long. */
 function aNumero(valor: unknown): number | null {
@@ -90,9 +119,19 @@ type Descripcion = {
   texto: string;
   tipo: TipoMensaje;
   media: MediaInfo | null;
+  extra: ExtraMensaje | null;
   /** Campo del mensaje de WhatsApp que tiene el archivo (imageMessage...), si hay. */
   campoMedia: string | null;
 };
+
+/** Miniaturas mas grandes no se guardan (van en cada pagina de mensajes que pide el panel). */
+const MAX_MINIATURA_BYTES = 15_000;
+
+/** La miniatura que WhatsApp manda dentro del mensaje, como data URL. */
+function miniatura(datos: Uint8Array | null | undefined): string | null {
+  if (!datos?.length || datos.length > MAX_MINIATURA_BYTES) return null;
+  return `data:image/jpeg;base64,${Buffer.from(datos).toString('base64')}`;
+}
 
 function infoMedia(datos: {
   mime?: string | null;
@@ -100,6 +139,11 @@ function infoMedia(datos: {
   segundos?: unknown;
   tamano?: unknown;
   leyenda?: string | null;
+  ancho?: unknown;
+  alto?: unknown;
+  miniatura?: Uint8Array | null;
+  gif?: boolean | null;
+  circular?: boolean;
 }): MediaInfo {
   return {
     mime: datos.mime ?? null,
@@ -107,38 +151,89 @@ function infoMedia(datos: {
     segundos: aNumero(datos.segundos),
     tamano: aNumero(datos.tamano),
     leyenda: datos.leyenda?.trim() || null,
+    ancho: aNumero(datos.ancho),
+    alto: aNumero(datos.alto),
+    miniatura: miniatura(datos.miniatura),
+    ...(datos.gif ? { gif: true } : {}),
+    ...(datos.circular ? { circular: true } : {}),
   };
 }
 
-/**
- * Que es un mensaje de WhatsApp y como mostrarlo. Devuelve null para eventos
- * sin contenido util (reacciones, mensajes de protocolo, encuestas...) —
- * esos se ignoran.
- */
-function describirMensaje(msg: WAMessage): Descripcion | null {
-  const m = normalizeMessageContent(msg.message);
-  if (!m) return null;
+/** Telefonos de una tarjeta de contacto (vCard): "TEL;type=CELL;waid=51987654321:+51 987 654 321". */
+function telefonosDeVcard(vcard: string | null | undefined): string[] {
+  const telefonos: string[] = [];
+  for (const linea of (vcard ?? '').split(/\r?\n/)) {
+    if (!/^(item\d+\.)?TEL\b/i.test(linea)) continue;
+    const valor = linea.slice(linea.lastIndexOf(':') + 1).trim();
+    const waid = /waid=(\d+)/i.exec(linea)?.[1];
+    const numero = valor || (waid ? `+${waid}` : '');
+    if (numero && !telefonos.includes(numero)) telefonos.push(numero);
+  }
+  return telefonos;
+}
 
-  if (m.conversation) return { texto: m.conversation, tipo: 'texto', media: null, campoMedia: null };
+/** El contextInfo (cita, reenviado) vive dentro del sub-mensaje, sea cual sea su tipo. */
+function contextoDe(m: proto.IMessage): proto.IContextInfo | null {
+  for (const valor of Object.values(m)) {
+    if (valor && typeof valor === 'object' && 'contextInfo' in valor && valor.contextInfo) {
+      return valor.contextInfo as proto.IContextInfo;
+    }
+  }
+  return null;
+}
+
+function soloTexto(texto: string): Descripcion {
+  return { texto, tipo: 'texto', media: null, extra: null, campoMedia: null };
+}
+
+/** El contenido de un mensaje (ya sin envoltorios), sin lo que depende del chat (cita, reenviado). */
+export function describirContenido(m: proto.IMessage): Descripcion | null {
+  if (m.conversation) return soloTexto(m.conversation);
   if (m.extendedTextMessage?.text) {
-    return { texto: m.extendedTextMessage.text, tipo: 'texto', media: null, campoMedia: null };
+    const x = m.extendedTextMessage;
+    const url = x.matchedText;
+    const enlace =
+      url && (x.title || x.description)
+        ? { url, titulo: x.title || null, descripcion: x.description || null, miniatura: miniatura(x.jpegThumbnail) }
+        : null;
+    return { ...soloTexto(x.text ?? ''), extra: enlace ? { enlace } : null };
   }
   if (m.imageMessage) {
     const x = m.imageMessage;
     return {
       texto: x.caption ? `📷 ${x.caption}` : '📷 Imagen',
       tipo: 'imagen',
-      media: infoMedia({ mime: x.mimetype, tamano: x.fileLength, leyenda: x.caption }),
+      media: infoMedia({
+        mime: x.mimetype,
+        tamano: x.fileLength,
+        leyenda: x.caption,
+        ancho: x.width,
+        alto: x.height,
+        miniatura: x.jpegThumbnail,
+      }),
+      extra: null,
       campoMedia: 'imageMessage',
     };
   }
-  if (m.videoMessage) {
-    const x = m.videoMessage;
+  const video = m.videoMessage ?? m.ptvMessage;
+  if (video) {
+    const circular = !m.videoMessage;
     return {
-      texto: x.caption ? `🎥 ${x.caption}` : '🎥 Video',
+      texto: video.caption ? `🎥 ${video.caption}` : video.gifPlayback ? '🎞️ GIF' : '🎥 Video',
       tipo: 'video',
-      media: infoMedia({ mime: x.mimetype, segundos: x.seconds, tamano: x.fileLength, leyenda: x.caption }),
-      campoMedia: 'videoMessage',
+      media: infoMedia({
+        mime: video.mimetype,
+        segundos: video.seconds,
+        tamano: video.fileLength,
+        leyenda: video.caption,
+        ancho: video.width,
+        alto: video.height,
+        miniatura: video.jpegThumbnail,
+        gif: video.gifPlayback,
+        circular,
+      }),
+      extra: null,
+      campoMedia: circular ? 'ptvMessage' : 'videoMessage',
     };
   }
   if (m.audioMessage) {
@@ -147,6 +242,7 @@ function describirMensaje(msg: WAMessage): Descripcion | null {
       texto: x.ptt ? '🎤 Audio de voz' : '🎵 Audio',
       tipo: x.ptt ? 'nota_voz' : 'audio',
       media: infoMedia({ mime: x.mimetype, segundos: x.seconds, tamano: x.fileLength }),
+      extra: null,
       campoMedia: 'audioMessage',
     };
   }
@@ -157,6 +253,7 @@ function describirMensaje(msg: WAMessage): Descripcion | null {
       texto: `📄 ${nombre}${x.caption ? ` — ${x.caption}` : ''}`,
       tipo: 'documento',
       media: infoMedia({ mime: x.mimetype, nombre, tamano: x.fileLength, leyenda: x.caption }),
+      extra: null,
       campoMedia: 'documentMessage',
     };
   }
@@ -166,27 +263,156 @@ function describirMensaje(msg: WAMessage): Descripcion | null {
       texto: '💟 Sticker',
       tipo: 'sticker',
       media: infoMedia({ mime: x.mimetype, tamano: x.fileLength }),
+      extra: null,
       campoMedia: 'stickerMessage',
     };
   }
-  if (m.locationMessage) {
-    const x = m.locationMessage;
-    const lugar = [x.name, x.address].filter(Boolean).join(', ');
-    const enlace =
-      x.degreesLatitude != null && x.degreesLongitude != null
-        ? ` https://maps.google.com/?q=${x.degreesLatitude},${x.degreesLongitude}`
-        : '';
-    return { texto: `📍 Ubicación${lugar ? `: ${lugar}` : ''}${enlace}`, tipo: 'ubicacion', media: null, campoMedia: null };
-  }
-  if (m.contactMessage) {
+  const ubicacion = m.locationMessage ?? m.liveLocationMessage;
+  if (ubicacion) {
+    const enVivo = !m.locationMessage;
+    const nombre = m.locationMessage?.name || null;
+    const direccion = m.locationMessage?.address || null;
+    const lugar = [nombre, direccion].filter(Boolean).join(', ');
+    const lat = aNumero(ubicacion.degreesLatitude);
+    const lng = aNumero(ubicacion.degreesLongitude);
     return {
-      texto: `👤 Contacto: ${m.contactMessage.displayName ?? 'compartido'}`,
-      tipo: 'contacto',
+      texto: `📍 ${enVivo ? 'Ubicación en tiempo real' : 'Ubicación'}${lugar ? `: ${lugar}` : ''}`,
+      tipo: 'ubicacion',
       media: null,
+      extra:
+        lat !== null && lng !== null
+          ? { ubicacion: { lat, lng, nombre, direccion, enVivo, miniatura: miniatura(ubicacion.jpegThumbnail) } }
+          : null,
       campoMedia: null,
     };
   }
+  if (m.contactMessage || m.contactsArrayMessage) {
+    const tarjetas = m.contactMessage ? [m.contactMessage] : (m.contactsArrayMessage?.contacts ?? []);
+    const contactos = tarjetas.map((c) => ({ nombre: c.displayName || 'Contacto', telefonos: telefonosDeVcard(c.vcard) }));
+    const nombres = contactos.map((c) => c.nombre).join(', ');
+    return {
+      texto: `👤 ${contactos.length > 1 ? 'Contactos' : 'Contacto'}: ${nombres || 'compartido'}`,
+      tipo: 'contacto',
+      media: null,
+      extra: { contactos },
+      campoMedia: null,
+    };
+  }
+  const encuesta = m.pollCreationMessage ?? m.pollCreationMessageV2 ?? m.pollCreationMessageV3;
+  if (encuesta) {
+    const opciones = (encuesta.options ?? []).map((o) => o.optionName ?? '').filter(Boolean);
+    const pregunta = encuesta.name ?? 'Encuesta';
+    return {
+      texto: `📊 Encuesta: ${pregunta}`,
+      tipo: 'encuesta',
+      media: null,
+      extra: { encuesta: { pregunta, opciones, maxSeleccion: encuesta.selectableOptionsCount ?? 0, votos: {} } },
+      campoMedia: null,
+    };
+  }
+
+  // Mensajes de cuentas de empresa (botones, listas, catalogo): se muestran como texto.
+  const textoEmpresa =
+    m.buttonsResponseMessage?.selectedDisplayText ??
+    m.templateButtonReplyMessage?.selectedDisplayText ??
+    m.listResponseMessage?.title ??
+    m.interactiveResponseMessage?.body?.text ??
+    m.buttonsMessage?.contentText ??
+    m.templateMessage?.hydratedTemplate?.hydratedContentText ??
+    m.interactiveMessage?.body?.text ??
+    (m.listMessage ? [m.listMessage.title, m.listMessage.description].filter(Boolean).join('\n') : null);
+  if (textoEmpresa) return soloTexto(textoEmpresa);
+  if (m.productMessage) return soloTexto(`🛍️ Producto: ${m.productMessage.product?.title ?? 'del catálogo'}`);
+  if (m.orderMessage) return soloTexto(`🛒 Pedido${m.orderMessage.itemCount ? ` (${m.orderMessage.itemCount} productos)` : ''}`);
+  if (m.eventMessage) return soloTexto(`📅 Evento: ${m.eventMessage.name ?? ''}`.trim());
   return null;
+}
+
+const LLAMADAS_PERDIDAS = new Set<number>([WAMessageStubType.CALL_MISSED_VOICE, WAMessageStubType.CALL_MISSED_VIDEO]);
+const REENVIADO_MUCHAS_VECES = 5;
+
+/**
+ * Que es un mensaje de WhatsApp y como mostrarlo. Devuelve null para eventos
+ * sin contenido para el chat (reacciones, ediciones y eliminaciones — esas
+ * llegan por messages.reaction / messages.update — y mensajes de protocolo).
+ *
+ * conLlamadas: en el historial, las llamadas perdidas vienen como mensajes de
+ * sistema; en vivo llegan por el evento 'call' (no se cuentan dos veces).
+ * esMio: si un jid es el propio numero (para saber de quien es lo citado).
+ */
+export function describirMensaje(msg: WAMessage, conLlamadas: boolean, esMio: (jid: string) => boolean): Descripcion | null {
+  if (conLlamadas && msg.messageStubType != null && LLAMADAS_PERDIDAS.has(msg.messageStubType)) {
+    const video = msg.messageStubType === WAMessageStubType.CALL_MISSED_VIDEO;
+    return {
+      texto: video ? '📹 Videollamada perdida' : '📞 Llamada perdida',
+      tipo: 'llamada',
+      media: null,
+      extra: { llamada: { video, perdida: true } },
+      campoMedia: null,
+    };
+  }
+
+  const crudo = msg.message;
+  if (!crudo) return null;
+  const m = normalizeMessageContent(crudo);
+  if (!m) return null;
+
+  // "Ver una vez": WhatsApp no entrega el archivo a los dispositivos vinculados.
+  const unaVez = crudo.viewOnceMessage ?? crudo.viewOnceMessageV2 ?? crudo.viewOnceMessageV2Extension;
+  if (unaVez || m.imageMessage?.viewOnce || m.videoMessage?.viewOnce || m.audioMessage?.viewOnce) {
+    const que = m.videoMessage ? 'Video' : m.audioMessage ? 'Audio' : 'Foto';
+    return { ...soloTexto(`👁 ${que} de ver una vez`), extra: { verUnaVez: true } };
+  }
+
+  const descripcion = describirContenido(m);
+  if (!descripcion) return null;
+
+  const ctx = contextoDe(m);
+  const extra: ExtraMensaje = { ...descripcion.extra };
+  if (ctx?.stanzaId && ctx.quotedMessage) {
+    const citado = describirContenido(normalizeMessageContent(ctx.quotedMessage) ?? ctx.quotedMessage);
+    extra.cita = {
+      whatsappId: ctx.stanzaId,
+      autor: ctx.participant && esMio(ctx.participant) ? 'yo' : 'lead',
+      texto: citado?.texto ?? 'Mensaje',
+    };
+  }
+  if (ctx?.isForwarded) extra.reenviado = (ctx.forwardingScore ?? 0) >= REENVIADO_MUCHAS_VECES ? 'muchas' : 'una';
+
+  return { ...descripcion, extra: Object.keys(extra).length ? extra : null };
+}
+
+/** Reacciones que trae un mensaje del historial (en vivo llegan por messages.reaction). */
+export function reaccionesDeHistorial(msg: WAMessage): Reacciones | null {
+  const reacciones: Reacciones = {};
+  for (const r of msg.reactions ?? []) {
+    const quien = r.key?.fromMe ? 'yo' : 'lead';
+    // Texto vacio = quito su reaccion.
+    if (r.text) reacciones[quien] = r.text;
+    else delete reacciones[quien];
+  }
+  return Object.keys(reacciones).length ? reacciones : null;
+}
+
+/**
+ * Votos de una encuesta que vienen con el historial (ya descifrados). Cada
+ * opcion elegida llega como el SHA-256 de su nombre. En vivo los votos
+ * llegan cifrados y Baileys 7 tiene su descifrado desactivado: por eso solo
+ * se ven los del historial.
+ */
+export function votosDeHistorial(msg: WAMessage, opciones: string[]): Record<string, string[]> {
+  const porHash = new Map(opciones.map((o) => [createHash('sha256').update(o).digest('hex'), o]));
+  const ultimos: Record<string, { momento: number; elegidas: string[] }> = {};
+  for (const voto of msg.pollUpdates ?? []) {
+    const quien = voto.pollUpdateMessageKey?.fromMe ? 'yo' : 'lead';
+    const momento = aNumero(voto.senderTimestampMs) ?? 0;
+    if ((ultimos[quien]?.momento ?? -1) > momento) continue;
+    const elegidas = (voto.vote?.selectedOptions ?? [])
+      .map((hash) => porHash.get(Buffer.from(hash).toString('hex')))
+      .filter((o): o is string => Boolean(o));
+    ultimos[quien] = { momento, elegidas };
+  }
+  return Object.fromEntries(Object.entries(ultimos).map(([quien, v]) => [quien, v.elegidas]));
 }
 
 /**
@@ -313,16 +539,27 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
     return null; // grupos (@g.us), estados (@broadcast), canales, etc.
   }
 
+  /** Si un jid (telefono o @lid) es el propio numero vinculado. */
+  function esMio(jid: string): boolean {
+    const id = soloTelefono(jid);
+    if (!id) return false;
+    return [sock.user?.id, sock.user?.lid].some((propio) => propio && soloTelefono(propio) === id);
+  }
+
   /** Convierte un mensaje de WhatsApp en algo guardable; null si no es de un chat individual o no tiene contenido. */
   async function convertir(
     msg: WAMessage,
     opciones: { esperarMapeo: boolean; mapeoLote?: Map<string, string> },
   ): Promise<MensajeRecibido | null> {
-    const descripcion = describirMensaje(msg);
+    // Llamadas perdidas como mensaje de sistema: solo en el historial (en vivo llegan por 'call').
+    const descripcion = describirMensaje(msg, !opciones.esperarMapeo, esMio);
     if (!descripcion) return null; // reaccion, recibo de lectura, etc. — nada que guardar
 
     const telefono = await telefonoDesdeJid(msg.key.remoteJid ?? '', msg.key.remoteJidAlt, opciones);
     if (!telefono) return null;
+
+    const encuesta = descripcion.extra?.encuesta;
+    if (encuesta) encuesta.votos = votosDeHistorial(msg, encuesta.opciones);
 
     const notaDeVoz = normalizeMessageContent(msg.message)?.audioMessage;
     const segundos = aNumero(msg.messageTimestamp);
@@ -334,6 +571,8 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
       pushName: msg.pushName,
       tipo: descripcion.tipo,
       media: descripcion.media,
+      extra: descripcion.extra,
+      reacciones: reaccionesDeHistorial(msg),
       mediaDescarga: serializarParaDescarga(msg, descripcion.campoMedia),
       fecha: segundos ? new Date(segundos * 1000) : null,
       audio: notaDeVoz
@@ -425,15 +664,90 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
 
   sock.ev.on('messages.update', (actualizaciones) => {
     for (const { key, update } of actualizaciones) {
+      if (!key.id) continue;
+
+      // Baileys ya traduce el mensaje de protocolo "eliminar para todos" / "editar" a esto.
+      if (update.message === null && update.messageStubType === WAMessageStubType.REVOKE) {
+        callbacks.onCambioMensaje({ tipo: 'eliminado', whatsappId: key.id });
+        continue;
+      }
+      const editado = update.message?.editedMessage?.message;
+      if (editado) {
+        const nuevo = describirContenido(normalizeMessageContent(editado) ?? editado);
+        if (nuevo) {
+          callbacks.onCambioMensaje({
+            tipo: 'editado',
+            whatsappId: key.id,
+            texto: nuevo.texto,
+            // Si se edito la leyenda de una foto puede llegar como texto suelto.
+            leyenda: nuevo.media ? nuevo.media.leyenda : nuevo.texto,
+          });
+        }
+        continue;
+      }
+
       const estado = update.status;
-      if (!key.fromMe || !key.id || typeof estado !== 'number' || estado < ESTADO_ENTREGADO) continue;
+      if (!key.fromMe || typeof estado !== 'number' || estado < ESTADO_ENTREGADO) continue;
       callbacks.onEstadoEntrega(key.id, estado >= ESTADO_LEIDO ? 'leido' : 'entregado');
+    }
+  });
+
+  sock.ev.on('messages.reaction', (reacciones) => {
+    for (const { key, reaction } of reacciones) {
+      if (!key.id) continue;
+      callbacks.onCambioMensaje({
+        tipo: 'reaccion',
+        whatsappId: key.id,
+        deMi: Boolean(reaction.key?.fromMe),
+        emoji: reaction.text || null,
+      });
+    }
+  });
+
+  // Llamadas entrantes: suenan aca tambien (como en WhatsApp Web). Se guarda
+  // una sola entrada en el chat cuando la llamada termina: atendida o perdida.
+  const llamadas = new Map<string, { evento: WACallEvent; atendida: boolean; limite: NodeJS.Timeout }>();
+
+  function cerrarLlamada(id: string): void {
+    const llamada = llamadas.get(id);
+    if (!llamada) return;
+    clearTimeout(llamada.limite);
+    llamadas.delete(id);
+    const { evento, atendida } = llamada;
+    void telefonoDesdeJid(evento.from, evento.callerPn ?? null)
+      .then((telefono) => {
+        if (!telefono) return;
+        callbacks.onLlamada({ telefono, id, fecha: evento.date, video: Boolean(evento.isVideo), perdida: !atendida });
+      })
+      .catch((err: unknown) => logBaileys.error({ err }, 'No se pudo registrar una llamada'));
+  }
+
+  sock.ev.on('call', (eventos) => {
+    for (const evento of eventos) {
+      if (evento.isGroup) continue;
+      if (evento.status === 'offer' || evento.status === 'ringing') {
+        if (!llamadas.has(evento.id)) {
+          llamadas.set(evento.id, {
+            evento,
+            atendida: false,
+            // Por si WhatsApp no avisa como termino.
+            limite: setTimeout(() => cerrarLlamada(evento.id), LLAMADA_MAX_ESPERA_MS),
+          });
+        }
+        continue;
+      }
+      const llamada = llamadas.get(evento.id);
+      if (!llamada) continue;
+      if (evento.status === 'accept') llamada.atendida = true;
+      else cerrarLlamada(evento.id); // timeout, reject, terminate
     }
   });
 
   return {
     sock,
     cerrar: () => {
+      for (const { limite } of llamadas.values()) clearTimeout(limite);
+      llamadas.clear();
       sock.ev.removeAllListeners('connection.update');
       sock.end(undefined);
     },

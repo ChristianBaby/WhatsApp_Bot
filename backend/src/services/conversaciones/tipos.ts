@@ -15,7 +15,9 @@ export type TipoMensaje =
   | 'documento'
   | 'sticker'
   | 'ubicacion'
-  | 'contacto';
+  | 'contacto'
+  | 'encuesta'
+  | 'llamada';
 
 /** Lo necesario para mostrar un adjunto sin descargarlo. */
 export type MediaInfo = {
@@ -26,7 +28,42 @@ export type MediaInfo = {
   tamano: number | null;
   /** Texto que acompaña a la foto, video o documento. */
   leyenda: string | null;
+  /** Medidas de la foto/video: el panel reserva el espacio antes de bajarla (sin saltos al desplazarse). */
+  ancho?: number | null;
+  alto?: number | null;
+  /** Miniatura borrosa que WhatsApp manda con el mensaje (data URL): se ve mientras baja la foto. */
+  miniatura?: string | null;
+  /** Video que se reproduce como GIF (en bucle, sin sonido). */
+  gif?: boolean;
+  /** Nota de video (video circular). */
+  circular?: boolean;
 };
+
+/** Datos propios de cada tipo de mensaje que no son un archivo. */
+export type ExtraMensaje = {
+  /** Respuesta citada: a que mensaje responde. */
+  cita?: { whatsappId: string; autor: 'yo' | 'lead'; texto: string } | null;
+  /** 'muchas' = "Reenviado muchas veces" (WhatsApp lo marca a partir de 5 reenvios). */
+  reenviado?: 'una' | 'muchas' | null;
+  ubicacion?: {
+    lat: number;
+    lng: number;
+    nombre: string | null;
+    direccion: string | null;
+    enVivo: boolean;
+    miniatura: string | null;
+  } | null;
+  contactos?: { nombre: string; telefonos: string[] }[] | null;
+  /** votos: quien (yo / lead) eligio que opciones. Solo llegan con el historial (ver socket.ts). */
+  encuesta?: { pregunta: string; opciones: string[]; maxSeleccion: number; votos: Record<string, string[]> } | null;
+  enlace?: { url: string; titulo: string | null; descripcion: string | null; miniatura: string | null } | null;
+  llamada?: { video: boolean; perdida: boolean } | null;
+  /** Foto o video de "ver una vez": WhatsApp no lo entrega a dispositivos vinculados. */
+  verUnaVez?: boolean;
+};
+
+/** En un chat 1:1 reacciona cada lado una vez: { yo: '👍', lead: '❤️' }. */
+export type Reacciones = { yo?: string; lead?: string };
 
 export type EstadoEntrega = 'enviado' | 'entregado' | 'leido';
 
@@ -38,12 +75,19 @@ export type MensajeConversacion = {
   media: MediaInfo | null;
   estadoEntrega: EstadoEntrega | null;
   creadoEn: string;
+  /** Para encontrar en el chat el mensaje que otro cita. */
+  whatsappId: string | null;
+  extra: ExtraMensaje | null;
+  reacciones: Reacciones | null;
+  editado: boolean;
+  eliminado: boolean;
 };
 
 /** Datos opcionales al guardar un mensaje (adjuntos, historial, check de envio). */
 export type ExtrasMensaje = {
   tipo?: TipoMensaje;
   media?: MediaInfo | null;
+  extra?: ExtraMensaje | null;
   /** Mensaje original serializado con BufferJSON, para descargar el adjunto despues. */
   mediaDescarga?: string | null;
   mediaArchivo?: string | null;

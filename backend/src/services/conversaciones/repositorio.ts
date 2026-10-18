@@ -6,11 +6,13 @@ import type {
   ConversacionResumen,
   EscaladoMotivo,
   EstadoEntrega,
+  ExtraMensaje,
   ExtrasMensaje,
   FiltroConversaciones,
   MediaInfo,
   MensajeConversacion,
   ModoConversacion,
+  Reacciones,
   TipoMensaje,
 } from './tipos.js';
 
@@ -302,7 +304,8 @@ export async function contarMensajes(conversacionId: number): Promise<number> {
   return fila?.total ?? 0;
 }
 
-const CAMPOS_MENSAJE = 'id, autor, texto, tipo, media, estado_entrega, creado_en';
+const CAMPOS_MENSAJE =
+  'id, autor, texto, tipo, media, estado_entrega, creado_en, whatsapp_id, extra, reacciones, editado_en, eliminado';
 
 type FilaMensaje = {
   id: number;
@@ -312,6 +315,11 @@ type FilaMensaje = {
   media: MediaInfo | null;
   estado_entrega: EstadoEntrega | null;
   creado_en: string;
+  whatsapp_id: string | null;
+  extra: ExtraMensaje | null;
+  reacciones: Reacciones | null;
+  editado_en: string | null;
+  eliminado: boolean;
 };
 
 function mapearMensaje(f: FilaMensaje): MensajeConversacion {
@@ -323,6 +331,11 @@ function mapearMensaje(f: FilaMensaje): MensajeConversacion {
     media: f.media,
     estadoEntrega: f.estado_entrega,
     creadoEn: f.creado_en,
+    whatsappId: f.whatsapp_id,
+    extra: f.extra,
+    reacciones: f.reacciones,
+    editado: f.editado_en !== null,
+    eliminado: f.eliminado,
   };
 }
 
@@ -368,9 +381,9 @@ export async function agregarMensaje(
   const fila = await consultarUno<FilaMensaje>(
     `INSERT INTO mensajes_conversacion
        (conversacion_id, autor, texto, whatsapp_id, tipo, media, media_descarga, media_archivo, estado_entrega, creado_en,
-        media_usado_en)
+        media_usado_en, extra)
      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::text, $9, COALESCE($10::timestamptz, now()),
-             CASE WHEN $8::text IS NOT NULL THEN now() END)
+             CASE WHEN $8::text IS NOT NULL THEN now() END, $11::jsonb)
      ON CONFLICT (whatsapp_id) WHERE whatsapp_id IS NOT NULL DO NOTHING
      RETURNING ${CAMPOS_MENSAJE}`,
     [
@@ -384,6 +397,7 @@ export async function agregarMensaje(
       extras.mediaArchivo ?? null,
       extras.estadoEntrega ?? null,
       extras.creadoEn ?? null,
+      extras.extra ? JSON.stringify(extras.extra) : null,
     ],
   );
   if (!fila) return null;
@@ -467,6 +481,72 @@ export async function actualizarEstadoEntrega(
   return fila ? { mensajeId: fila.id, conversacionId: fila.conversacion_id } : null;
 }
 
+// ==================== Reacciones, ediciones y eliminados ====================
+
+export type MensajeCambiado = { conversacionId: number; mensaje: MensajeConversacion };
+
+/** Si el mensaje cambiado es el ultimo del chat, el preview de la lista tiene que reflejarlo. */
+async function refrescarPreviewSiEsUltimo(conversacionId: number, mensajeId: number, texto: string): Promise<void> {
+  await consultarUno(
+    `UPDATE conversaciones SET ultimo_mensaje_preview = $3
+     WHERE id = $1 AND $2 = (SELECT id FROM mensajes_conversacion WHERE conversacion_id = $1
+                             ORDER BY creado_en DESC, id DESC LIMIT 1)`,
+    [conversacionId, mensajeId, preview(texto)],
+  );
+}
+
+/** Reaccion de un lado del chat (emoji null = la quito). */
+export async function aplicarReaccion(
+  whatsappId: string,
+  quien: 'yo' | 'lead',
+  emoji: string | null,
+): Promise<MensajeCambiado | null> {
+  const fila = await consultarUno<FilaMensaje & { conversacion_id: number }>(
+    `UPDATE mensajes_conversacion
+     SET reacciones = NULLIF(
+           CASE WHEN $3::text IS NULL THEN COALESCE(reacciones, '{}'::jsonb) - $2::text
+                ELSE COALESCE(reacciones, '{}'::jsonb) || jsonb_build_object($2::text, $3::text) END,
+           '{}'::jsonb)
+     WHERE whatsapp_id = $1
+     RETURNING conversacion_id, ${CAMPOS_MENSAJE}`,
+    [whatsappId, quien, emoji],
+  );
+  return fila ? { conversacionId: fila.conversacion_id, mensaje: mapearMensaje(fila) } : null;
+}
+
+/** Edicion de un mensaje: el texto, o la leyenda si es una foto/video/documento. */
+export async function aplicarEdicion(
+  whatsappId: string,
+  texto: string,
+  leyenda: string | null,
+): Promise<MensajeCambiado | null> {
+  const fila = await consultarUno<FilaMensaje & { conversacion_id: number }>(
+    `UPDATE mensajes_conversacion
+     SET texto = CASE WHEN media IS NULL THEN $2 ELSE texto END,
+         media = CASE WHEN media IS NULL THEN media ELSE jsonb_set(media, '{leyenda}', to_jsonb($3::text)) END,
+         editado_en = now()
+     WHERE whatsapp_id = $1 AND NOT eliminado
+     RETURNING conversacion_id, ${CAMPOS_MENSAJE}`,
+    [whatsappId, texto, leyenda],
+  );
+  if (!fila) return null;
+  await refrescarPreviewSiEsUltimo(fila.conversacion_id, fila.id, fila.texto);
+  return { conversacionId: fila.conversacion_id, mensaje: mapearMensaje(fila) };
+}
+
+/** "Eliminar para todos": se conserva el contenido, el panel lo oculta. */
+export async function marcarEliminado(whatsappId: string): Promise<MensajeCambiado | null> {
+  const fila = await consultarUno<FilaMensaje & { conversacion_id: number }>(
+    `UPDATE mensajes_conversacion SET eliminado = true
+     WHERE whatsapp_id = $1 AND NOT eliminado
+     RETURNING conversacion_id, ${CAMPOS_MENSAJE}`,
+    [whatsappId],
+  );
+  if (!fila) return null;
+  await refrescarPreviewSiEsUltimo(fila.conversacion_id, fila.id, '🚫 Se eliminó este mensaje');
+  return { conversacionId: fila.conversacion_id, mensaje: mapearMensaje(fila) };
+}
+
 // ==================== Historial y agenda ====================
 
 /** El nombre con que el usuario guardo al contacto en su telefono (solo si el chat ya existe). */
@@ -515,6 +595,8 @@ export type MensajeHistorial = {
   tipo: TipoMensaje;
   media: MediaInfo | null;
   mediaDescarga: string | null;
+  extra: ExtraMensaje | null;
+  reacciones: Reacciones | null;
 };
 
 const FILAS_POR_INSERT = 200;
@@ -541,13 +623,16 @@ export async function importarMensajesHistorial(conversacionId: number, mensajes
         m.mediaDescarga,
         m.creadoEn,
         m.autor === 'lead' ? null : 'enviado',
+        m.extra ? JSON.stringify(m.extra) : null,
+        m.reacciones ? JSON.stringify(m.reacciones) : null,
       );
       const p = (n: number) => `$${base + n}`;
-      return `(${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}::jsonb, ${p(7)}::jsonb, ${p(8)}::timestamptz, ${p(9)}, true)`;
+      return `(${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}::jsonb, ${p(7)}::jsonb, ${p(8)}::timestamptz, ${p(9)}, true, ${p(10)}::jsonb, ${p(11)}::jsonb)`;
     });
     const insertados = await consultar<{ id: number }>(
       `INSERT INTO mensajes_conversacion
-         (conversacion_id, autor, texto, whatsapp_id, tipo, media, media_descarga, creado_en, estado_entrega, del_historial)
+         (conversacion_id, autor, texto, whatsapp_id, tipo, media, media_descarga, creado_en, estado_entrega, del_historial,
+          extra, reacciones)
        VALUES ${valores.join(', ')}
        ON CONFLICT (whatsapp_id) WHERE whatsapp_id IS NOT NULL DO NOTHING
        RETURNING id`,
