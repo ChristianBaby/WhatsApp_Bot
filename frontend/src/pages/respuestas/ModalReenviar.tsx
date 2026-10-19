@@ -3,7 +3,8 @@ import { Boton } from '../../components/ui/Boton';
 import { Modal } from '../../components/ui/Modal';
 import { api, ErrorApi } from '../../lib/api';
 import type { ConversacionResumen, MensajeConversacion, PaginaConversaciones } from '../../lib/types';
-import { inicialesDeChat, nombreDeChat } from './nombreChat';
+import { Avatar } from './Avatar';
+import { nombreDeChat } from './nombreChat';
 import estilos from './Chat.module.css';
 
 /** Como en WhatsApp: hasta 5 chats a la vez. */
@@ -98,7 +99,7 @@ export function ModalReenviar({ conversacionId, mensaje, onCerrar }: Props) {
                 disabled={!elegido && elegidos.length >= MAX_DESTINOS}
                 onChange={() => alternar(c)}
               />
-              <span className={estilos.avatarReenviar}>{c.esGrupo ? '👥' : inicialesDeChat(nombre)}</span>
+              <Avatar conversacionId={c.id} nombre={nombre} esGrupo={c.esGrupo} tamano={34} />
               <span className={estilos.datosReenviar}>
                 <span className={estilos.nombreReenviar}>{nombre}</span>
                 <span className={estilos.notaReenviar}>{fallo ? `⚠️ ${fallo.error}` : c.esGrupo ? 'Grupo' : `+${c.telefono}`}</span>

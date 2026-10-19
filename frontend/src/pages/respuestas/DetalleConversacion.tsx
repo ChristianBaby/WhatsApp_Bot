@@ -4,7 +4,10 @@ import { Boton } from '../../components/ui/Boton';
 import { api, ErrorApi } from '../../lib/api';
 import { formatearFecha } from '../../lib/fecha';
 import type { ConversacionDetalle, MensajeConversacion, PresenciaChat, PresenciaContacto } from '../../lib/types';
+import { Avatar } from './Avatar';
+import { BuscarEnChat } from './BuscarEnChat';
 import { Burbuja } from './Burbuja';
+import { InfoChat } from './InfoChat';
 import { Compositor, type CompositorHandle } from './Compositor';
 import type { AccionesMensaje } from './MenuMensaje';
 import { ModalReenviar } from './ModalReenviar';
@@ -12,12 +15,15 @@ import { ETAPA_INFO, infoEtapa } from './etapa';
 import { nombreDeAutor, nombreDeChat } from './nombreChat';
 import { Visor } from './Visor';
 import estilos from './DetalleConversacion.module.css';
+import org from './Organizar.module.css';
 
 type Props = {
   conversacion: ConversacionDetalle;
   onVerFicha: () => void;
   /** Trae la pagina de mensajes anterior a la mas vieja que se ve. */
   onCargarAnteriores: () => Promise<void>;
+  /** Trae todos los mensajes anteriores hasta este (para saltar a uno viejo). */
+  onCargarHasta: (mensajeId: number) => Promise<void>;
   /** Si el contacto esta escribiendo, grabando o en linea ahora mismo (en un grupo, quien). */
   presencia: PresenciaChat | null;
 };
@@ -52,12 +58,16 @@ function etiquetaDia(iso: string): string {
 /** Cuanto queda resaltado el mensaje al que se salta desde una cita. */
 const RESALTADO_MS = 1600;
 
-export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnteriores, presencia }: Props) {
+export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnteriores, onCargarHasta, presencia }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [cargandoAnteriores, setCargandoAnteriores] = useState(false);
   const [visorId, setVisorId] = useState<number | null>(null);
-  const [resaltadoId, setResaltadoId] = useState<string | null>(null);
+  const [resaltadoId, setResaltadoId] = useState<number | null>(null);
+  /** Panel lateral abierto: la lupa o la info del chat. */
+  const [panel, setPanel] = useState<'buscar' | 'info' | null>(null);
+  /** Mensaje viejo al que se quiere saltar, mientras se cargan los mensajes hasta el. */
+  const saltoPendienteRef = useRef<number | null>(null);
   const [respondiendoA, setRespondiendoA] = useState<MensajeConversacion | null>(null);
   const [editando, setEditando] = useState<MensajeConversacion | null>(null);
   const [reenviando, setReenviando] = useState<MensajeConversacion | null>(null);
@@ -82,14 +92,52 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     [mensajes],
   );
 
-  /** Salta al mensaje citado (si esta cargado) y lo resalta un momento. */
+  /** Lleva la vista a un mensaje del chat y lo resalta un momento. */
+  function resaltar(destino: Element) {
+    destino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const id = Number((destino as HTMLElement).dataset.mid);
+    setResaltadoId(id);
+    setTimeout(() => setResaltadoId((actual) => (actual === id ? null : actual)), RESALTADO_MS);
+  }
+
+  /** Salta al mensaje citado (si esta cargado). */
   function irACita(whatsappId: string) {
     const destino = hiloRef.current?.querySelector(`[data-wid="${CSS.escape(whatsappId)}"]`);
-    if (!destino) return;
-    destino.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setResaltadoId(whatsappId);
-    setTimeout(() => setResaltadoId((actual) => (actual === whatsappId ? null : actual)), RESALTADO_MS);
+    if (destino) resaltar(destino);
   }
+
+  /** Salta a un mensaje desde la busqueda o la info del chat: si es viejo, primero se cargan los mensajes hasta el. */
+  async function irAMensaje(m: MensajeConversacion) {
+    if (panel === 'info') setPanel(null);
+    const destino = hiloRef.current?.querySelector(`[data-mid="${m.id}"]`);
+    if (destino) {
+      resaltar(destino);
+      return;
+    }
+    saltoPendienteRef.current = m.id;
+    try {
+      await onCargarHasta(m.id);
+    } catch {
+      saltoPendienteRef.current = null;
+      setError('No se pudo cargar ese mensaje');
+      return;
+    }
+    setTimeout(() => {
+      if (saltoPendienteRef.current !== m.id) return;
+      saltoPendienteRef.current = null;
+      setError('Ese mensaje es muy antiguo para mostrarlo aquí: sube en el chat para llegar a él.');
+    }, 500);
+  }
+
+  // Cuando llegan los mensajes hasta el buscado, se salta a el.
+  useEffect(() => {
+    const id = saltoPendienteRef.current;
+    if (id === null) return;
+    const destino = hiloRef.current?.querySelector(`[data-mid="${id}"]`);
+    if (!destino) return;
+    saltoPendienteRef.current = null;
+    resaltar(destino);
+  }, [mensajes]);
   const primeroId = mensajes[0]?.id ?? null;
   const ultimo = mensajes[mensajes.length - 1];
 
@@ -131,6 +179,8 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     setRespondiendoA(null);
     setEditando(null);
     setReenviando(null);
+    setPanel(null);
+    saltoPendienteRef.current = null;
   }, [conversacion.id]);
 
   async function intentar(accion: () => Promise<unknown>, mensajeError: string) {
@@ -157,6 +207,11 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
       setRespondiendoA(null);
       setEditando(m);
     },
+    onDestacar: (m, destacado) =>
+      void intentar(
+        () => api.post(`/conversaciones/${conversacion.id}/mensajes/${m.id}/destacar`, { destacado }),
+        'No se pudo destacar el mensaje',
+      ),
     onEliminar: (m) => {
       const quienes = conversacion.esGrupo ? 'Nadie en el grupo lo verá' : 'El cliente dejará de verlo';
       if (!window.confirm(`¿Eliminar este mensaje para todos? ${quienes}.`)) return;
@@ -176,6 +231,20 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     }
   }
 
+
+  function fijar() {
+    void intentar(
+      () => api.post(`/conversaciones/${conversacion.id}/fijar`, { fijado: !conversacion.fijado }),
+      'No se pudo fijar el chat',
+    );
+  }
+
+  function archivar() {
+    void intentar(
+      () => api.post(`/conversaciones/${conversacion.id}/archivar`, { archivado: !conversacion.archivado }),
+      'No se pudo archivar el chat',
+    );
+  }
 
   async function cambiarModo(modo: 'bot' | 'manual') {
     await api.post(`/conversaciones/${conversacion.id}/modo`, { modo });
@@ -224,7 +293,10 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     >
       {arrastrando && <div className={estilos.zonaSoltar}>Suelta aquí para enviar los archivos</div>}
       <div className={estilos.encabezado}>
-        <div>
+        <button type="button" className={estilos.avatarEncabezado} title="Info del chat" onClick={() => setPanel('info')}>
+          <Avatar conversacionId={conversacion.id} nombre={nombre} esGrupo={esGrupo} tamano={40} />
+        </button>
+        <div className={estilos.encabezadoTexto}>
           <div className={estilos.nombreFila}>
             <span className={estilos.nombre}>{nombre}</span>
             {etapa && <Badge tono={etapa.tono}>{etapa.etiqueta}</Badge>}
@@ -235,9 +307,64 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
             {otrosNombres.length > 0 && ` · ${otrosNombres.join(' · ')}`}
             {conversacion.rubro && ` · Rubro: ${conversacion.rubro}`}
           </div>
+          {conversacion.campanaNombre && <div className={estilos.campana}>Campaña: {conversacion.campanaNombre}</div>}
         </div>
-        {conversacion.campanaNombre && <div className={estilos.campana}>Campaña: {conversacion.campanaNombre}</div>}
+        <div className={org.accionesEncabezado}>
+          <button
+            type="button"
+            className={`${org.botonIcono} ${panel === 'buscar' ? org.botonActivo : ''}`}
+            title="Buscar en el chat"
+            onClick={() => setPanel(panel === 'buscar' ? null : 'buscar')}
+          >
+            🔍
+          </button>
+          <button
+            type="button"
+            className={`${org.botonIcono} ${conversacion.fijado ? org.botonActivo : ''}`}
+            title={conversacion.fijado ? 'Desfijar chat' : 'Fijar chat arriba'}
+            onClick={fijar}
+          >
+            📌
+          </button>
+          <button
+            type="button"
+            className={`${org.botonIcono} ${conversacion.archivado ? org.botonActivo : ''}`}
+            title={conversacion.archivado ? 'Desarchivar chat' : 'Archivar chat'}
+            onClick={archivar}
+          >
+            🗄️
+          </button>
+          <button
+            type="button"
+            className={`${org.botonIcono} ${panel === 'info' ? org.botonActivo : ''}`}
+            title="Info, archivos y destacados"
+            onClick={() => setPanel(panel === 'info' ? null : 'info')}
+          >
+            ⓘ
+          </button>
+        </div>
       </div>
+      {conversacion.archivado && (
+        <div className={estilos.notaAyuda}>🗄️ Chat archivado: no aparece en la lista principal (está en “Archivados”).</div>
+      )}
+
+      {panel === 'buscar' && (
+        <BuscarEnChat
+          conversacionId={conversacion.id}
+          nombreAutor={nombreAutor}
+          onIr={(m) => void irAMensaje(m)}
+          onCerrar={() => setPanel(null)}
+        />
+      )}
+      {panel === 'info' && (
+        <InfoChat
+          conversacion={conversacion}
+          nombre={nombre}
+          nombreAutor={nombreAutor}
+          onIr={(m) => void irAMensaje(m)}
+          onCerrar={() => setPanel(null)}
+        />
+      )}
 
       {esGrupo ? (
         <div className={estilos.bannerManual}>
@@ -301,7 +428,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
                 esGrupo={esGrupo}
                 nombreAutor={nombreAutor}
                 citado={citaId ? porWhatsappId.get(citaId) : undefined}
-                resaltado={resaltadoId === m.whatsappId}
+                resaltado={resaltadoId === m.id}
                 onIrACita={irACita}
                 onAbrirVisor={setVisorId}
                 acciones={acciones}

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { AnyMessageContent, proto, WAMessage, WAMessageKey, WASocket } from 'baileys';
+import type { AnyMessageContent, ChatModification, proto, WAMessage, WAMessageKey, WASocket } from 'baileys';
 import { env } from '../../config/env.js';
 import { crearLogger } from '../../lib/logger.js';
 import { obtenerSocket } from './gestor.js';
@@ -89,6 +89,31 @@ export async function confirmarLectura(
     mensajes.map(({ id, participante }) => ({ remoteJid, id, fromMe: false, ...(participante ? { participant: participante } : {}) })),
   );
   return true;
+}
+
+/**
+ * Fijar, archivar o destacar: se sincroniza con el telefono (y con WhatsApp
+ * Web), como cuando se hace desde ahi. Exige el numero conectado.
+ */
+export async function modificarChat(numeroId: number, jid: string, cambio: ChatModification): Promise<void> {
+  await socketDeNumero(numeroId).chatModify(cambio, jid);
+}
+
+/**
+ * La foto de perfil de un contacto o grupo (tamaño chico, la de la lista).
+ * null si no tiene o la oculta por privacidad; error si el numero no esta
+ * conectado o WhatsApp no responde.
+ */
+export async function urlFotoDePerfil(numeroId: number, jid: string): Promise<string | null> {
+  const sock = socketDeNumero(numeroId);
+  try {
+    return (await sock.profilePictureUrl(jid, 'preview')) ?? null;
+  } catch (err) {
+    // WhatsApp contesta "item-not-found" (404) o "not-authorized" (401) cuando no hay foto que ver.
+    const codigo = (err as { output?: { statusCode?: number }; data?: unknown }).output?.statusCode;
+    if (codigo === 404 || codigo === 401) return null;
+    throw err;
+  }
 }
 
 /** El nombre (asunto) de un grupo, preguntado a WhatsApp; null si no se pudo. */

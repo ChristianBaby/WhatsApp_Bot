@@ -12,6 +12,7 @@ import { marcarLeidaYConfirmar } from '../services/conversaciones/lectura.js';
 import * as panel from '../services/conversaciones/envioPanel.js';
 import { CARPETA_MEDIA_CHAT, obtenerArchivoMedia } from '../services/conversaciones/media.js';
 import { suscribir as suscribirPresenciaChat } from '../services/conversaciones/presencia.js';
+import * as organizar from '../services/conversaciones/organizar.js';
 import * as leadsRepo from '../services/leads/repositorio.js';
 import { avisarEscribiendo } from '../services/whatsapp/envio.js';
 
@@ -41,7 +42,7 @@ async function emitirActualizacion(id: number) {
 }
 
 const esquemaLista = z.object({
-  filtro: z.enum(['todos', 'no_leidos', 'leads', 'asesor', 'grupos']).default('todos'),
+  filtro: z.enum(['todos', 'no_leidos', 'leads', 'asesor', 'grupos', 'archivados']).default('todos'),
   q: z.string().trim().max(100).optional(),
   cursor: z.string().max(200).optional(),
 });
@@ -66,14 +67,99 @@ rutasConversaciones.get(
   }),
 );
 
-const esquemaPaginaMensajes = z.object({ antesDe: z.coerce.number().int().positive() });
+const esquemaPaginaMensajes = z.object({
+  antesDe: z.coerce.number().int().positive(),
+  /** Saltar a un mensaje viejo (busqueda, destacados): trae todo hasta el. */
+  hasta: z.coerce.number().int().positive().optional(),
+});
+
+/** Al saltar a un mensaje viejo, como mucho se cargan estos de una vez. */
+const MAX_MENSAJES_SALTO = 3000;
 
 rutasConversaciones.get(
   '/conversaciones/:id/mensajes',
   manejarAsync(async (req, res) => {
     const id = idDesdeParametro(req.params.id);
-    const { antesDe } = esquemaPaginaMensajes.parse(req.query);
+    const { antesDe, hasta } = esquemaPaginaMensajes.parse(req.query);
+    if (hasta) {
+      res.json(await repo.obtenerMensajesHasta(id, antesDe, hasta, 10, MAX_MENSAJES_SALTO));
+      return;
+    }
     res.json(await repo.obtenerMensajesPagina(id, antesDe, MENSAJES_POR_PAGINA));
+  }),
+);
+
+const esquemaBusqueda = z.object({ q: z.string().trim().min(2).max(100) });
+
+/** Buscar dentro de un chat (como la lupa de WhatsApp): los 50 mas recientes que coinciden. */
+rutasConversaciones.get(
+  '/conversaciones/:id/buscar',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const { q } = esquemaBusqueda.parse(req.query);
+    res.json({ mensajes: await repo.buscarEnChat(id, q, 50) });
+  }),
+);
+
+const esquemaGaleria = z.object({
+  tipo: z.enum(['media', 'documentos', 'enlaces']),
+  antesDe: z.coerce.number().int().positive().optional(),
+});
+
+/** "Archivos, enlaces y documentos" del chat, de a una pagina. */
+rutasConversaciones.get(
+  '/conversaciones/:id/galeria',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const { tipo, antesDe } = esquemaGaleria.parse(req.query);
+    res.json(await repo.galeriaDelChat(id, tipo, antesDe ?? null, 60));
+  }),
+);
+
+rutasConversaciones.get(
+  '/conversaciones/:id/destacados',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    res.json({ mensajes: await repo.destacadosDelChat(id, 200) });
+  }),
+);
+
+/** Foto de perfil del contacto o grupo; 204 si no tiene (o la oculta): el panel muestra las iniciales. */
+rutasConversaciones.get(
+  '/conversaciones/:id/foto',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const ruta = await organizar.rutaFoto(id);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    if (!ruta) {
+      res.status(204).end();
+      return;
+    }
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.sendFile(ruta, { dotfiles: 'allow' });
+  }),
+);
+
+const esquemaFijar = z.object({ fijado: z.boolean() });
+
+/** 📌 Fijar arriba (sincronizado con el telefono). */
+rutasConversaciones.post(
+  '/conversaciones/:id/fijar',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const { fijado } = esquemaFijar.parse(req.body);
+    res.json(await organizar.fijar(id, fijado));
+  }),
+);
+
+const esquemaArchivar = z.object({ archivado: z.boolean() });
+
+rutasConversaciones.post(
+  '/conversaciones/:id/archivar',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const { archivado } = esquemaArchivar.parse(req.body);
+    res.json(await organizar.archivar(id, archivado));
   }),
 );
 
@@ -215,6 +301,19 @@ rutasConversaciones.post(
     const mensajeId = idDesdeParametro(req.params.mensajeId);
     const { emoji } = esquemaReaccion.parse(req.body);
     res.json(await panel.reaccionar(id, mensajeId, emoji));
+  }),
+);
+
+const esquemaDestacar = z.object({ destacado: z.boolean() });
+
+/** ⭐ Destacar un mensaje (sincronizado con el telefono). */
+rutasConversaciones.post(
+  '/conversaciones/:id/mensajes/:mensajeId/destacar',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const mensajeId = idDesdeParametro(req.params.mensajeId);
+    const { destacado } = esquemaDestacar.parse(req.body);
+    res.json(await organizar.destacar(id, mensajeId, destacado));
   }),
 );
 

@@ -75,6 +75,7 @@ export function Burbuja({ conversacionId, mensaje, esGrupo, nombreAutor, citado,
       className={estilos.filaBurbuja}
       style={{ justifyContent: propio ? 'flex-end' : 'flex-start' }}
       data-wid={mensaje.whatsappId ?? undefined}
+      data-mid={mensaje.id}
     >
       <div className={estilos.columnaBurbuja}>
         <div className={clases}>
@@ -114,6 +115,7 @@ export function Burbuja({ conversacionId, mensaje, esGrupo, nombreAutor, citado,
           )}
 
           <div className={estilos.horaBurbuja}>
+            {mensaje.destacado && <span title="Destacado">⭐ </span>}
             {mensaje.editado && !mensaje.eliminado && <span className={estilos.editado}>Editado </span>}
             {formatearHora(mensaje.creadoEn)} <Checks mensaje={mensaje} />
           </div>

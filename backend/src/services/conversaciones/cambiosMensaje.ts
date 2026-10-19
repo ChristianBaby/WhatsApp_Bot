@@ -24,6 +24,8 @@ export async function aplicarCambio(cambio: CambioMensaje): Promise<void> {
     resultado = await repo.aplicarReaccion(cambio.whatsappId, cambio.quien, cambio.emoji);
   } else if (cambio.tipo === 'editado') {
     resultado = await repo.aplicarEdicion(cambio.whatsappId, cambio.texto, cambio.leyenda);
+  } else if (cambio.tipo === 'destacado') {
+    resultado = await repo.marcarDestacado(cambio.whatsappId, cambio.destacado);
   } else {
     resultado = await repo.marcarEliminado(cambio.whatsappId);
   }
@@ -32,7 +34,7 @@ export async function aplicarCambio(cambio: CambioMensaje): Promise<void> {
 
   emitir(CANAL_SSE, 'mensaje:actualizado', resultado);
   // Editar o eliminar el ultimo mensaje cambia el preview de la lista.
-  if (cambio.tipo !== 'reaccion') await emitirConversacion(resultado.conversacionId);
+  if (cambio.tipo === 'editado' || cambio.tipo === 'eliminado') await emitirConversacion(resultado.conversacionId);
 }
 
 /** Una llamada entrante ya terminada: queda en el chat como "📞 Llamada perdida" (o atendida). */

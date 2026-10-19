@@ -243,9 +243,14 @@ export type MensajeConversacion = {
   reacciones: Reacciones | null;
   editado: boolean;
   eliminado: boolean;
+  /** ⭐ Destacado (sincronizado con el telefono). */
+  destacado: boolean;
 };
 
-export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos';
+export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos' | 'archivados';
+
+/** Pestañas de la info del chat. */
+export type TipoGaleria = 'media' | 'documentos' | 'enlaces';
 
 export type PaginaConversaciones = {
   conversaciones: ConversacionResumen[];
@@ -262,6 +267,9 @@ export type ConversacionResumen = {
   /** En un grupo, el jid del grupo ("...@g.us"). */
   telefono: string;
   esGrupo: boolean;
+  /** 📌 Fijado arriba de la lista (como mucho 3). */
+  fijado: boolean;
+  archivado: boolean;
   nombreContacto: string | null;
   /** Como lo guardo el usuario en su telefono. */
   nombreAgenda: string | null;

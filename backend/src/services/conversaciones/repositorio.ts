@@ -24,7 +24,7 @@ import type {
  */
 const SELECT_RESUMEN = `
   SELECT
-    c.id, c.numero_id, c.lead_id, c.telefono, c.es_grupo, c.nombre_contacto, c.nombre_agenda,
+    c.id, c.numero_id, c.lead_id, c.telefono, c.es_grupo, c.fijado_en, c.archivado, c.nombre_contacto, c.nombre_agenda,
     c.no_leidos, c.ultimo_mensaje_en, c.ultimo_mensaje_en::text AS orden_fecha,
     c.ultimo_mensaje_preview, c.creado_en,
     c.modo, c.escalado_motivo, c.ia_sugerencia, c.ia_sugerencia_en,
@@ -45,6 +45,8 @@ type FilaResumen = {
   lead_id: number | null;
   telefono: string;
   es_grupo: boolean;
+  fijado_en: string | null;
+  archivado: boolean;
   nombre_contacto: string | null;
   nombre_agenda: string | null;
   no_leidos: number;
@@ -71,6 +73,8 @@ function mapearResumen(fila: FilaResumen): ConversacionResumen {
     numeroId: fila.numero_id,
     telefono: fila.telefono,
     esGrupo: fila.es_grupo,
+    fijado: fila.fijado_en !== null,
+    archivado: fila.archivado,
     nombreContacto: fila.nombre_contacto,
     nombreAgenda: fila.nombre_agenda,
     empresa: fila.empresa,
@@ -121,6 +125,9 @@ function decodificarCursor(cursor: string): { fecha: string; id: number } | null
  * Filtros: 'leads' es lo que antes era toda la pantalla de Respuestas (leads
  * que contestaron una campana); 'asesor', los chats que el bot paso a una
  * persona porque lo pidieron o porque no supo responder.
+ *
+ * Como en WhatsApp: los archivados solo salen en 'archivados' (o al buscar),
+ * y los fijados van primero, todos en la primera pagina.
  */
 export async function listar(opciones: {
   filtro: FiltroConversaciones;
@@ -157,7 +164,18 @@ export async function listar(opciones: {
     );
   }
 
+  if (opciones.filtro === 'archivados') condiciones.push('c.archivado');
+  else if (!busqueda) condiciones.push('NOT c.archivado');
+
   const cursor = opciones.cursor ? decodificarCursor(opciones.cursor) : null;
+  // Los fijados (como mucho 3 por numero) van en la primera pagina; el resto se pagina por fecha.
+  const fijados = cursor
+    ? []
+    : await consultar<FilaResumen>(
+        `${SELECT_RESUMEN} WHERE ${[...condiciones, 'c.fijado_en IS NOT NULL'].join(' AND ')} ORDER BY c.fijado_en DESC`,
+        [...params],
+      );
+  condiciones.push('c.fijado_en IS NULL');
   if (cursor) {
     condiciones.push(`(c.ultimo_mensaje_en, c.id) < (${param(cursor.fecha)}::timestamptz, ${param(cursor.id)}::int)`);
   }
@@ -174,7 +192,7 @@ export async function listar(opciones: {
   const pagina = hayMas ? filas.slice(0, opciones.limite) : filas;
   const ultima = pagina[pagina.length - 1];
   return {
-    conversaciones: pagina.map(mapearResumen),
+    conversaciones: [...fijados, ...pagina].map(mapearResumen),
     siguienteCursor: hayMas && ultima?.orden_fecha ? codificarCursor(ultima.orden_fecha, ultima.id) : null,
   };
 }
@@ -308,7 +326,7 @@ export async function contarMensajes(conversacionId: number): Promise<number> {
 }
 
 const CAMPOS_MENSAJE =
-  'id, autor, texto, tipo, media, estado_entrega, creado_en, whatsapp_id, extra, reacciones, editado_en, eliminado';
+  'id, autor, texto, tipo, media, estado_entrega, creado_en, whatsapp_id, extra, reacciones, editado_en, eliminado, destacado';
 
 type FilaMensaje = {
   id: number;
@@ -323,6 +341,7 @@ type FilaMensaje = {
   reacciones: Reacciones | null;
   editado_en: string | null;
   eliminado: boolean;
+  destacado: boolean;
 };
 
 function mapearMensaje(f: FilaMensaje): MensajeConversacion {
@@ -339,6 +358,7 @@ function mapearMensaje(f: FilaMensaje): MensajeConversacion {
     reacciones: f.reacciones,
     editado: f.editado_en !== null,
     eliminado: f.eliminado,
+    destacado: f.destacado,
   };
 }
 
@@ -550,6 +570,178 @@ export async function marcarEliminado(whatsappId: string): Promise<MensajeCambia
   return { conversacionId: fila.conversacion_id, mensaje: mapearMensaje(fila) };
 }
 
+/** ⭐ destacado / sin destacar (desde el panel o sincronizado desde el telefono). */
+export async function marcarDestacado(whatsappId: string, destacado: boolean): Promise<MensajeCambiado | null> {
+  const fila = await consultarUno<FilaMensaje & { conversacion_id: number }>(
+    `UPDATE mensajes_conversacion SET destacado = $2
+     WHERE whatsapp_id = $1 AND destacado IS DISTINCT FROM $2
+     RETURNING conversacion_id, ${CAMPOS_MENSAJE}`,
+    [whatsappId, destacado],
+  );
+  return fila ? { conversacionId: fila.conversacion_id, mensaje: mapearMensaje(fila) } : null;
+}
+
+// ==================== Fijar, archivar, foto ====================
+
+/** WhatsApp deja fijar como mucho 3 chats. */
+export const MAX_FIJADOS = 3;
+
+export async function contarFijados(numeroId: number, exceptoId: number): Promise<number> {
+  const fila = await consultarUno<{ total: number }>(
+    'SELECT COUNT(*)::int AS total FROM conversaciones WHERE numero_id = $1 AND fijado_en IS NOT NULL AND id <> $2',
+    [numeroId, exceptoId],
+  );
+  return fila?.total ?? 0;
+}
+
+/**
+ * Fijar / archivar, desde el panel o desde el telefono. Como en WhatsApp,
+ * fijar un chat lo saca de archivados y archivarlo lo desfija. Devuelve
+ * true si algo cambio.
+ */
+export async function aplicarEstadoChat(
+  conversacionId: number,
+  estado: { fijadoEn?: Date | null; archivado?: boolean },
+): Promise<boolean> {
+  const fijar = estado.fijadoEn !== undefined;
+  const archivar = estado.archivado !== undefined;
+  if (!fijar && !archivar) return false;
+  const fila = await consultarUno<{ cambio: boolean }>(
+    `WITH antes AS (SELECT fijado_en, archivado FROM conversaciones WHERE id = $1)
+     UPDATE conversaciones c SET
+       fijado_en = CASE WHEN $2 THEN $3::timestamptz WHEN $4 AND $5 THEN NULL ELSE c.fijado_en END,
+       archivado = CASE WHEN $4 THEN $5 WHEN $2 AND $3::timestamptz IS NOT NULL THEN false ELSE c.archivado END
+     FROM antes
+     WHERE c.id = $1
+     RETURNING (c.fijado_en IS DISTINCT FROM antes.fijado_en OR c.archivado IS DISTINCT FROM antes.archivado) AS cambio`,
+    [conversacionId, fijar, estado.fijadoEn ?? null, archivar, estado.archivado ?? false],
+  );
+  return fila?.cambio ?? false;
+}
+
+/** El chat de un telefono (o jid de grupo) dentro de un numero. */
+export async function idDeChat(numeroId: number, telefono: string): Promise<number | null> {
+  const fila = await consultarUno<{ id: number }>('SELECT id FROM conversaciones WHERE numero_id = $1 AND telefono = $2', [
+    numeroId,
+    telefono,
+  ]);
+  return fila?.id ?? null;
+}
+
+/** El ultimo mensaje del chat que esta en WhatsApp: al archivar, WhatsApp pide "hasta cual". */
+export async function ultimoMensajeDeWhatsapp(
+  conversacionId: number,
+): Promise<{ whatsappId: string; propio: boolean; participante: string | null; creadoEn: string } | null> {
+  const fila = await consultarUno<{ whatsapp_id: string; autor: AutorMensaje; participante: string | null; creado_en: string }>(
+    `SELECT whatsapp_id, autor, extra->'participante'->>'jid' AS participante, creado_en FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND whatsapp_id IS NOT NULL AND whatsapp_id NOT LIKE 'llamada-%'
+     ORDER BY creado_en DESC, id DESC LIMIT 1`,
+    [conversacionId],
+  );
+  return fila
+    ? { whatsappId: fila.whatsapp_id, propio: fila.autor !== 'lead', participante: fila.participante, creadoEn: fila.creado_en }
+    : null;
+}
+
+export async function obtenerFoto(conversacionId: number): Promise<{ archivo: string | null; revisadaEn: string | null }> {
+  const fila = await consultarUno<{ foto_archivo: string | null; foto_revisada_en: string | null }>(
+    'SELECT foto_archivo, foto_revisada_en FROM conversaciones WHERE id = $1',
+    [conversacionId],
+  );
+  if (!fila) throw noEncontrado('Conversacion no encontrada');
+  return { archivo: fila.foto_archivo, revisadaEn: fila.foto_revisada_en };
+}
+
+export async function guardarFoto(conversacionId: number, archivo: string | null): Promise<void> {
+  await consultarUno('UPDATE conversaciones SET foto_archivo = $2, foto_revisada_en = now() WHERE id = $1', [
+    conversacionId,
+    archivo,
+  ]);
+}
+
+// ==================== Buscar, galeria, destacados ====================
+
+/** Mensajes del chat que contienen el texto, mas recientes primero. */
+export async function buscarEnChat(conversacionId: number, texto: string, limite: number): Promise<MensajeConversacion[]> {
+  const patron = `%${texto.replace(/[\\%_]/g, '\\$&')}%`;
+  const filas = await consultar<FilaMensaje>(
+    `SELECT ${CAMPOS_MENSAJE} FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND NOT eliminado AND tipo <> 'llamada' AND texto ILIKE $2
+     ORDER BY creado_en DESC, id DESC LIMIT $3`,
+    [conversacionId, patron, limite],
+  );
+  return filas.map(mapearMensaje);
+}
+
+/**
+ * Al saltar a un mensaje viejo (desde la busqueda o los destacados): todos
+ * los mensajes entre el mas antiguo que ya se ve (antesDeId) y ese
+ * (hastaId), y unos pocos mas viejos, para que el chat se siga leyendo de
+ * corrido. Si entre medio hay mas que el tope, se devuelven solo los
+ * primeros (el mensaje buscado no llega: el panel avisa).
+ */
+export async function obtenerMensajesHasta(
+  conversacionId: number,
+  antesDeId: number,
+  hastaId: number,
+  extra: number,
+  tope: number,
+): Promise<{ mensajes: MensajeConversacion[]; hayMas: boolean }> {
+  const posicion = (id: string) =>
+    `(SELECT creado_en, id FROM mensajes_conversacion WHERE id = ${id} AND conversacion_id = $1)`;
+  const tramo = await consultar<FilaMensaje>(
+    `SELECT ${CAMPOS_MENSAJE} FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND (creado_en, id) < ${posicion('$2')} AND (creado_en, id) >= ${posicion('$3')}
+     ORDER BY creado_en DESC, id DESC LIMIT $4`,
+    [conversacionId, antesDeId, hastaId, tope],
+  );
+  if (tramo.length >= tope) return { mensajes: tramo.reverse().map(mapearMensaje), hayMas: true };
+
+  const previos = await consultar<FilaMensaje>(
+    `SELECT ${CAMPOS_MENSAJE} FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND (creado_en, id) < ${posicion('$2')}
+     ORDER BY creado_en DESC, id DESC LIMIT $3`,
+    [conversacionId, hastaId, extra + 1],
+  );
+  const mensajes = [...tramo, ...previos.slice(0, extra)];
+  return { mensajes: mensajes.reverse().map(mapearMensaje), hayMas: previos.length > extra };
+}
+
+export type TipoGaleria = 'media' | 'documentos' | 'enlaces';
+
+const CONDICION_GALERIA: Record<TipoGaleria, string> = {
+  media: `tipo IN ('imagen', 'video')`,
+  documentos: `tipo = 'documento'`,
+  enlaces: `tipo = 'texto' AND (extra ? 'enlace' OR texto ~* 'https?://')`,
+};
+
+/** Fotos y videos, documentos o enlaces del chat, mas recientes primero, de a una pagina. */
+export async function galeriaDelChat(
+  conversacionId: number,
+  tipo: TipoGaleria,
+  antesDeId: number | null,
+  limite: number,
+): Promise<{ mensajes: MensajeConversacion[]; hayMas: boolean }> {
+  const filas = await consultar<FilaMensaje>(
+    `SELECT ${CAMPOS_MENSAJE} FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND NOT eliminado AND ${CONDICION_GALERIA[tipo]}
+       AND ($2::int IS NULL OR (creado_en, id) < (
+         SELECT creado_en, id FROM mensajes_conversacion WHERE id = $2 AND conversacion_id = $1))
+     ORDER BY creado_en DESC, id DESC LIMIT $3`,
+    [conversacionId, antesDeId, limite + 1],
+  );
+  return { mensajes: filas.slice(0, limite).map(mapearMensaje), hayMas: filas.length > limite };
+}
+
+export async function destacadosDelChat(conversacionId: number, limite: number): Promise<MensajeConversacion[]> {
+  const filas = await consultar<FilaMensaje>(
+    `SELECT ${CAMPOS_MENSAJE} FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND destacado ORDER BY creado_en DESC, id DESC LIMIT $2`,
+    [conversacionId, limite],
+  );
+  return filas.map(mapearMensaje);
+}
+
 // ==================== Acciones desde el panel ====================
 
 /** A donde mandarle algo a este chat: numero, telefono y el jid con que escribe el contacto. */
@@ -669,6 +861,7 @@ export type MensajeHistorial = {
   mediaDescarga: string | null;
   extra: ExtraMensaje | null;
   reacciones: Reacciones | null;
+  destacado: boolean;
 };
 
 const FILAS_POR_INSERT = 200;
@@ -697,14 +890,15 @@ export async function importarMensajesHistorial(conversacionId: number, mensajes
         m.autor === 'lead' ? null : 'enviado',
         m.extra ? JSON.stringify(m.extra) : null,
         m.reacciones ? JSON.stringify(m.reacciones) : null,
+        m.destacado === true,
       );
       const p = (n: number) => `$${base + n}`;
-      return `(${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}::jsonb, ${p(7)}::jsonb, ${p(8)}::timestamptz, ${p(9)}, true, ${p(10)}::jsonb, ${p(11)}::jsonb)`;
+      return `(${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}::jsonb, ${p(7)}::jsonb, ${p(8)}::timestamptz, ${p(9)}, true, ${p(10)}::jsonb, ${p(11)}::jsonb, ${p(12)}::boolean)`;
     });
     const insertados = await consultar<{ id: number }>(
       `INSERT INTO mensajes_conversacion
          (conversacion_id, autor, texto, whatsapp_id, tipo, media, media_descarga, creado_en, estado_entrega, del_historial,
-          extra, reacciones)
+          extra, reacciones, destacado)
        VALUES ${valores.join(', ')}
        ON CONFLICT (whatsapp_id) WHERE whatsapp_id IS NOT NULL DO NOTHING
        RETURNING id`,

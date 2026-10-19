@@ -17,6 +17,7 @@ export type AccionesMensaje = {
   onReenviar: (m: MensajeConversacion) => void;
   onEditar: (m: MensajeConversacion) => void;
   onEliminar: (m: MensajeConversacion) => void;
+  onDestacar: (m: MensajeConversacion, destacado: boolean) => void;
 };
 
 /** Que se puede hacer con un mensaje, segun WhatsApp. */
@@ -29,6 +30,7 @@ export function permisosDe(m: MensajeConversacion) {
     reaccionar: enWhatsapp,
     reenviar: !m.eliminado && TIPOS_REENVIABLES.includes(m.tipo),
     copiar: !m.eliminado && Boolean(m.texto) && m.tipo === 'texto',
+    destacar: enWhatsapp,
     editar: enWhatsapp && propio && m.tipo === 'texto' && edad < EDITAR_MAX_MS,
     eliminar: enWhatsapp && propio && edad < ELIMINAR_MAX_MS,
   };
@@ -37,7 +39,7 @@ export function permisosDe(m: MensajeConversacion) {
 type Props = AccionesMensaje & { mensaje: MensajeConversacion; propio: boolean };
 
 /** La flechita que aparece al pasar el mouse por un mensaje, con sus acciones (como en WhatsApp Web). */
-export function MenuMensaje({ mensaje, propio, onResponder, onReaccionar, onReenviar, onEditar, onEliminar }: Props) {
+export function MenuMensaje({ mensaje, propio, onResponder, onReaccionar, onReenviar, onEditar, onEliminar, onDestacar }: Props) {
   const [abierto, setAbierto] = useState(false);
   /** Cerca del borde de abajo, el menu se abre hacia arriba para no quedar cortado. */
   const [haciaArriba, setHaciaArriba] = useState(false);
@@ -116,6 +118,12 @@ export function MenuMensaje({ mensaje, propio, onResponder, onReaccionar, onReen
             <Opcion texto="📋 Copiar" onClick={() => hacer(() => void navigator.clipboard?.writeText(mensaje.texto))} />
           )}
           {permisos.reenviar && <Opcion texto="↪️ Reenviar" onClick={() => hacer(() => onReenviar(mensaje))} />}
+          {permisos.destacar && (
+            <Opcion
+              texto={mensaje.destacado ? '☆ Quitar destacado' : '⭐ Destacar'}
+              onClick={() => hacer(() => onDestacar(mensaje, !mensaje.destacado))}
+            />
+          )}
           {permisos.editar && <Opcion texto="✏️ Editar" onClick={() => hacer(() => onEditar(mensaje))} />}
           {permisos.eliminar && (
             <Opcion texto="🗑️ Eliminar para todos" peligro onClick={() => hacer(() => onEliminar(mensaje))} />

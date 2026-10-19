@@ -89,6 +89,8 @@ export type MensajeConversacion = {
   reacciones: Reacciones | null;
   editado: boolean;
   eliminado: boolean;
+  /** ⭐ Mensaje destacado (sincronizado con el telefono). */
+  destacado: boolean;
 };
 
 /** Datos opcionales al guardar un mensaje (adjuntos, historial, check de envio). */
@@ -104,7 +106,7 @@ export type ExtrasMensaje = {
   creadoEn?: Date | null;
 };
 
-export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos';
+export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos' | 'archivados';
 
 export type ConversacionResumen = {
   id: number;
@@ -113,6 +115,10 @@ export type ConversacionResumen = {
   /** En un grupo, el jid completo del grupo ("...@g.us"). */
   telefono: string;
   esGrupo: boolean;
+  /** 📌 Fijado arriba de la lista (como mucho 3 por numero, igual que WhatsApp). */
+  fijado: boolean;
+  /** Archivado: sale de la lista normal y queda en "Archivados". */
+  archivado: boolean;
   nombreContacto: string | null;
   nombreAgenda: string | null;
   empresa: string | null;

@@ -63,6 +63,7 @@ async function importar(numeroId: number, lote: LoteHistorial): Promise<void> {
       mediaDescarga: m.mediaDescarga,
       extra,
       reacciones: m.reacciones,
+      destacado: m.destacado,
     });
     porTelefono.set(m.telefono, lista);
   }
@@ -81,6 +82,15 @@ async function importar(numeroId: number, lote: LoteHistorial): Promise<void> {
       noLeidos: chat?.noLeidos ?? 0,
     });
     mensajesNuevos += await repo.importarMensajesHistorial(conversacionId, mensajes);
+    // Fijado y archivado como estan en el telefono.
+    if (chat) await repo.aplicarEstadoChat(conversacionId, chat);
+  }
+
+  // Chats fijados o archivados de los que no vino ningun mensaje en este lote.
+  for (const chat of lote.chats) {
+    if (porTelefono.has(chat.telefono)) continue;
+    const id = await repo.idDeChat(numeroId, chat.telefono);
+    if (id) await repo.aplicarEstadoChat(id, chat);
   }
 
   // Contactos sin mensajes en este lote: solo se les pone nombre si el chat ya existe.

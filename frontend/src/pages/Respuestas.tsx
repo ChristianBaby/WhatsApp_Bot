@@ -18,13 +18,20 @@ import { DetalleConversacion } from './respuestas/DetalleConversacion';
 import { FichaLead } from './respuestas/FichaLead';
 import estilos from './Respuestas.module.css';
 
-/** Mas recientes primero (mismo orden que el backend). */
+/** Los fijados arriba y despues los mas recientes primero (mismo orden que el backend). */
 function ordenar(lista: ConversacionResumen[]): ConversacionResumen[] {
   return [...lista].sort((a, b) => {
+    if (a.fijado !== b.fijado) return a.fijado ? -1 : 1;
     const fa = a.ultimoMensajeEn ? new Date(a.ultimoMensajeEn).getTime() : 0;
     const fb = b.ultimoMensajeEn ? new Date(b.ultimoMensajeEn).getTime() : 0;
     return fb - fa || b.id - a.id;
   });
+}
+
+/** Los archivados solo se ven en su filtro (o al buscar), como en WhatsApp. */
+function cumpleArchivo(c: ConversacionResumen, filtro: FiltroConversaciones, buscando: boolean): boolean {
+  if (filtro === 'archivados') return c.archivado;
+  return buscando || !c.archivado;
 }
 
 /** Si un chat que llega en vivo (y no estaba en la lista) corresponde al filtro elegido. */
@@ -32,6 +39,7 @@ function cumpleFiltro(c: ConversacionResumen, filtro: FiltroConversaciones): boo
   if (filtro === 'no_leidos') return c.noLeidos > 0;
   if (filtro === 'leads') return c.leadId !== null;
   if (filtro === 'grupos') return c.esGrupo;
+  if (filtro === 'archivados') return c.archivado;
   if (filtro === 'asesor') {
     return c.modo === 'manual' && (c.escaladoMotivo === 'palabra_clave' || c.escaladoMotivo === 'baja_confianza');
   }
@@ -135,12 +143,13 @@ export function Respuestas() {
     };
   }, [seleccionadaId]);
 
-  async function cargarAnteriores() {
+  /** Mensajes anteriores a los que se ven: una pagina, o todos hasta un mensaje (para saltar a uno viejo). */
+  async function cargarAnteriores(hasta?: number) {
     const actual = detalle;
     const primero = actual?.mensajes[0];
     if (!actual || !primero) return;
     const pagina = await api.get<{ mensajes: MensajeConversacion[]; hayMas: boolean }>(
-      `/conversaciones/${actual.id}/mensajes?antesDe=${primero.id}`,
+      `/conversaciones/${actual.id}/mensajes?antesDe=${primero.id}${hasta ? `&hasta=${hasta}` : ''}`,
     );
     setDetalle((prev) => {
       if (!prev || prev.id !== actual.id) return prev;
@@ -168,7 +177,9 @@ export function Respuestas() {
       setConversaciones((prev) => {
         if (!prev) return prev;
         const existe = prev.some((x) => x.id === c.id);
-        if (!existe && (busquedaAplicada || !cumpleFiltro(c, filtro))) return prev;
+        // Se archivo o desarchivo: sale de esta lista.
+        if (existe && !cumpleArchivo(c, filtro, Boolean(busquedaAplicada))) return prev.filter((x) => x.id !== c.id);
+        if (!existe && (busquedaAplicada || !cumpleFiltro(c, filtro) || !cumpleArchivo(c, filtro, false))) return prev;
         return ordenar(existe ? prev.map((x) => (x.id === c.id ? c : x)) : [c, ...prev]);
       });
       setDetalle((prev) => (prev && prev.id === c.id ? { ...prev, ...c } : prev));
@@ -257,7 +268,8 @@ export function Respuestas() {
             <DetalleConversacion
               conversacion={detalle}
               onVerFicha={() => setMostrarFicha(true)}
-              onCargarAnteriores={cargarAnteriores}
+              onCargarAnteriores={() => cargarAnteriores()}
+              onCargarHasta={(id) => cargarAnteriores(id)}
               presencia={presencias[detalle.id] ?? null}
             />
           ) : (

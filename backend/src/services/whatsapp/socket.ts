@@ -47,6 +47,8 @@ export type MensajeRecibido = {
   mediaDescarga: string | null;
   /** Fecha real del mensaje segun WhatsApp. */
   fecha: Date | null;
+  /** ⭐ Destacado en el telefono (llega con el historial; en vivo, por messages.update). */
+  destacado: boolean;
   /** Nota de voz: descarga perezosa (solo si se va a transcribir). */
   audio?: { descargar: () => Promise<Buffer>; mimeType: string; segundos: number } | null;
 };
@@ -61,7 +63,7 @@ export type ContactoAgenda = {
 
 /** Un tramo del historial que WhatsApp manda al vincular (llega en varias partes). */
 export type LoteHistorial = {
-  chats: { telefono: string; nombre: string | null; noLeidos: number }[];
+  chats: ({ telefono: string; nombre: string | null; noLeidos: number } & EstadoChat)[];
   contactos: ContactoAgenda[];
   mensajes: MensajeRecibido[];
   /** 0-100 segun WhatsApp, o null si no lo informa. */
@@ -89,7 +91,29 @@ type CallbacksSesion = {
   onPresencia: (jid: string, estado: PresenciaContacto, participante?: string) => void;
   /** Nombres de los grupos del numero: al conectar, al entrar a uno nuevo o si le cambian el nombre. */
   onGrupos: (grupos: GrupoWhatsapp[]) => void;
+  /** Se fijo/desfijo o archivo/desarchivo un chat (en el telefono, o el eco de lo hecho en el panel). */
+  onEstadoChats: (chats: ({ telefono: string; jid: string } & EstadoChat)[]) => void;
 };
+
+/** Lo que llega sin tocar queda undefined (no cambia). */
+export type EstadoChat = { fijadoEn?: Date | null; archivado?: boolean };
+
+/**
+ * Cuando se fijo un chat: WhatsApp manda un numero (segundos en el
+ * historial, milisegundos en la sincronizacion en vivo); null/0 = no fijado.
+ */
+function fechaDeFijado(valor: unknown): Date | null {
+  const n = aNumero(valor);
+  if (!n) return null;
+  return new Date(n > 1e12 ? n : n * 1000);
+}
+
+function estadoDeChat(chat: { pinned?: unknown; archived?: boolean | null }): EstadoChat {
+  const estado: EstadoChat = {};
+  if ('pinned' in chat) estado.fijadoEn = fechaDeFijado(chat.pinned);
+  if (typeof chat.archived === 'boolean') estado.archivado = chat.archived;
+  return estado;
+}
 
 export type GrupoWhatsapp = { jid: string; nombre: string };
 
@@ -116,7 +140,8 @@ export type CambioMensaje =
   /** quien: 'yo', 'lead' (chat 1:1) o el integrante del grupo (ver claveParticipante). */
   | { tipo: 'reaccion'; whatsappId: string; quien: string; emoji: string | null }
   | { tipo: 'editado'; whatsappId: string; texto: string; leyenda: string | null }
-  | { tipo: 'eliminado'; whatsappId: string };
+  | { tipo: 'eliminado'; whatsappId: string }
+  | { tipo: 'destacado'; whatsappId: string; destacado: boolean };
 
 export type LlamadaRecibida = {
   telefono: string;
@@ -624,6 +649,7 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
       reacciones: reaccionesDeHistorial(msg),
       mediaDescarga: serializarParaDescarga(msg, descripcion.campoMedia),
       fecha: segundos ? new Date(segundos * 1000) : null,
+      destacado: Boolean(msg.starred),
       audio: notaDeVoz
         ? {
             mimeType: notaDeVoz.mimetype ?? 'audio/ogg',
@@ -686,7 +712,9 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
         const telefono = esJidDeGrupo(chat.id)
           ? chat.id
           : await telefonoDesdeJid(chat.id ?? '', null, { esperarMapeo: false, mapeoLote });
-        if (telefono) chatsUtiles.push({ telefono, nombre: chat.name ?? null, noLeidos: chat.unreadCount ?? 0 });
+        if (telefono) {
+          chatsUtiles.push({ telefono, nombre: chat.name ?? null, noLeidos: chat.unreadCount ?? 0, ...estadoDeChat(chat) });
+        }
       }
 
       const mensajes: MensajeRecibido[] = [];
@@ -738,6 +766,11 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
         continue;
       }
 
+      // ⭐ destacado / sin destacar desde el telefono (o el eco del panel).
+      if (typeof update.starred === 'boolean') {
+        callbacks.onCambioMensaje({ tipo: 'destacado', whatsappId: key.id, destacado: update.starred });
+      }
+
       const estado = update.status;
       if (!key.fromMe || typeof estado !== 'number' || estado < ESTADO_ENTREGADO) continue;
       callbacks.onEstadoEntrega(key.id, estado >= ESTADO_LEIDO ? 'leido' : 'entregado');
@@ -773,6 +806,22 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
   });
   sock.ev.on('groups.upsert', avisarGrupos);
   sock.ev.on('groups.update', avisarGrupos);
+
+  // Fijado y archivado de los chats: llegan de la sincronizacion con el telefono.
+  function avisarEstadoChats(lista: { id?: string | null; pinned?: unknown; archived?: boolean | null }[]): void {
+    void (async () => {
+      const cambios: ({ telefono: string; jid: string } & EstadoChat)[] = [];
+      for (const chat of lista) {
+        const estado = estadoDeChat(chat);
+        if (!chat.id || (estado.fijadoEn === undefined && estado.archivado === undefined)) continue;
+        const telefono = esJidDeGrupo(chat.id) ? chat.id : await telefonoDesdeJid(chat.id, null, { esperarMapeo: false });
+        if (telefono) cambios.push({ telefono, jid: chat.id, ...estado });
+      }
+      if (cambios.length) callbacks.onEstadoChats(cambios);
+    })().catch((err: unknown) => logBaileys.warn({ err }, 'No se pudo leer el fijado/archivado de los chats'));
+  }
+  sock.ev.on('chats.update', avisarEstadoChats);
+  sock.ev.on('chats.upsert', avisarEstadoChats);
 
   // Llamadas entrantes: suenan aca tambien (como en WhatsApp Web). Se guarda
   // una sola entrada en el chat cuando la llamada termina: atendida o perdida.

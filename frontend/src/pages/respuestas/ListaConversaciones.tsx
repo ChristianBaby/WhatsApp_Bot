@@ -4,8 +4,10 @@ import { EstadoVacio } from '../../components/ui/EstadoVacio';
 import { formatearRelativo } from '../../lib/fecha';
 import type { ConversacionResumen, FiltroConversaciones } from '../../lib/types';
 import { infoEtapa } from './etapa';
-import { inicialesDeChat, nombreDeChat } from './nombreChat';
+import { Avatar } from './Avatar';
+import { nombreDeChat } from './nombreChat';
 import estilos from './ListaConversaciones.module.css';
+import org from './Organizar.module.css';
 
 const FILTROS: { valor: FiltroConversaciones; etiqueta: string }[] = [
   { valor: 'todos', etiqueta: 'Todos' },
@@ -13,6 +15,7 @@ const FILTROS: { valor: FiltroConversaciones; etiqueta: string }[] = [
   { valor: 'leads', etiqueta: 'Leads' },
   { valor: 'asesor', etiqueta: 'Piden asesor' },
   { valor: 'grupos', etiqueta: 'Grupos' },
+  { valor: 'archivados', etiqueta: '🗄️ Archivados' },
 ];
 
 type Props = {
@@ -107,15 +110,20 @@ export function ListaConversaciones({
               className={`${estilos.item} ${c.id === seleccionadaId ? estilos.seleccionado : ''}`}
               onClick={() => onSeleccionar(c.id)}
             >
-              <span className={estilos.avatar} title={c.esGrupo ? 'Grupo' : undefined}>
-                {c.esGrupo ? '👥' : inicialesDeChat(nombre)}
-              </span>
+              <Avatar conversacionId={c.id} nombre={nombre} esGrupo={c.esGrupo} />
               <span className={estilos.cuerpo}>
                 <span className={estilos.filaSuperior}>
                   <span className={estilos.empresa} style={{ fontWeight: c.noLeidos > 0 ? 800 : 600 }}>
                     {nombre}
                   </span>
-                  <span className={estilos.hace}>{c.ultimoMensajeEn ? formatearRelativo(c.ultimoMensajeEn) : ''}</span>
+                  <span className={estilos.hace}>
+                    {c.ultimoMensajeEn ? formatearRelativo(c.ultimoMensajeEn) : ''}
+                    {c.fijado && (
+                      <span className={org.iconoLista} title="Fijado">
+                        📌
+                      </span>
+                    )}
+                  </span>
                 </span>
                 <span className={estilos.filaInferior}>
                   <span className={estilos.preview}>{c.ultimoMensajePreview}</span>
