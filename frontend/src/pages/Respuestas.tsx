@@ -11,6 +11,7 @@ import type {
   FiltroConversaciones,
   MensajeConversacion,
   PaginaConversaciones,
+  PresenciaContacto,
 } from '../lib/types';
 import { ListaConversaciones } from './respuestas/ListaConversaciones';
 import { DetalleConversacion } from './respuestas/DetalleConversacion';
@@ -49,6 +50,8 @@ export function Respuestas() {
   const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null);
   const [detalle, setDetalle] = useState<ConversacionDetalle | null>(null);
   const [mostrarFicha, setMostrarFicha] = useState(false);
+  /** "escribiendo..." / "en linea" de cada chat, en vivo (no se guarda). */
+  const [presencias, setPresencias] = useState<Record<number, PresenciaContacto>>({});
 
   // Cada consulta de la lista tiene un numero: si el usuario cambia de filtro
   // o busqueda antes de que llegue la respuesta anterior, esa se descarta.
@@ -124,6 +127,8 @@ export function Respuestas() {
       if (vigente) setDetalle(d);
     });
     void api.post(`/conversaciones/${seleccionadaId}/marcar-leida`);
+    // Para ver en el encabezado si el contacto esta escribiendo o en linea.
+    void api.post(`/conversaciones/${seleccionadaId}/presencia`).catch(() => undefined);
     return () => {
       vigente = false;
     };
@@ -171,8 +176,16 @@ export function Respuestas() {
       clearTimeout(recargaPendienteRef.current);
       recargaPendienteRef.current = setTimeout(recargar, ESPERA_RECARGA_MS);
     },
+    'conversacion:presencia': (datos) => {
+      const { conversacionId, estado } = datos as { conversacionId: number; estado: PresenciaContacto };
+      setPresencias((prev) => ({ ...prev, [conversacionId]: estado }));
+    },
     'mensaje:nuevo': (datos) => {
       const { conversacionId, mensaje } = datos as { conversacionId: number; mensaje: MensajeConversacion };
+      // Si mando un mensaje, ya no esta escribiendo.
+      if (mensaje.autor === 'lead') {
+        setPresencias((prev) => (prev[conversacionId] ? { ...prev, [conversacionId]: 'en_linea' } : prev));
+      }
       setDetalle((prev) =>
         prev && prev.id === conversacionId && !prev.mensajes.some((m) => m.id === mensaje.id)
           ? { ...prev, mensajes: [...prev.mensajes, mensaje] }
@@ -239,6 +252,7 @@ export function Respuestas() {
               conversacion={detalle}
               onVerFicha={() => setMostrarFicha(true)}
               onCargarAnteriores={cargarAnteriores}
+              presencia={presencias[detalle.id] ?? null}
             />
           ) : (
             <EstadoVacio titulo={seleccionadaId ? 'Cargando…' : 'Elige un chat'} />

@@ -10,6 +10,7 @@ import type { NumeroWhatsapp } from './repositorio.js';
 import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
 import { actualizarAgenda, importarHistorial } from '../conversaciones/historial.js';
 import { aplicarCambio, registrarLlamada } from '../conversaciones/cambiosMensaje.js';
+import { alCambiarPresencia } from '../conversaciones/presencia.js';
 import * as conversacionesRepo from '../conversaciones/repositorio.js';
 import { registrarEstadoEntrega } from '../publicaciones/repositorio.js';
 
@@ -183,6 +184,7 @@ async function iniciar(numeroId: number): Promise<void> {
           log.warn({ err, numeroId }, 'No se pudo registrar una llamada'),
         );
       },
+      onPresencia: (jid, estado) => alCambiarPresencia(numeroId, jid, estado),
     });
     entrada.sesion = sesion;
   } catch (err) {

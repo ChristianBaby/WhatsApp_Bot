@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { AnyMessageContent, WASocket } from 'baileys';
+import type { AnyMessageContent, proto, WAMessage, WAMessageKey, WASocket } from 'baileys';
 import { env } from '../../config/env.js';
 import { crearLogger } from '../../lib/logger.js';
 import { obtenerSocket } from './gestor.js';
@@ -14,7 +14,7 @@ export class NumeroNoConectadoError extends Error {
   }
 }
 
-function jidDeTelefono(telefono: string): string {
+export function jidDeTelefono(telefono: string): string {
   return `${telefono}@s.whatsapp.net`;
 }
 
@@ -124,10 +124,75 @@ export type TipoArchivoEnvio = 'imagen' | 'video' | 'audio' | 'documento';
 
 export type ArchivoEnvio = {
   rutaAbsoluta: string;
-  tipo: TipoArchivoEnvio;
+  /** nota_voz: audio .ogg (opus) que se ve como grabado en el momento; sticker: imagen .webp. */
+  tipo: TipoArchivoEnvio | 'nota_voz' | 'sticker';
   mime: string;
   nombre: string;
+  segundos?: number | null;
 };
+
+/** Opciones del chat del panel: responder citando un mensaje, o marcarlo como reenviado. */
+export type OpcionesEnvio = {
+  citado?: WAMessage | null;
+  reenviado?: boolean;
+};
+
+const CONTEXTO_REENVIADO: proto.IContextInfo = { isForwarded: true, forwardingScore: 1 };
+
+/**
+ * Un texto escrito por una persona en el chat del panel. Sin la espera de
+ * "escribiendo..." de enviarMensaje: aqui el "escribiendo..." es real (lo
+ * manda el panel mientras se escribe, ver avisarEscribiendo).
+ */
+export async function enviarTextoPanel(
+  numeroId: number,
+  telefono: string,
+  texto: string,
+  opciones: OpcionesEnvio = {},
+): Promise<string | null> {
+  const sock = socketDeNumero(numeroId);
+  const contenido: AnyMessageContent = opciones.reenviado ? { text: texto, contextInfo: CONTEXTO_REENVIADO } : { text: texto };
+  const enviado = await sock.sendMessage(jidDeTelefono(telefono), contenido, opciones.citado ? { quoted: opciones.citado } : undefined);
+  return enviado?.key.id ?? null;
+}
+
+/** La clave de WhatsApp de un mensaje guardado de este chat (para reaccionar, editar o eliminar). */
+export function claveDeMensaje(telefono: string, whatsappId: string, propio: boolean): WAMessageKey {
+  return { remoteJid: jidDeTelefono(telefono), id: whatsappId, fromMe: propio };
+}
+
+/** Reaccion propia a un mensaje (emoji vacio la quita). */
+export async function enviarReaccion(numeroId: number, telefono: string, clave: WAMessageKey, emoji: string): Promise<void> {
+  await socketDeNumero(numeroId).sendMessage(jidDeTelefono(telefono), { react: { text: emoji, key: clave } });
+}
+
+/** Edita un texto propio (WhatsApp lo permite durante 15 minutos). */
+export async function enviarEdicion(numeroId: number, telefono: string, clave: WAMessageKey, texto: string): Promise<void> {
+  await socketDeNumero(numeroId).sendMessage(jidDeTelefono(telefono), { text: texto, edit: clave });
+}
+
+/** "Eliminar para todos" de un mensaje propio. */
+export async function enviarEliminacion(numeroId: number, telefono: string, clave: WAMessageKey): Promise<void> {
+  await socketDeNumero(numeroId).sendMessage(jidDeTelefono(telefono), { delete: clave });
+}
+
+export type EstadoEscritura = 'composing' | 'recording' | 'paused';
+
+/** "escribiendo..." / "grabando audio..." que ve el contacto mientras se usa el chat del panel. */
+export async function avisarEscribiendo(numeroId: number, telefono: string, estado: EstadoEscritura): Promise<boolean> {
+  const sock = obtenerSocket(numeroId);
+  if (!sock) return false;
+  await sock.sendPresenceUpdate(estado, jidDeTelefono(telefono));
+  return true;
+}
+
+/** Pide a WhatsApp que avise cuando este contacto escribe o se conecta (solo si su privacidad lo permite). */
+export async function suscribirPresencia(numeroId: number, jid: string): Promise<boolean> {
+  const sock = obtenerSocket(numeroId);
+  if (!sock) return false;
+  await sock.presenceSubscribe(jid);
+  return true;
+}
 
 /**
  * Envia un archivo desde el chat del panel (foto, video, audio o documento).
@@ -139,20 +204,30 @@ export async function enviarArchivo(
   telefono: string,
   archivo: ArchivoEnvio,
   leyenda: string | null,
+  opciones: OpcionesEnvio = {},
 ): Promise<string | null> {
   const sock = socketDeNumero(numeroId);
   const url = { url: archivo.rutaAbsoluta };
   const caption = leyenda ?? undefined;
+  const contextInfo = opciones.reenviado ? CONTEXTO_REENVIADO : undefined;
 
   const contenido: AnyMessageContent =
     archivo.tipo === 'imagen'
-      ? { image: url, caption }
+      ? { image: url, caption, contextInfo }
       : archivo.tipo === 'video'
-        ? { video: url, caption, mimetype: archivo.mime }
-        : archivo.tipo === 'audio'
-          ? { audio: url, mimetype: archivo.mime }
-          : { document: url, mimetype: archivo.mime, fileName: archivo.nombre, caption };
+        ? { video: url, caption, mimetype: archivo.mime, contextInfo }
+        : archivo.tipo === 'nota_voz'
+          ? { audio: url, ptt: true, mimetype: 'audio/ogg; codecs=opus', seconds: archivo.segundos ?? undefined, contextInfo }
+          : archivo.tipo === 'audio'
+            ? { audio: url, mimetype: archivo.mime, contextInfo }
+            : archivo.tipo === 'sticker'
+              ? { sticker: url, contextInfo }
+              : { document: url, mimetype: archivo.mime, fileName: archivo.nombre, caption, contextInfo };
 
-  const enviado = await sock.sendMessage(jidDeTelefono(telefono), contenido);
+  const enviado = await sock.sendMessage(
+    jidDeTelefono(telefono),
+    contenido,
+    opciones.citado ? { quoted: opciones.citado } : undefined,
+  );
   return enviado?.key.id ?? null;
 }

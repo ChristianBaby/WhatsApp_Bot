@@ -9,10 +9,11 @@ import { noEncontrado, solicitudInvalida } from '../lib/errors.js';
 import { emitir } from '../lib/sse.js';
 import * as repo from '../services/conversaciones/repositorio.js';
 import { marcarLeidaYConfirmar } from '../services/conversaciones/lectura.js';
-import { CARPETA_MEDIA_CHAT, obtenerArchivoMedia, tipoDeEnvio } from '../services/conversaciones/media.js';
-import type { TipoMensaje } from '../services/conversaciones/tipos.js';
+import * as panel from '../services/conversaciones/envioPanel.js';
+import { CARPETA_MEDIA_CHAT, obtenerArchivoMedia } from '../services/conversaciones/media.js';
+import { suscribir as suscribirPresenciaChat } from '../services/conversaciones/presencia.js';
 import * as leadsRepo from '../services/leads/repositorio.js';
-import { enviarArchivo, enviarMensaje } from '../services/whatsapp/envio.js';
+import { avisarEscribiendo } from '../services/whatsapp/envio.js';
 
 export const rutasConversaciones = Router();
 
@@ -109,28 +110,19 @@ rutasConversaciones.post(
   }),
 );
 
-const esquemaMensaje = z.object({ texto: z.string().trim().min(1).max(4000) });
+const esquemaMensaje = z.object({
+  texto: z.string().trim().min(1).max(4000),
+  /** Responder citando este mensaje (id del panel). */
+  citaId: z.coerce.number().int().positive().optional(),
+});
 
 rutasConversaciones.post(
   '/conversaciones/:id/mensajes',
   manejarAsync(async (req, res) => {
     const id = idDesdeParametro(req.params.id);
-    const { texto } = esquemaMensaje.parse(req.body);
-    const conversacion = await obtenerConversacionOFallar(id);
-
-    // Reusa el mismo camino de envio que las publicaciones (Fase 3): la
-    // misma simulacion de "escribiendo..." aplica tambien aqui.
-    const whatsappId = await enviarMensaje(conversacion.numeroId, conversacion.telefono, texto);
-
-    const mensaje = await repo.agregarMensaje(id, 'yo', texto, whatsappId, { estadoEntrega: 'enviado' });
-    await marcarLeidaYConfirmar(id);
-    // Responder manualmente (desde el chat integrado) pasa la conversacion
-    // a modo manual (seccion 3.6/3.10): que no se cruce con el bot.
-    await repo.cambiarModo(id, 'manual');
-    const actualizada = await emitirActualizacion(id);
-    if (mensaje) emitir(CANAL_SSE, 'mensaje:nuevo', { conversacionId: id, mensaje });
-
-    res.status(201).json({ mensaje, conversacion: actualizada });
+    const { texto, citaId } = esquemaMensaje.parse(req.body);
+    await obtenerConversacionOFallar(id);
+    res.status(201).json(await panel.enviarTexto(id, texto, citaId));
   }),
 );
 
@@ -148,16 +140,33 @@ const subidaChat = multer({
   limits: { fileSize: 16 * 1024 * 1024 },
 });
 
-const TEXTO_POR_TIPO: Record<string, (leyenda: string | null, nombre: string) => string> = {
-  imagen: (l) => (l ? `📷 ${l}` : '📷 Imagen'),
-  video: (l) => (l ? `🎥 ${l}` : '🎥 Video'),
-  audio: () => '🎵 Audio',
-  documento: (l, nombre) => `📄 ${nombre}${l ? ` — ${l}` : ''}`,
-};
+function archivoSubido(archivo: Express.Multer.File): panel.ArchivoSubido {
+  return {
+    ruta: archivo.path,
+    nombreGuardado: archivo.filename,
+    // El nombre original llega en latin1 desde multer: se corrige a UTF-8 (tildes, ñ).
+    nombreOriginal: Buffer.from(archivo.originalname, 'latin1').toString('utf8'),
+    mime: archivo.mimetype || 'application/octet-stream',
+    tamano: archivo.size,
+  };
+}
 
-const esquemaAdjunto = z.object({ texto: z.string().trim().max(1000).optional() });
+/** Si el envio falla, el archivo subido no debe quedar ocupando disco. */
+async function conArchivo<T>(archivo: Express.Multer.File, accion: () => Promise<T>): Promise<T> {
+  try {
+    return await accion();
+  } catch (err) {
+    await fs.promises.rm(archivo.path, { force: true }).catch(() => undefined);
+    throw err;
+  }
+}
 
-/** Enviar una foto, video, audio o documento desde el chat del panel. */
+const esquemaAdjunto = z.object({
+  texto: z.string().trim().max(1000).optional(),
+  citaId: z.coerce.number().int().positive().optional(),
+});
+
+/** Enviar una foto, video, audio o documento desde el chat del panel (elegido, pegado o arrastrado). */
 rutasConversaciones.post(
   '/conversaciones/:id/adjuntos',
   subidaChat.single('archivo'),
@@ -165,42 +174,108 @@ rutasConversaciones.post(
     const id = idDesdeParametro(req.params.id);
     if (!req.file) throw solicitudInvalida('Falta el archivo');
     const archivo = req.file;
+    const resultado = await conArchivo(archivo, async () => {
+      await obtenerConversacionOFallar(id);
+      const { texto, citaId } = esquemaAdjunto.parse(req.body);
+      return panel.enviarAdjunto(id, archivoSubido(archivo), texto || null, citaId);
+    });
+    res.status(201).json(resultado);
+  }),
+);
 
-    try {
-      const conversacion = await obtenerConversacionOFallar(id);
-      const leyenda = esquemaAdjunto.parse(req.body).texto || null;
-      const mime = archivo.mimetype || 'application/octet-stream';
-      const tipoEnvio = tipoDeEnvio(mime);
-      // El nombre original llega en latin1 desde multer: se corrige a UTF-8 (tildes, ñ).
-      const nombre = Buffer.from(archivo.originalname, 'latin1').toString('utf8');
+/** Hasta 15 minutos, como en WhatsApp. */
+const esquemaNotaVoz = z.object({
+  segundos: z.coerce.number().min(1).max(15 * 60),
+  citaId: z.coerce.number().int().positive().optional(),
+});
 
-      const whatsappId = await enviarArchivo(
-        conversacion.numeroId,
-        conversacion.telefono,
-        { rutaAbsoluta: archivo.path, tipo: tipoEnvio, mime, nombre },
-        tipoEnvio === 'audio' ? null : leyenda,
-      );
+/** Nota de voz grabada en el panel (el navegador manda WebM u Ogg; se convierte a lo que usa WhatsApp). */
+rutasConversaciones.post(
+  '/conversaciones/:id/nota-voz',
+  subidaChat.single('audio'),
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    if (!req.file) throw solicitudInvalida('Falta la grabación');
+    const archivo = req.file;
+    const resultado = await conArchivo(archivo, async () => {
+      await obtenerConversacionOFallar(id);
+      const { segundos, citaId } = esquemaNotaVoz.parse(req.body);
+      return panel.enviarNotaVoz(id, archivoSubido(archivo), Math.round(segundos), citaId);
+    });
+    res.status(201).json(resultado);
+  }),
+);
 
-      const tipo: TipoMensaje = tipoEnvio;
-      const mensaje = await repo.agregarMensaje(id, 'yo', TEXTO_POR_TIPO[tipoEnvio]!(leyenda, nombre), whatsappId, {
-        tipo,
-        media: { mime, nombre, segundos: null, tamano: archivo.size, leyenda },
-        mediaArchivo: archivo.filename,
-        estadoEntrega: 'enviado',
-      });
-      // El eco de WhatsApp pudo guardarlo primero: igual queda ligado al archivo local.
-      if (!mensaje && whatsappId) await repo.asociarArchivoLocal(whatsappId, archivo.filename);
+const esquemaReaccion = z.object({ emoji: z.string().min(1).max(32).nullable() });
 
-      await marcarLeidaYConfirmar(id);
-      await repo.cambiarModo(id, 'manual');
-      const actualizada = await emitirActualizacion(id);
-      if (mensaje) emitir(CANAL_SSE, 'mensaje:nuevo', { conversacionId: id, mensaje });
-      res.status(201).json({ mensaje, conversacion: actualizada });
-    } catch (err) {
-      // No se envio: el archivo subido no debe quedar ocupando disco.
-      await fs.promises.rm(archivo.path, { force: true }).catch(() => undefined);
-      throw err;
-    }
+rutasConversaciones.post(
+  '/conversaciones/:id/mensajes/:mensajeId/reaccion',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const mensajeId = idDesdeParametro(req.params.mensajeId);
+    const { emoji } = esquemaReaccion.parse(req.body);
+    res.json(await panel.reaccionar(id, mensajeId, emoji));
+  }),
+);
+
+const esquemaEdicion = z.object({ texto: z.string().trim().min(1).max(4000) });
+
+rutasConversaciones.patch(
+  '/conversaciones/:id/mensajes/:mensajeId',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const mensajeId = idDesdeParametro(req.params.mensajeId);
+    const { texto } = esquemaEdicion.parse(req.body);
+    res.json(await panel.editar(id, mensajeId, texto));
+  }),
+);
+
+/** "Eliminar para todos". */
+rutasConversaciones.delete(
+  '/conversaciones/:id/mensajes/:mensajeId',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const mensajeId = idDesdeParametro(req.params.mensajeId);
+    res.json(await panel.eliminarParaTodos(id, mensajeId));
+  }),
+);
+
+const esquemaReenvio = z.object({
+  destinos: z.array(z.number().int().positive()).min(1).max(panel.REENVIAR_MAX_CHATS),
+});
+
+rutasConversaciones.post(
+  '/conversaciones/:id/mensajes/:mensajeId/reenviar',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const mensajeId = idDesdeParametro(req.params.mensajeId);
+    const { destinos } = esquemaReenvio.parse(req.body);
+    res.json({ resultados: await panel.reenviar(id, mensajeId, destinos) });
+  }),
+);
+
+const esquemaEscribiendo = z.object({ estado: z.enum(['composing', 'recording', 'paused']) });
+
+/** Lo que ve el contacto mientras se usa el chat: "escribiendo..." o "grabando audio...". */
+rutasConversaciones.post(
+  '/conversaciones/:id/escribiendo',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    const { estado } = esquemaEscribiendo.parse(req.body);
+    const chat = await repo.obtenerDatosChat(id);
+    // No es critico: si el numero no esta conectado o falla, no se avisa y listo.
+    const enviado = await avisarEscribiendo(chat.numeroId, chat.telefono, estado).catch(() => false);
+    res.json({ enviado });
+  }),
+);
+
+/** Al abrir un chat: avisar al panel cuando el contacto este escribiendo o en linea. */
+rutasConversaciones.post(
+  '/conversaciones/:id/presencia',
+  manejarAsync(async (req, res) => {
+    const id = idDesdeParametro(req.params.id);
+    await suscribirPresenciaChat(id);
+    res.json({ ok: true });
   }),
 );
 

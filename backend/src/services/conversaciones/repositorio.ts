@@ -547,6 +547,33 @@ export async function marcarEliminado(whatsappId: string): Promise<MensajeCambia
   return { conversacionId: fila.conversacion_id, mensaje: mapearMensaje(fila) };
 }
 
+// ==================== Acciones desde el panel ====================
+
+/** A donde mandarle algo a este chat: numero, telefono y el jid con que escribe el contacto. */
+export type DatosChat = { id: number; numeroId: number; telefono: string; jidChat: string | null };
+
+export async function obtenerDatosChat(conversacionId: number): Promise<DatosChat> {
+  const fila = await consultarUno<{ id: number; numero_id: number; telefono: string; jid_chat: string | null }>(
+    'SELECT id, numero_id, telefono, jid_chat FROM conversaciones WHERE id = $1',
+    [conversacionId],
+  );
+  if (!fila) throw noEncontrado('Conversacion no encontrada');
+  return { id: fila.id, numeroId: fila.numero_id, telefono: fila.telefono, jidChat: fila.jid_chat };
+}
+
+/** Un mensaje del chat con lo necesario para citarlo, reenviarlo, editarlo o eliminarlo. */
+export type MensajeParaAccion = MensajeConversacion & { mediaDescarga: string | null; mediaArchivo: string | null };
+
+export async function obtenerMensajeParaAccion(conversacionId: number, mensajeId: number): Promise<MensajeParaAccion> {
+  const fila = await consultarUno<FilaMensaje & { media_descarga: string | null; media_archivo: string | null }>(
+    `SELECT ${CAMPOS_MENSAJE}, media_descarga::text AS media_descarga, media_archivo
+     FROM mensajes_conversacion WHERE id = $2 AND conversacion_id = $1`,
+    [conversacionId, mensajeId],
+  );
+  if (!fila) throw noEncontrado('Mensaje no encontrado');
+  return { ...mapearMensaje(fila), mediaDescarga: fila.media_descarga, mediaArchivo: fila.media_archivo };
+}
+
 // ==================== Historial y agenda ====================
 
 /** El nombre con que el usuario guardo al contacto en su telefono (solo si el chat ya existe). */

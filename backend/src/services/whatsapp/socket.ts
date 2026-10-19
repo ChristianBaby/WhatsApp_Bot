@@ -82,7 +82,11 @@ type CallbacksSesion = {
   onCambioMensaje: (cambio: CambioMensaje) => void;
   /** Una llamada entrante ya termino (atendida o perdida). */
   onLlamada: (llamada: LlamadaRecibida) => void;
+  /** El contacto esta escribiendo, grabando un audio, en linea o se fue (null). */
+  onPresencia: (jid: string, estado: PresenciaContacto) => void;
 };
+
+export type PresenciaContacto = 'escribiendo' | 'grabando' | 'en_linea' | null;
 
 export type CambioMensaje =
   /** emoji null = quito la reaccion. */
@@ -743,6 +747,16 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
       if (!llamada) continue;
       if (evento.status === 'accept') llamada.atendida = true;
       else cerrarLlamada(evento.id); // timeout, reject, terminate
+    }
+  });
+
+  sock.ev.on('presence.update', ({ id, presences }) => {
+    if (!id.endsWith('@s.whatsapp.net') && !id.endsWith('@lid')) return; // grupos no
+    for (const presencia of Object.values(presences)) {
+      const ultima = presencia.lastKnownPresence;
+      const estado: PresenciaContacto =
+        ultima === 'composing' ? 'escribiendo' : ultima === 'recording' ? 'grabando' : ultima === 'available' ? 'en_linea' : null;
+      callbacks.onPresencia(id, estado);
     }
   });
 

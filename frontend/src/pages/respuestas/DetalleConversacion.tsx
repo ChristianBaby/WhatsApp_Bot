@@ -1,10 +1,13 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Badge } from '../../components/ui/Badge';
 import { Boton } from '../../components/ui/Boton';
 import { api, ErrorApi } from '../../lib/api';
 import { formatearFecha } from '../../lib/fecha';
-import type { ConversacionDetalle } from '../../lib/types';
+import type { ConversacionDetalle, MensajeConversacion, PresenciaContacto } from '../../lib/types';
 import { Burbuja } from './Burbuja';
+import { Compositor, type CompositorHandle } from './Compositor';
+import type { AccionesMensaje } from './MenuMensaje';
+import { ModalReenviar } from './ModalReenviar';
 import { ETAPA_INFO, infoEtapa } from './etapa';
 import { nombreDeChat } from './nombreChat';
 import { Visor } from './Visor';
@@ -15,10 +18,17 @@ type Props = {
   onVerFicha: () => void;
   /** Trae la pagina de mensajes anterior a la mas vieja que se ve. */
   onCargarAnteriores: () => Promise<void>;
+  /** Si el contacto esta escribiendo, grabando o en linea ahora mismo. */
+  presencia: PresenciaContacto;
 };
 
 const OPCIONES_SUGERENCIA = ['interesado', 'no_interesado', 'duda_precio'] as const;
-const MAX_ARCHIVO_BYTES = 16 * 1024 * 1024;
+
+const TEXTO_PRESENCIA: Record<NonNullable<PresenciaContacto>, string> = {
+  escribiendo: 'escribiendo…',
+  grabando: 'grabando audio…',
+  en_linea: 'en línea',
+};
 /** A cuantos px del borde se considera "arriba del todo" / "abajo del todo". */
 const MARGEN_SCROLL = 120;
 
@@ -35,16 +45,18 @@ function etiquetaDia(iso: string): string {
 /** Cuanto queda resaltado el mensaje al que se salta desde una cita. */
 const RESALTADO_MS = 1600;
 
-export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnteriores }: Props) {
-  const [texto, setTexto] = useState('');
-  const [enviando, setEnviando] = useState(false);
+export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnteriores, presencia }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [cargandoAnteriores, setCargandoAnteriores] = useState(false);
   const [visorId, setVisorId] = useState<number | null>(null);
   const [resaltadoId, setResaltadoId] = useState<string | null>(null);
+  const [respondiendoA, setRespondiendoA] = useState<MensajeConversacion | null>(null);
+  const [editando, setEditando] = useState<MensajeConversacion | null>(null);
+  const [reenviando, setReenviando] = useState<MensajeConversacion | null>(null);
+  const [arrastrando, setArrastrando] = useState(false);
   const hiloRef = useRef<HTMLDivElement>(null);
-  const archivoRef = useRef<HTMLInputElement>(null);
+  const compositorRef = useRef<CompositorHandle>(null);
 
   const mensajes = conversacion.mensajes;
   const porWhatsappId = useMemo(
@@ -104,12 +116,45 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     recordarScroll();
   }, [conversacion.id, primeroId, ultimo]);
 
-  // Cambiar de conversacion cierra cualquier "Corregir" o visor que haya quedado abierto.
+  // Cambiar de conversacion cierra cualquier "Corregir", visor, respuesta o edicion que haya quedado abierto.
   useEffect(() => {
     setCorrigiendo(false);
     setError(null);
     setVisorId(null);
+    setRespondiendoA(null);
+    setEditando(null);
+    setReenviando(null);
   }, [conversacion.id]);
+
+  async function intentar(accion: () => Promise<unknown>, mensajeError: string) {
+    setError(null);
+    try {
+      await accion();
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : mensajeError);
+    }
+  }
+
+  const acciones: AccionesMensaje = {
+    onResponder: (m) => {
+      setEditando(null);
+      setRespondiendoA(m);
+    },
+    onReaccionar: (m, emoji) =>
+      void intentar(
+        () => api.post(`/conversaciones/${conversacion.id}/mensajes/${m.id}/reaccion`, { emoji }),
+        'No se pudo enviar la reacción',
+      ),
+    onReenviar: setReenviando,
+    onEditar: (m) => {
+      setRespondiendoA(null);
+      setEditando(m);
+    },
+    onEliminar: (m) => {
+      if (!window.confirm('¿Eliminar este mensaje para todos? El cliente dejará de verlo.')) return;
+      void intentar(() => api.delete(`/conversaciones/${conversacion.id}/mensajes/${m.id}`), 'No se pudo eliminar el mensaje');
+    },
+  };
 
   async function alDesplazar() {
     recordarScroll();
@@ -123,42 +168,6 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
     }
   }
 
-  async function enviar() {
-    const valor = texto.trim();
-    if (!valor) return;
-    setEnviando(true);
-    setError(null);
-    try {
-      await api.post(`/conversaciones/${conversacion.id}/mensajes`, { texto: valor });
-      setTexto('');
-    } catch (err) {
-      setError(err instanceof ErrorApi ? err.message : 'No se pudo enviar el mensaje');
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  async function enviarArchivo(archivo: File) {
-    if (archivo.size > MAX_ARCHIVO_BYTES) {
-      setError('El archivo pesa más de 16 MB, el máximo que permite WhatsApp.');
-      return;
-    }
-    setEnviando(true);
-    setError(null);
-    try {
-      const datos = new FormData();
-      datos.append('archivo', archivo);
-      // Lo que esté escrito en la caja va como texto de la foto/video/documento.
-      if (texto.trim()) datos.append('texto', texto.trim());
-      await api.post(`/conversaciones/${conversacion.id}/adjuntos`, datos);
-      setTexto('');
-    } catch (err) {
-      setError(err instanceof ErrorApi ? err.message : 'No se pudo enviar el archivo');
-    } finally {
-      setEnviando(false);
-      if (archivoRef.current) archivoRef.current.value = '';
-    }
-  }
 
   async function cambiarModo(modo: 'bot' | 'manual') {
     await api.post(`/conversaciones/${conversacion.id}/modo`, { modo });
@@ -181,8 +190,28 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
   const esLead = conversacion.leadId !== null;
   const otrosNombres = [conversacion.nombreContacto, conversacion.empresa].filter((n) => n && n !== nombre);
 
+  // Arrastrar archivos sobre el chat los deja listos para enviar, como en WhatsApp Web.
+  const conArchivos = (e: DragEvent) => [...e.dataTransfer.types].includes('Files');
+
   return (
-    <div className={estilos.contenedor}>
+    <div
+      className={estilos.contenedor}
+      onDragOver={(e) => {
+        if (!conArchivos(e)) return;
+        e.preventDefault();
+        setArrastrando(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setArrastrando(false);
+      }}
+      onDrop={(e) => {
+        if (!conArchivos(e)) return;
+        e.preventDefault();
+        setArrastrando(false);
+        compositorRef.current?.agregarArchivos([...e.dataTransfer.files]);
+      }}
+    >
+      {arrastrando && <div className={estilos.zonaSoltar}>Suelta aquí para enviar los archivos</div>}
       <div className={estilos.encabezado}>
         <div>
           <div className={estilos.nombreFila}>
@@ -190,7 +219,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
             {etapa && <Badge tono={etapa.tono}>{etapa.etiqueta}</Badge>}
           </div>
           <div className={estilos.subtitulo}>
-            +{conversacion.telefono}
+            {presencia && <span className={estilos.presencia}>{TEXTO_PRESENCIA[presencia]} · </span>}+{conversacion.telefono}
             {otrosNombres.length > 0 && ` · ${otrosNombres.join(' · ')}`}
             {conversacion.rubro && ` · Rubro: ${conversacion.rubro}`}
           </div>
@@ -258,6 +287,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
                 resaltado={resaltadoId === m.whatsappId}
                 onIrACita={irACita}
                 onAbrirVisor={setVisorId}
+                acciones={acciones}
               />
             </div>
           );
@@ -298,49 +328,28 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
         </div>
       )}
 
-      <div className={estilos.filaInput}>
-        <input
-          ref={archivoRef}
-          type="file"
-          hidden
-          onChange={(e) => {
-            const archivo = e.target.files?.[0];
-            if (archivo) void enviarArchivo(archivo);
-          }}
-        />
-        <button
-          className={estilos.botonAdjuntar}
-          title="Enviar foto, video, audio o documento"
-          onClick={() => archivoRef.current?.click()}
-          disabled={enviando}
-        >
-          📎
-        </button>
-        <input
-          className={estilos.input}
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              void enviar();
-            }
-          }}
-          placeholder={enviando ? 'Enviando…' : 'Escribe un mensaje…'}
-          disabled={enviando}
-        />
-        <Boton onClick={() => void enviar()} disabled={enviando || !texto.trim()}>
-          Enviar ➤
-        </Boton>
-      </div>
+      {reenviando && (
+        <ModalReenviar conversacionId={conversacion.id} mensaje={reenviando} onCerrar={() => setReenviando(null)} />
+      )}
+
       {error && (
         <div className={estilos.notaAyuda} style={{ color: 'var(--peligro)' }}>
           {error}
         </div>
       )}
+      <Compositor
+        key={conversacion.id}
+        ref={compositorRef}
+        conversacionId={conversacion.id}
+        nombreContacto={nombre}
+        respondiendoA={respondiendoA}
+        onCancelarRespuesta={() => setRespondiendoA(null)}
+        editando={editando}
+        onCancelarEdicion={() => setEditando(null)}
+      />
       <div className={estilos.notaAyuda}>
-        Se envía desde el WhatsApp de este número. 📎 para fotos, videos, audios o documentos (lo escrito en la caja va
-        como texto del archivo). Al responder, el chat pasa a modo manual (🙋).
+        Se envía desde el WhatsApp de este número. Pasa el mouse por un mensaje y usa ⌄ para responder, reaccionar,
+        reenviar, editar o eliminar. Puedes pegar o arrastrar fotos. Al responder, el chat pasa a modo manual (🙋).
       </div>
 
       {esLead && (

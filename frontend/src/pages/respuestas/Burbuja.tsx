@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { formatearHora } from '../../lib/fecha';
 import type { MensajeConversacion } from '../../lib/types';
 import { ContenidoMensaje } from './ContenidoMensaje';
+import { MenuMensaje, type AccionesMensaje } from './MenuMensaje';
 import { esEmojiGrande } from './TextoWhatsapp';
 import estilos from './DetalleConversacion.module.css';
 
@@ -16,6 +17,7 @@ type Props = {
   resaltado: boolean;
   onIrACita: (whatsappId: string) => void;
   onAbrirVisor: (mensajeId: number) => void;
+  acciones: AccionesMensaje;
 };
 
 function Checks({ mensaje }: { mensaje: MensajeConversacion }) {
@@ -27,7 +29,7 @@ function Checks({ mensaje }: { mensaje: MensajeConversacion }) {
 }
 
 /** Un mensaje del chat, como en WhatsApp: cita, reenviado, contenido, hora, checks y reacciones. */
-export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resaltado, onIrACita, onAbrirVisor }: Props) {
+export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resaltado, onIrACita, onAbrirVisor, acciones }: Props) {
   const [verOriginal, setVerOriginal] = useState(false);
   const propio = mensaje.autor !== 'lead';
   const extra = mensaje.extra;
@@ -58,6 +60,7 @@ export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resal
     >
       <div className={estilos.columnaBurbuja}>
         <div className={clases}>
+          <MenuMensaje mensaje={mensaje} propio={propio} {...acciones} />
           {mensaje.autor === 'bot' && <div className={estilos.etiquetaBot}>🤖 Bot</div>}
           {extra?.reenviado && (
             <div className={estilos.reenviado}>↪ {extra.reenviado === 'muchas' ? 'Reenviado muchas veces' : 'Reenviado'}</div>
@@ -93,9 +96,14 @@ export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resal
         </div>
 
         {reacciones.length > 0 && (
-          <div className={`${estilos.reacciones} ${propio ? estilos.reaccionesYo : ''}`} title="Reacciones">
+          <button
+            type="button"
+            className={`${estilos.reacciones} ${propio ? estilos.reaccionesYo : ''}`}
+            title={mensaje.reacciones?.yo ? 'Clic para quitar tu reacción' : 'Reacciones'}
+            onClick={() => mensaje.reacciones?.yo && acciones.onReaccionar(mensaje, null)}
+          >
             {reacciones.join(' ')}
-          </div>
+          </button>
         )}
       </div>
     </div>

@@ -218,6 +218,9 @@ export type Reacciones = { yo?: string; lead?: string };
 
 export type EstadoEntrega = 'enviado' | 'entregado' | 'leido';
 
+/** Lo que WhatsApp avisa del contacto en el momento (null = nada / desconectado). */
+export type PresenciaContacto = 'escribiendo' | 'grabando' | 'en_linea' | null;
+
 export type MensajeConversacion = {
   id: number;
   autor: AutorMensaje;

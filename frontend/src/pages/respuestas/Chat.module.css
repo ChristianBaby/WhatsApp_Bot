@@ -1,0 +1,501 @@
+/* ===== Escribir como en WhatsApp (etapa 2): caja de texto, emojis, menu de cada mensaje, reenviar ===== */
+
+/* ---------- Caja de escribir ---------- */
+
+.compositor {
+  border-top: 1px solid var(--borde-fila);
+  padding: 10px 18px 12px 18px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filaCompositor {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cajaTexto {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  padding: 9px 13px;
+  border: 1px solid var(--borde-control);
+  border-radius: 20px;
+  font-size: var(--texto-base);
+  font-family: inherit;
+  line-height: 1.4;
+  background: var(--fondo-panel);
+  color: var(--texto);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.cajaTexto:focus {
+  outline: none;
+  border-color: var(--acento);
+}
+
+.botonRedondo,
+.botonEnviar {
+  border: 1px solid var(--borde-control);
+  background: transparent;
+  color: var(--texto);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.botonRedondo:hover:not(:disabled) {
+  background: var(--fondo-neutro);
+}
+
+.botonEnviar {
+  border: none;
+  background: var(--acento);
+  color: var(--texto-sobre-acento);
+}
+
+.botonRedondo:disabled,
+.botonEnviar:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.anclaEmojis {
+  position: relative;
+}
+
+.errorCompositor {
+  color: var(--peligro);
+  font-size: var(--texto-micro);
+}
+
+/* Respondiendo a / editando: la franja encima de la caja. */
+.barraModo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.citaCompositor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid var(--acento);
+  background: var(--fondo-sutil-2);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.citaCompositorLead {
+  border-left-color: var(--exito-punto);
+}
+
+.citaCompositorAutor {
+  font-size: var(--texto-micro);
+  font-weight: 700;
+  color: var(--texto-medio);
+}
+
+.citaCompositorTexto {
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Archivos listos para enviar (elegidos, pegados o arrastrados). */
+.pendientes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.pendiente {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--borde-control);
+  background: var(--fondo-sutil-2);
+}
+
+.pendienteImagen {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pendienteArchivo {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  font-size: 22px;
+}
+
+.pendienteNombre {
+  font-size: 10px;
+  color: var(--texto-suave);
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quitarPendiente {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.pendienteNota {
+  font-size: var(--texto-nano);
+  color: var(--texto-tenue);
+  flex-basis: 100%;
+}
+
+/* Grabando una nota de voz. */
+.grabando {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--texto-base);
+  color: var(--texto-medio);
+  font-variant-numeric: tabular-nums;
+  height: 38px;
+}
+
+.puntoGrabando {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--peligro-punto);
+  animation: latido 1s ease-in-out infinite;
+}
+
+@keyframes latido {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ---------- Selector de emojis ---------- */
+
+.selectorEmojis {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: 330px;
+  max-width: calc(100vw - 32px);
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-modal);
+  display: flex;
+  flex-direction: column;
+  white-space: normal;
+}
+
+.selectorAbajo {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+.pestanasEmoji {
+  display: flex;
+  border-bottom: 1px solid var(--borde-fila);
+  padding: 4px;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.pestanaEmoji {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.pestanaActiva {
+  opacity: 1;
+  background: var(--acento-suave);
+}
+
+.tituloCategoria {
+  font-size: var(--texto-nano);
+  font-weight: 700;
+  color: var(--texto-tenue);
+  padding: 8px 10px 2px 10px;
+}
+
+.rejillaEmojis {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  padding: 4px 6px 8px 6px;
+  height: 230px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.emoji {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  padding: 5px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.emoji:hover {
+  background: var(--fondo-neutro);
+}
+
+/* ---------- Menu de cada mensaje (la flechita ⌄) ---------- */
+
+.menuMensaje {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.12s;
+  white-space: normal;
+}
+
+/* Visible al pasar el mouse por el mensaje, o mientras el menu esta abierto. */
+*:hover > .menuMensaje,
+.menuAbierto {
+  opacity: 1;
+}
+
+.flechaMenu {
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  background: var(--fondo-panel);
+  color: var(--texto-suave);
+  box-shadow: var(--sombra-pill);
+}
+
+.desplegable {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 210px;
+  background: var(--fondo-panel);
+  color: var(--texto);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  box-shadow: var(--sombra-modal);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.desplegableArriba {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+/* Mis mensajes estan a la derecha: el menu se abre hacia la izquierda. */
+.desplegablePropio {
+  left: auto;
+  right: 0;
+}
+
+.filaReacciones {
+  display: flex;
+  gap: 2px;
+  padding: 2px 2px 6px 2px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--borde-fila);
+  position: relative;
+}
+
+.reaccionRapida {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--texto-suave);
+}
+
+.reaccionRapida:hover {
+  background: var(--fondo-neutro);
+}
+
+.reaccionMia {
+  background: var(--acento-suave);
+}
+
+.opcionMenu {
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--texto-cuerpo);
+  color: var(--texto);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.opcionMenu:hover {
+  background: var(--fondo-neutro);
+}
+
+.opcionPeligro {
+  color: var(--peligro);
+}
+
+/* ---------- Reenviar ---------- */
+
+.reenviarMensaje {
+  font-size: var(--texto-cuerpo);
+  color: var(--texto-medio);
+  background: var(--fondo-sutil-2);
+  border-left: 3px solid var(--acento);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  max-height: 64px;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.buscadorReenviar {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--borde-control);
+  border-radius: var(--radio-control);
+  font-family: inherit;
+  font-size: var(--texto-base);
+  background: var(--fondo-panel);
+  color: var(--texto);
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.listaReenviar {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.filaReenviar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.filaReenviar:hover,
+.filaElegida {
+  background: var(--fondo-sutil-2);
+}
+
+.avatarReenviar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--acento-suave);
+  color: var(--acento);
+  font-weight: 700;
+  font-size: var(--texto-micro);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.datosReenviar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nombreReenviar {
+  font-size: var(--texto-cuerpo);
+  font-weight: 600;
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notaReenviar {
+  font-size: var(--texto-micro);
+  color: var(--texto-tenue);
+}
+
+.pieReenviar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .compositor {
+    padding: 8px 10px 10px 10px;
+  }
+
+  .filaCompositor {
+    gap: 6px;
+  }
+
+  /* En pantallas tactiles no hay "hover": la flechita queda siempre visible. */
+  .menuMensaje {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .menuMensaje {
+    opacity: 1;
+  }
+}

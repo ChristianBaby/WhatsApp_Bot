@@ -47,7 +47,9 @@ FROM node:22-alpine AS runtime
 
 # tini maneja bien las senales: sin el, un SIGTERM mataria el proceso de
 # golpe y dejaria las sesiones de WhatsApp a medio cerrar.
-RUN apk add --no-cache tini
+# ffmpeg: convierte las notas de voz grabadas en el panel al Ogg/Opus que usa
+# WhatsApp (ver services/conversaciones/notaVoz.ts).
+RUN apk add --no-cache tini ffmpeg
 
 ENV NODE_ENV=production
 WORKDIR /app
