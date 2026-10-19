@@ -653,6 +653,45 @@ export async function importarMensajesHistorial(conversacionId: number, mensajes
   return nuevos;
 }
 
+export async function guardarJidChat(conversacionId: number, jid: string): Promise<void> {
+  await consultarUno('UPDATE conversaciones SET jid_chat = $2 WHERE id = $1 AND jid_chat IS DISTINCT FROM $2', [
+    conversacionId,
+    jid,
+  ]);
+}
+
+/** Tope de mensajes a confirmar de una vez: un chat con cientos sin leer no necesita mas para quedar en azul. */
+const MAX_CONFIRMAR_LECTURA = 100;
+
+export type PendientesDeLectura = { numeroId: number; telefono: string; jid: string | null; ids: string[] };
+
+/**
+ * Los ultimos mensajes del lead que siguen sin leer (tantos como no_leidos),
+ * para mandarle a WhatsApp la confirmacion de lectura. Las llamadas no son
+ * mensajes de WhatsApp (su id es "llamada-..."), no se confirman.
+ */
+export async function pendientesDeLectura(conversacionId: number): Promise<PendientesDeLectura | null> {
+  const conversacion = await consultarUno<{ numero_id: number; telefono: string; jid_chat: string | null; no_leidos: number }>(
+    'SELECT numero_id, telefono, jid_chat, no_leidos FROM conversaciones WHERE id = $1',
+    [conversacionId],
+  );
+  if (!conversacion || conversacion.no_leidos <= 0) return null;
+  const filas = await consultar<{ whatsapp_id: string }>(
+    `SELECT whatsapp_id FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND autor = 'lead' AND whatsapp_id IS NOT NULL AND whatsapp_id NOT LIKE 'llamada-%'
+     ORDER BY creado_en DESC, id DESC
+     LIMIT $2`,
+    [conversacionId, Math.min(conversacion.no_leidos, MAX_CONFIRMAR_LECTURA)],
+  );
+  if (!filas.length) return null;
+  return {
+    numeroId: conversacion.numero_id,
+    telefono: conversacion.telefono,
+    jid: conversacion.jid_chat,
+    ids: filas.map((f) => f.whatsapp_id),
+  };
+}
+
 export async function marcarLeida(conversacionId: number): Promise<ConversacionDetalle> {
   await consultarUno('UPDATE conversaciones SET no_leidos = 0 WHERE id = $1', [conversacionId]);
   const actualizada = await obtenerDetalle(conversacionId);

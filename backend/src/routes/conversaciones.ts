@@ -8,6 +8,7 @@ import { manejarAsync } from '../middleware/errorHandler.js';
 import { noEncontrado, solicitudInvalida } from '../lib/errors.js';
 import { emitir } from '../lib/sse.js';
 import * as repo from '../services/conversaciones/repositorio.js';
+import { marcarLeidaYConfirmar } from '../services/conversaciones/lectura.js';
 import { CARPETA_MEDIA_CHAT, obtenerArchivoMedia, tipoDeEnvio } from '../services/conversaciones/media.js';
 import type { TipoMensaje } from '../services/conversaciones/tipos.js';
 import * as leadsRepo from '../services/leads/repositorio.js';
@@ -102,7 +103,7 @@ rutasConversaciones.post(
   '/conversaciones/:id/marcar-leida',
   manejarAsync(async (req, res) => {
     const id = idDesdeParametro(req.params.id);
-    const actualizada = await repo.marcarLeida(id);
+    const actualizada = await marcarLeidaYConfirmar(id);
     emitir(CANAL_SSE, 'conversacion:actualizada', actualizada);
     res.json(actualizada);
   }),
@@ -122,7 +123,7 @@ rutasConversaciones.post(
     const whatsappId = await enviarMensaje(conversacion.numeroId, conversacion.telefono, texto);
 
     const mensaje = await repo.agregarMensaje(id, 'yo', texto, whatsappId, { estadoEntrega: 'enviado' });
-    await repo.marcarLeida(id);
+    await marcarLeidaYConfirmar(id);
     // Responder manualmente (desde el chat integrado) pasa la conversacion
     // a modo manual (seccion 3.6/3.10): que no se cruce con el bot.
     await repo.cambiarModo(id, 'manual');
@@ -190,7 +191,7 @@ rutasConversaciones.post(
       // El eco de WhatsApp pudo guardarlo primero: igual queda ligado al archivo local.
       if (!mensaje && whatsappId) await repo.asociarArchivoLocal(whatsappId, archivo.filename);
 
-      await repo.marcarLeida(id);
+      await marcarLeidaYConfirmar(id);
       await repo.cambiarModo(id, 'manual');
       const actualizada = await emitirActualizacion(id);
       if (mensaje) emitir(CANAL_SSE, 'mensaje:nuevo', { conversacionId: id, mensaje });

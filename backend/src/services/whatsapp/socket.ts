@@ -33,6 +33,8 @@ export type MensajeRecibido = {
   texto: string;
   whatsappId: string | null;
   pushName?: string | null;
+  /** El jid tal como llega ("...@s.whatsapp.net" o "...@lid"): a el van las confirmaciones de lectura. */
+  jidChat: string | null;
   tipo: TipoMensaje;
   media: MediaInfo | null;
   extra: ExtraMensaje | null;
@@ -569,6 +571,7 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
       texto: descripcion.texto,
       whatsappId: msg.key.id ?? null,
       pushName: msg.pushName,
+      jidChat: msg.key.remoteJid ?? null,
       tipo: descripcion.tipo,
       media: descripcion.media,
       extra: descripcion.extra,

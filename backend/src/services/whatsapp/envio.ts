@@ -69,6 +69,25 @@ export type AdjuntoEnvio = { ruta: string; tipo: 'imagen' | 'video' };
  * lo llama pueda registrarlo en la conversacion sin duplicarlo si Baileys
  * tambien reemite el mismo mensaje por su propio eco de mensajes.upsert.
  */
+/**
+ * Checks azules: le dice a WhatsApp que ya se leyeron esos mensajes. Baileys
+ * respeta la privacidad del telefono: si ahi estan apagadas las
+ * confirmaciones de lectura, el contacto no ve el azul (igual que en WhatsApp).
+ * Devuelve false si el numero no esta conectado (no es un error: es opcional).
+ */
+export async function confirmarLectura(
+  numeroId: number,
+  telefono: string,
+  jid: string | null,
+  ids: string[],
+): Promise<boolean> {
+  const sock = obtenerSocket(numeroId);
+  if (!sock || !ids.length) return false;
+  const remoteJid = jid ?? jidDeTelefono(telefono);
+  await sock.readMessages(ids.map((id) => ({ remoteJid, id, fromMe: false })));
+  return true;
+}
+
 export async function enviarMensaje(
   numeroId: number,
   telefono: string,

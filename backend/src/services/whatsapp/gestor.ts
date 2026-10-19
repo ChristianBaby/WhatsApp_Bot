@@ -144,6 +144,7 @@ async function iniciar(numeroId: number): Promise<void> {
               texto: mensaje.texto,
               whatsappId: mensaje.whatsappId,
               pushName: mensaje.pushName,
+              jidChat: mensaje.jidChat,
               tipo: mensaje.tipo,
               media: mensaje.media,
               extra: mensaje.extra,

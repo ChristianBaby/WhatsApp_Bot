@@ -33,6 +33,8 @@ export type MensajeCrudo = {
   texto: string;
   whatsappId: string | null;
   pushName?: string | null;
+  /** Jid con el que escribe el contacto (para los checks azules, ver lectura.ts). */
+  jidChat?: string | null;
   tipo?: TipoMensaje;
   media?: MediaInfo | null;
   extra?: ExtraMensaje | null;
@@ -175,6 +177,7 @@ async function procesar(original: MensajeCrudo): Promise<void> {
     leadId: lead?.id ?? null,
   });
   const eraNoLeida = conversacion.no_leidos > 0;
+  if (!msg.fromMe && msg.jidChat) await repo.guardarJidChat(conversacion.id, msg.jidChat);
 
   const guardado = await repo.agregarMensaje(conversacion.id, msg.fromMe ? 'yo' : 'lead', msg.texto, msg.whatsappId, {
     tipo: msg.tipo,
