@@ -1,7 +1,7 @@
 import { crearLogger } from '../../lib/logger.js';
 import { emitir } from '../../lib/sse.js';
 import { jidDeTelefono, suscribirPresencia } from '../whatsapp/envio.js';
-import type { PresenciaContacto } from '../whatsapp/socket.js';
+import { esJidDeGrupo, type PresenciaContacto } from '../whatsapp/socket.js';
 import * as repo from './repositorio.js';
 
 const log = crearLogger('conversaciones-presencia');
@@ -10,7 +10,9 @@ const log = crearLogger('conversaciones-presencia');
  * "escribiendo..." / "grabando audio..." / "en linea" del contacto en el
  * encabezado del chat. WhatsApp solo lo avisa de los chats a los que uno se
  * suscribe (al abrirlos en el panel) y solo si la privacidad del contacto lo
- * permite. Nada de esto se guarda: es del momento.
+ * permite. En un grupo se ve quien esta escribiendo ("Juan está
+ * escribiendo…"): eso WhatsApp lo manda sin suscribirse. Nada de esto se
+ * guarda: es del momento.
  */
 
 /** "numeroId|jid" -> conversacion. Se llena al abrir cada chat en el panel. */
@@ -26,14 +28,29 @@ export async function suscribir(conversacionId: number): Promise<void> {
   const jidTelefono = jidDeTelefono(chat.telefono);
   suscritos.set(clave(chat.numeroId, jidTelefono), conversacionId);
   if (chat.jidChat) suscritos.set(clave(chat.numeroId, chat.jidChat), conversacionId);
+  if (esJidDeGrupo(jidTelefono)) return;
   await suscribirPresencia(chat.numeroId, chat.jidChat ?? jidTelefono).catch((err: unknown) =>
     log.debug({ err, conversacionId }, 'No se pudo suscribir a la presencia del contacto'),
   );
 }
 
-export function alCambiarPresencia(numeroId: number, jid: string, estado: PresenciaContacto): void {
+export function alCambiarPresencia(numeroId: number, jid: string, estado: PresenciaContacto, participante?: string): void {
   const conversacionId = suscritos.get(clave(numeroId, jid));
   if (!conversacionId) return;
+  if (!participante) {
+    avisar(conversacionId, estado, null);
+    return;
+  }
+  // Grupo: con el nombre de quien escribe, si ya escribio algo antes en el grupo.
+  const nombre = estado ? repo.nombreDeParticipante(conversacionId, participante) : Promise.resolve(null);
+  nombre
+    .catch(() => null)
+    .then((quien) => avisar(conversacionId, estado, quien))
+    .catch((err: unknown) => log.debug({ err, conversacionId }, 'No se pudo avisar la presencia en el grupo'));
+}
+
+/** quien: en un grupo, el nombre del integrante que escribe (null si no se sabe o es un chat 1:1). */
+function avisar(conversacionId: number, estado: PresenciaContacto, quien: string | null): void {
   clearTimeout(vencimientos.get(conversacionId));
   vencimientos.delete(conversacionId);
   if (estado === 'escribiendo' || estado === 'grabando') {
@@ -41,10 +58,10 @@ export function alCambiarPresencia(numeroId: number, jid: string, estado: Presen
       conversacionId,
       setTimeout(() => {
         vencimientos.delete(conversacionId);
-        emitir('conversaciones', 'conversacion:presencia', { conversacionId, estado: null });
+        emitir('conversaciones', 'conversacion:presencia', { conversacionId, estado: null, quien: null });
       }, ESCRIBIENDO_MAX_MS),
     );
   }
-  emitir('conversaciones', 'conversacion:presencia', { conversacionId, estado });
+  emitir('conversaciones', 'conversacion:presencia', { conversacionId, estado, quien });
 }
 

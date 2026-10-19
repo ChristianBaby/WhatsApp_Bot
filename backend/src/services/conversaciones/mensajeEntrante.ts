@@ -1,6 +1,7 @@
 import { crearLogger } from '../../lib/logger.js';
 import { emitir } from '../../lib/sse.js';
-import { enviarMensaje } from '../whatsapp/envio.js';
+import { enviarMensaje, nombreDeGrupo } from '../whatsapp/envio.js';
+import { esJidDeGrupo } from '../whatsapp/socket.js';
 import * as leadsRepo from '../leads/repositorio.js';
 import * as numerosRepo from '../whatsapp/repositorio.js';
 import * as configRepo from '../configuracion/repositorio.js';
@@ -11,7 +12,7 @@ import { contextoDeConversacion } from '../ia/contexto.js';
 import { transcribirAudio } from '../ia/gemini.js';
 import { registrarRespuesta } from '../publicaciones/repositorio.js';
 import * as repo from './repositorio.js';
-import type { ExtraMensaje, MediaInfo, TipoMensaje } from './tipos.js';
+import type { ExtraMensaje, MediaInfo, Participante, TipoMensaje } from './tipos.js';
 
 const log = crearLogger('conversaciones');
 const CANAL_SSE = 'conversaciones';
@@ -28,7 +29,9 @@ const ESPERA_AGRUPAR_MS = 8_000;
 export type MensajeCrudo = {
   numeroId: number;
   numeroEtiqueta: string;
-  telefono: string; // ya normalizado (solo digitos)
+  telefono: string; // ya normalizado (solo digitos), o el jid completo del grupo
+  /** Grupos: quien escribio (null en mensajes propios y en chats 1:1). */
+  participante?: Participante | null;
   fromMe: boolean;
   texto: string;
   whatsappId: string | null;
@@ -156,6 +159,11 @@ export function procesarMensaje(msg: MensajeCrudo): Promise<void> {
 }
 
 async function procesar(original: MensajeCrudo): Promise<void> {
+  if (esJidDeGrupo(original.telefono)) {
+    await procesarDeGrupo(original);
+    return;
+  }
+
   // Nota de voz: se transcribe una sola vez (no si es un evento repetido de
   // Baileys) y la transcripcion pasa a ser el texto del mensaje para todo lo
   // demas: historial, deteccion de bajas, clasificacion y respuesta de la IA.
@@ -241,6 +249,42 @@ async function procesar(original: MensajeCrudo): Promise<void> {
   if (sugerencia) await aplicarSugerencia(conversacion.id, msg.numeroId, quien, sugerencia);
 
   programarAutoRespuesta(conversacion.id, msg.numeroId, msg.telefono);
+}
+
+// ==================== Grupos ====================
+
+/**
+ * Un mensaje de un grupo: se guarda y se muestra, nada mas. Los grupos no
+ * son leads: sin bot ni IA (tampoco se transcriben audios), sin avisos al
+ * dueño y sin contar como respuesta a una campana.
+ */
+async function procesarDeGrupo(msg: MensajeCrudo): Promise<void> {
+  const conversacion = await repo.obtenerOCrearConversacion({
+    numeroId: msg.numeroId,
+    telefono: msg.telefono,
+    nombreContacto: null,
+    leadId: null,
+  });
+  if (!(await repo.obtenerDetalle(conversacion.id))?.nombreAgenda) {
+    // El nombre suele llegar al conectar; si es un grupo nuevo, se pregunta.
+    const nombre = await nombreDeGrupo(msg.numeroId, msg.telefono).catch(() => null);
+    if (nombre) await repo.guardarNombreGrupo(msg.numeroId, msg.telefono, nombre);
+  }
+
+  // Cada integrante con el nombre que tiene en la agenda del telefono, si esta guardado.
+  const p = msg.participante;
+  const participante = p ? { ...p, nombre: (await repo.nombreEnAgenda(msg.numeroId, p.telefono)) ?? p.nombre } : null;
+  const guardado = await repo.agregarMensaje(conversacion.id, msg.fromMe ? 'yo' : 'lead', msg.texto, msg.whatsappId, {
+    tipo: msg.tipo,
+    media: msg.media,
+    extra: participante ? { ...msg.extra, participante } : msg.extra,
+    mediaDescarga: msg.mediaDescarga,
+    estadoEntrega: msg.fromMe ? 'enviado' : null,
+  });
+  if (!guardado) return;
+
+  emitirConversacion(conversacion.id);
+  emitir(CANAL_SSE, 'mensaje:nuevo', { conversacionId: conversacion.id, mensaje: guardado });
 }
 
 // ==================== Bajas ====================

@@ -11,13 +11,13 @@ type Props = {
   /** Fotos y videos del chat (los que ya estan cargados en pantalla), en orden. */
   items: MensajeConversacion[];
   inicialId: number;
-  /** Como se llama el cliente (para "De: ..."). */
-  nombreContacto: string;
+  /** Quien mando cada foto o video (para "De: ..."). */
+  nombreAutor: (m: MensajeConversacion) => string;
   onCerrar: () => void;
 };
 
 /** Fotos y videos a pantalla completa, pasando de uno a otro con las flechas (como en WhatsApp). */
-export function Visor({ conversacionId, items, inicialId, nombreContacto, onCerrar }: Props) {
+export function Visor({ conversacionId, items, inicialId, nombreAutor, onCerrar }: Props) {
   const [indice, setIndice] = useState(() => Math.max(0, items.findIndex((m) => m.id === inicialId)));
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function Visor({ conversacionId, items, inicialId, nombreContacto, onCerr
     enlace.click();
   }
 
-  const quien = actual.autor === 'lead' ? nombreContacto : actual.autor === 'bot' ? 'Bot' : 'Tú';
+  const quien = nombreAutor(actual);
 
   return createPortal(
     <div className={estilos.fondo} onClick={onCerrar}>

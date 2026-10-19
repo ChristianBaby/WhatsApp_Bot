@@ -212,14 +212,23 @@ export type ExtraMensaje = {
   enlace?: { url: string; titulo: string | null; descripcion: string | null; miniatura: string | null } | null;
   llamada?: { video: boolean; perdida: boolean } | null;
   verUnaVez?: boolean;
+  /** Grupos: quien escribio el mensaje. */
+  participante?: Participante | null;
 };
 
-export type Reacciones = { yo?: string; lead?: string };
+/** Un integrante de un grupo. */
+export type Participante = { jid: string; telefono: string | null; nombre: string | null };
+
+/** 1:1: { yo, lead }. En un grupo, cada integrante por su telefono: { yo: '👍', '51987654321': '❤️' }. */
+export type Reacciones = { yo?: string; lead?: string; [participante: string]: string | undefined };
 
 export type EstadoEntrega = 'enviado' | 'entregado' | 'leido';
 
 /** Lo que WhatsApp avisa del contacto en el momento (null = nada / desconectado). */
 export type PresenciaContacto = 'escribiendo' | 'grabando' | 'en_linea' | null;
+
+/** La presencia de un chat; en un grupo, quien es el integrante que escribe (si se sabe). */
+export type PresenciaChat = { estado: PresenciaContacto; quien: string | null };
 
 export type MensajeConversacion = {
   id: number;
@@ -236,7 +245,7 @@ export type MensajeConversacion = {
   eliminado: boolean;
 };
 
-export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor';
+export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos';
 
 export type PaginaConversaciones = {
   conversaciones: ConversacionResumen[];
@@ -250,7 +259,9 @@ export type ConversacionResumen = {
   id: number;
   leadId: number | null;
   numeroId: number;
+  /** En un grupo, el jid del grupo ("...@g.us"). */
   telefono: string;
+  esGrupo: boolean;
   nombreContacto: string | null;
   /** Como lo guardo el usuario en su telefono. */
   nombreAgenda: string | null;

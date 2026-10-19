@@ -17,7 +17,7 @@ import makeWASocket, {
 } from 'baileys';
 import { env } from '../../config/env.js';
 import { crearLogger } from '../../lib/logger.js';
-import type { ExtraMensaje, MediaInfo, Reacciones, TipoMensaje } from '../conversaciones/tipos.js';
+import type { ExtraMensaje, MediaInfo, Participante, Reacciones, TipoMensaje } from '../conversaciones/tipos.js';
 
 /**
  * Una sola conexion de Baileys para UN numero. No sabe nada de reintentos,
@@ -28,7 +28,10 @@ import type { ExtraMensaje, MediaInfo, Reacciones, TipoMensaje } from '../conver
  */
 
 export type MensajeRecibido = {
+  /** El telefono del contacto, o el jid completo del grupo ("...@g.us"). */
   telefono: string;
+  /** Grupos: quien lo escribio (null en mensajes propios y en chats 1:1). */
+  participante: Participante | null;
   fromMe: boolean;
   texto: string;
   whatsappId: string | null;
@@ -70,7 +73,7 @@ type CallbacksSesion = {
   onConectado: (telefono: string) => void;
   /** motivo 'logout' = cierre definitivo (no reintentar); 'error' = corte inesperado. */
   onDesconectado: (motivo: 'logout' | 'error', mensaje?: string) => void;
-  /** Cualquier mensaje 1:1 NUEVO (entrante o saliente) que pase por esta sesion. */
+  /** Cualquier mensaje NUEVO de un chat 1:1 o de grupo (entrante o saliente) que pase por esta sesion. */
   onMensaje: (mensaje: MensajeRecibido) => void;
   /** Mensajes viejos (historial del telefono): se guardan sin avisos ni IA. */
   onHistorial: (lote: LoteHistorial) => void;
@@ -82,15 +85,36 @@ type CallbacksSesion = {
   onCambioMensaje: (cambio: CambioMensaje) => void;
   /** Una llamada entrante ya termino (atendida o perdida). */
   onLlamada: (llamada: LlamadaRecibida) => void;
-  /** El contacto esta escribiendo, grabando un audio, en linea o se fue (null). */
-  onPresencia: (jid: string, estado: PresenciaContacto) => void;
+  /** El contacto esta escribiendo, grabando un audio, en linea o se fue (null). En un grupo, participante es quien. */
+  onPresencia: (jid: string, estado: PresenciaContacto, participante?: string) => void;
+  /** Nombres de los grupos del numero: al conectar, al entrar a uno nuevo o si le cambian el nombre. */
+  onGrupos: (grupos: GrupoWhatsapp[]) => void;
 };
+
+export type GrupoWhatsapp = { jid: string; nombre: string };
+
+export function esJidDeGrupo(jid: string | null | undefined): boolean {
+  return Boolean(jid?.endsWith('@g.us'));
+}
+
+/** "51987654321:5@s.whatsapp.net" -> "51987654321" (sin dispositivo ni dominio). */
+function usuarioDeJid(jid: string | null | undefined): string | null {
+  return jid?.split('@')[0]?.split(':')[0] || null;
+}
+
+/** Como se identifica a un integrante de grupo en las reacciones: su telefono si se conoce, si no su @lid. */
+function claveParticipante(clave: { participant?: string | null; participantAlt?: string | null } | null | undefined): string {
+  const alternativo = clave?.participantAlt;
+  const jid = alternativo?.endsWith('@s.whatsapp.net') ? alternativo : clave?.participant;
+  return usuarioDeJid(jid) ?? 'lead';
+}
 
 export type PresenciaContacto = 'escribiendo' | 'grabando' | 'en_linea' | null;
 
 export type CambioMensaje =
   /** emoji null = quito la reaccion. */
-  | { tipo: 'reaccion'; whatsappId: string; deMi: boolean; emoji: string | null }
+  /** quien: 'yo', 'lead' (chat 1:1) o el integrante del grupo (ver claveParticipante). */
+  | { tipo: 'reaccion'; whatsappId: string; quien: string; emoji: string | null }
   | { tipo: 'editado'; whatsappId: string; texto: string; leyenda: string | null }
   | { tipo: 'eliminado'; whatsappId: string };
 
@@ -391,8 +415,9 @@ export function describirMensaje(msg: WAMessage, conLlamadas: boolean, esMio: (j
 /** Reacciones que trae un mensaje del historial (en vivo llegan por messages.reaction). */
 export function reaccionesDeHistorial(msg: WAMessage): Reacciones | null {
   const reacciones: Reacciones = {};
+  const enGrupo = esJidDeGrupo(msg.key.remoteJid);
   for (const r of msg.reactions ?? []) {
-    const quien = r.key?.fromMe ? 'yo' : 'lead';
+    const quien = r.key?.fromMe ? 'yo' : enGrupo ? claveParticipante(r.key) : 'lead';
     // Texto vacio = quito su reaccion.
     if (r.text) reacciones[quien] = r.text;
     else delete reacciones[quien];
@@ -552,7 +577,19 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
     return [sock.user?.id, sock.user?.lid].some((propio) => propio && soloTelefono(propio) === id);
   }
 
-  /** Convierte un mensaje de WhatsApp en algo guardable; null si no es de un chat individual o no tiene contenido. */
+  /** Quien escribio un mensaje de grupo: su jid, su telefono (si se puede saber) y su nombre de WhatsApp. */
+  async function participanteDe(
+    msg: WAMessage,
+    opciones: { mapeoLote?: Map<string, string> },
+  ): Promise<Participante | null> {
+    const jid = msg.key.participant;
+    if (!jid) return null;
+    // Sin esperas: un integrante sin telefono conocido igual se muestra (con su nombre).
+    const telefono = await telefonoDesdeJid(jid, msg.key.participantAlt, { esperarMapeo: false, mapeoLote: opciones.mapeoLote });
+    return { jid, telefono, nombre: msg.pushName?.trim() || null };
+  }
+
+  /** Convierte un mensaje de WhatsApp en algo guardable; null si no es de un chat 1:1 o de grupo, o no tiene contenido. */
   async function convertir(
     msg: WAMessage,
     opciones: { esperarMapeo: boolean; mapeoLote?: Map<string, string> },
@@ -561,8 +598,12 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
     const descripcion = describirMensaje(msg, !opciones.esperarMapeo, esMio);
     if (!descripcion) return null; // reaccion, recibo de lectura, etc. — nada que guardar
 
-    const telefono = await telefonoDesdeJid(msg.key.remoteJid ?? '', msg.key.remoteJidAlt, opciones);
+    const remoteJid = msg.key.remoteJid ?? '';
+    const enGrupo = esJidDeGrupo(remoteJid);
+    const telefono = enGrupo ? remoteJid : await telefonoDesdeJid(remoteJid, msg.key.remoteJidAlt, opciones);
     if (!telefono) return null;
+    const participante = enGrupo && !msg.key.fromMe ? await participanteDe(msg, opciones) : null;
+    if (enGrupo && !msg.key.fromMe && !participante) return null;
 
     const encuesta = descripcion.extra?.encuesta;
     if (encuesta) encuesta.votos = votosDeHistorial(msg, encuesta.opciones);
@@ -571,6 +612,7 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
     const segundos = aNumero(msg.messageTimestamp);
     return {
       telefono,
+      participante,
       fromMe: msg.key.fromMe ?? false,
       texto: descripcion.texto,
       whatsappId: msg.key.id ?? null,
@@ -640,7 +682,10 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
 
       const chatsUtiles: LoteHistorial['chats'] = [];
       for (const chat of chats) {
-        const telefono = await telefonoDesdeJid(chat.id ?? '', null, { esperarMapeo: false, mapeoLote });
+        // El nombre de un grupo es su asunto: viene en chat.name.
+        const telefono = esJidDeGrupo(chat.id)
+          ? chat.id
+          : await telefonoDesdeJid(chat.id ?? '', null, { esperarMapeo: false, mapeoLote });
         if (telefono) chatsUtiles.push({ telefono, nombre: chat.name ?? null, noLeidos: chat.unreadCount ?? 0 });
       }
 
@@ -702,14 +747,32 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
   sock.ev.on('messages.reaction', (reacciones) => {
     for (const { key, reaction } of reacciones) {
       if (!key.id) continue;
-      callbacks.onCambioMensaje({
-        tipo: 'reaccion',
-        whatsappId: key.id,
-        deMi: Boolean(reaction.key?.fromMe),
-        emoji: reaction.text || null,
-      });
+      const quien = reaction.key?.fromMe
+        ? 'yo'
+        : esJidDeGrupo(key.remoteJid)
+          ? claveParticipante(reaction.key)
+          : 'lead';
+      callbacks.onCambioMensaje({ tipo: 'reaccion', whatsappId: key.id, quien, emoji: reaction.text || null });
     }
   });
+
+  // Nombres de los grupos: todos al conectar, y despues los que cambian o los nuevos.
+  function avisarGrupos(lista: { id?: string | null; subject?: string | null }[]): void {
+    const grupos = lista
+      .filter((g): g is { id: string; subject: string } => esJidDeGrupo(g.id) && Boolean(g.subject?.trim()))
+      .map((g) => ({ jid: g.id, nombre: g.subject.trim() }));
+    if (grupos.length) callbacks.onGrupos(grupos);
+  }
+
+  sock.ev.on('connection.update', ({ connection }) => {
+    if (connection !== 'open') return;
+    sock
+      .groupFetchAllParticipating()
+      .then((grupos) => avisarGrupos(Object.values(grupos)))
+      .catch((err: unknown) => logBaileys.warn({ err }, 'No se pudieron leer los nombres de los grupos'));
+  });
+  sock.ev.on('groups.upsert', avisarGrupos);
+  sock.ev.on('groups.update', avisarGrupos);
 
   // Llamadas entrantes: suenan aca tambien (como en WhatsApp Web). Se guarda
   // una sola entrada en el chat cuando la llamada termina: atendida o perdida.
@@ -751,12 +814,16 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
   });
 
   sock.ev.on('presence.update', ({ id, presences }) => {
-    if (!id.endsWith('@s.whatsapp.net') && !id.endsWith('@lid')) return; // grupos no
-    for (const presencia of Object.values(presences)) {
+    const enGrupo = esJidDeGrupo(id);
+    if (!enGrupo && !id.endsWith('@s.whatsapp.net') && !id.endsWith('@lid')) return;
+    for (const [participante, presencia] of Object.entries(presences)) {
+      if (enGrupo && esMio(participante)) continue;
       const ultima = presencia.lastKnownPresence;
       const estado: PresenciaContacto =
         ultima === 'composing' ? 'escribiendo' : ultima === 'recording' ? 'grabando' : ultima === 'available' ? 'en_linea' : null;
-      callbacks.onPresencia(id, estado);
+      // En un grupo "en linea" no dice nada: solo quien esta escribiendo o grabando.
+      if (enGrupo) callbacks.onPresencia(id, estado === 'en_linea' ? null : estado, participante);
+      else callbacks.onPresencia(id, estado);
     }
   });
 

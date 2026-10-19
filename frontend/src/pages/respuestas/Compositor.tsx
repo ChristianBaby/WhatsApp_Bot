@@ -15,7 +15,8 @@ const ALTO_MAX_TEXTO = 140;
 
 type Props = {
   conversacionId: number;
-  nombreContacto: string;
+  /** Quien escribio el mensaje que se responde ("Tú", el cliente o el integrante del grupo). */
+  nombreAutor: (m: MensajeConversacion) => string;
   respondiendoA: MensajeConversacion | null;
   onCancelarRespuesta: () => void;
   editando: MensajeConversacion | null;
@@ -46,7 +47,7 @@ function formatoGrabacion(): string | undefined {
 
 /** La caja de escribir del chat, como la de WhatsApp Web. */
 export const Compositor = forwardRef<CompositorHandle, Props>(function Compositor(
-  { conversacionId, nombreContacto, respondiendoA, onCancelarRespuesta, editando, onCancelarEdicion },
+  { conversacionId, nombreAutor, respondiendoA, onCancelarRespuesta, editando, onCancelarEdicion },
   ref,
 ) {
   const [texto, setTexto] = useState('');
@@ -290,7 +291,7 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
   }
 
   const hayAlgoQueEnviar = Boolean(texto.trim()) || pendientes.length > 0;
-  const autorCitado = respondiendoA?.autor === 'lead' ? nombreContacto : 'Tú';
+  const autorCitado = respondiendoA ? nombreAutor(respondiendoA) : '';
 
   return (
     <div className={estilos.compositor}>

@@ -81,6 +81,24 @@
   margin-bottom: 3px;
 }
 
+/* Grupos: quien escribio el mensaje (cada integrante con su color, como en WhatsApp). */
+.remitente {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  min-width: 0;
+}
+
+.remitenteTelefono {
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--texto-tenue);
+  white-space: nowrap;
+}
+
 .tarjetaSugerencia {
   margin: 0 18px 14px 18px;
   padding: 12px 14px;

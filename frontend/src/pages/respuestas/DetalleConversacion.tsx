@@ -3,13 +3,13 @@ import { Badge } from '../../components/ui/Badge';
 import { Boton } from '../../components/ui/Boton';
 import { api, ErrorApi } from '../../lib/api';
 import { formatearFecha } from '../../lib/fecha';
-import type { ConversacionDetalle, MensajeConversacion, PresenciaContacto } from '../../lib/types';
+import type { ConversacionDetalle, MensajeConversacion, PresenciaChat, PresenciaContacto } from '../../lib/types';
 import { Burbuja } from './Burbuja';
 import { Compositor, type CompositorHandle } from './Compositor';
 import type { AccionesMensaje } from './MenuMensaje';
 import { ModalReenviar } from './ModalReenviar';
 import { ETAPA_INFO, infoEtapa } from './etapa';
-import { nombreDeChat } from './nombreChat';
+import { nombreDeAutor, nombreDeChat } from './nombreChat';
 import { Visor } from './Visor';
 import estilos from './DetalleConversacion.module.css';
 
@@ -18,8 +18,8 @@ type Props = {
   onVerFicha: () => void;
   /** Trae la pagina de mensajes anterior a la mas vieja que se ve. */
   onCargarAnteriores: () => Promise<void>;
-  /** Si el contacto esta escribiendo, grabando o en linea ahora mismo. */
-  presencia: PresenciaContacto;
+  /** Si el contacto esta escribiendo, grabando o en linea ahora mismo (en un grupo, quien). */
+  presencia: PresenciaChat | null;
 };
 
 const OPCIONES_SUGERENCIA = ['interesado', 'no_interesado', 'duda_precio'] as const;
@@ -29,6 +29,13 @@ const TEXTO_PRESENCIA: Record<NonNullable<PresenciaContacto>, string> = {
   grabando: 'grabando audio…',
   en_linea: 'en línea',
 };
+
+function textoPresencia(presencia: PresenciaChat | null): string | null {
+  if (!presencia?.estado) return null;
+  const texto = TEXTO_PRESENCIA[presencia.estado];
+  if (presencia.quien) return `${presencia.quien} está ${texto}`;
+  return texto;
+}
 /** A cuantos px del borde se considera "arriba del todo" / "abajo del todo". */
 const MARGEN_SCROLL = 120;
 
@@ -151,7 +158,8 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
       setEditando(m);
     },
     onEliminar: (m) => {
-      if (!window.confirm('¿Eliminar este mensaje para todos? El cliente dejará de verlo.')) return;
+      const quienes = conversacion.esGrupo ? 'Nadie en el grupo lo verá' : 'El cliente dejará de verlo';
+      if (!window.confirm(`¿Eliminar este mensaje para todos? ${quienes}.`)) return;
       void intentar(() => api.delete(`/conversaciones/${conversacion.id}/mensajes/${m.id}`), 'No se pudo eliminar el mensaje');
     },
   };
@@ -179,6 +187,9 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
   }
 
   const nombre = nombreDeChat(conversacion);
+  const esGrupo = conversacion.esGrupo;
+  const nombreAutor = (m: Pick<MensajeConversacion, 'autor' | 'extra'>) => nombreDeAutor(m, nombre, esGrupo);
+  const presente = textoPresencia(presencia);
 
   async function marcarVenta() {
     if (!window.confirm(`¿Marcar "${nombre}" como venta concretada?`)) return;
@@ -219,7 +230,8 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
             {etapa && <Badge tono={etapa.tono}>{etapa.etiqueta}</Badge>}
           </div>
           <div className={estilos.subtitulo}>
-            {presencia && <span className={estilos.presencia}>{TEXTO_PRESENCIA[presencia]} · </span>}+{conversacion.telefono}
+            {presente && <span className={estilos.presencia}>{presente} · </span>}
+            {esGrupo ? 'Grupo' : `+${conversacion.telefono}`}
             {otrosNombres.length > 0 && ` · ${otrosNombres.join(' · ')}`}
             {conversacion.rubro && ` · Rubro: ${conversacion.rubro}`}
           </div>
@@ -227,7 +239,11 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
         {conversacion.campanaNombre && <div className={estilos.campana}>Campaña: {conversacion.campanaNombre}</div>}
       </div>
 
-      {conversacion.modo === 'bot' ? (
+      {esGrupo ? (
+        <div className={estilos.bannerManual}>
+          <span>👥 Grupo de WhatsApp: el bot no responde aquí, solo tú</span>
+        </div>
+      ) : conversacion.modo === 'bot' ? (
         <div className={estilos.bannerBot}>
           <span>🤖 El bot responde automáticamente en este chat (si el auto-responder está activado)</span>
           <Boton variante="secundario" onClick={() => void cambiarModo('manual')}>
@@ -282,7 +298,8 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
               <Burbuja
                 conversacionId={conversacion.id}
                 mensaje={m}
-                nombreContacto={nombre}
+                esGrupo={esGrupo}
+                nombreAutor={nombreAutor}
                 citado={citaId ? porWhatsappId.get(citaId) : undefined}
                 resaltado={resaltadoId === m.whatsappId}
                 onIrACita={irACita}
@@ -299,7 +316,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
           conversacionId={conversacion.id}
           items={fotosYVideos}
           inicialId={visorId}
-          nombreContacto={nombre}
+          nombreAutor={nombreAutor}
           onCerrar={() => setVisorId(null)}
         />
       )}
@@ -341,7 +358,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
         key={conversacion.id}
         ref={compositorRef}
         conversacionId={conversacion.id}
-        nombreContacto={nombre}
+        nombreAutor={nombreAutor}
         respondiendoA={respondiendoA}
         onCancelarRespuesta={() => setRespondiendoA(null)}
         editando={editando}
@@ -349,7 +366,8 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
       />
       <div className={estilos.notaAyuda}>
         Se envía desde el WhatsApp de este número. Pasa el mouse por un mensaje y usa ⌄ para responder, reaccionar,
-        reenviar, editar o eliminar. Puedes pegar o arrastrar fotos. Al responder, el chat pasa a modo manual (🙋).
+        reenviar, editar o eliminar. Puedes pegar o arrastrar fotos.
+        {!esGrupo && ' Al responder, el chat pasa a modo manual (🙋).'}
       </div>
 
       {esLead && (

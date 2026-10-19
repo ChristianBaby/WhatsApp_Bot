@@ -98,10 +98,10 @@ export function ModalReenviar({ conversacionId, mensaje, onCerrar }: Props) {
                 disabled={!elegido && elegidos.length >= MAX_DESTINOS}
                 onChange={() => alternar(c)}
               />
-              <span className={estilos.avatarReenviar}>{inicialesDeChat(nombre)}</span>
+              <span className={estilos.avatarReenviar}>{c.esGrupo ? '👥' : inicialesDeChat(nombre)}</span>
               <span className={estilos.datosReenviar}>
                 <span className={estilos.nombreReenviar}>{nombre}</span>
-                <span className={estilos.notaReenviar}>{fallo ? `⚠️ ${fallo.error}` : `+${c.telefono}`}</span>
+                <span className={estilos.notaReenviar}>{fallo ? `⚠️ ${fallo.error}` : c.esGrupo ? 'Grupo' : `+${c.telefono}`}</span>
               </span>
             </label>
           );

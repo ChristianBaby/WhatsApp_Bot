@@ -88,8 +88,9 @@ async function prepararCita(chat: repo.DatosChat, citaId: number | null | undefi
     const guardado = JSON.parse(original.mediaDescarga, BufferJSON.reviver) as WAMessage;
     if (guardado.message) contenido = guardado.message;
   }
+  const participante = original.extra?.participante?.jid;
   return {
-    citado: { key: claveDeMensaje(chat.telefono, original.whatsappId, propio), message: contenido },
+    citado: { key: claveDeMensaje(chat.telefono, original.whatsappId, propio, participante), message: contenido },
     extra: { whatsappId: original.whatsappId, autor: propio ? 'yo' : 'lead', texto: original.texto },
   };
 }
@@ -197,7 +198,7 @@ export async function reaccionar(conversacionId: number, mensajeId: number, emoj
   const mensaje = await repo.obtenerMensajeParaAccion(conversacionId, mensajeId);
   const whatsappId = exigirWhatsappId(mensaje);
   if (mensaje.eliminado) throw conflicto('No se puede reaccionar a un mensaje eliminado');
-  const clave = claveDeMensaje(chat.telefono, whatsappId, mensaje.autor !== 'lead');
+  const clave = claveDeMensaje(chat.telefono, whatsappId, mensaje.autor !== 'lead', mensaje.extra?.participante?.jid);
   await enviarReaccion(chat.numeroId, chat.telefono, clave, emoji ?? '');
   return emitirCambio(await repo.aplicarReaccion(whatsappId, 'yo', emoji));
 }

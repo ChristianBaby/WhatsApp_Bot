@@ -24,7 +24,7 @@ import type {
  */
 const SELECT_RESUMEN = `
   SELECT
-    c.id, c.numero_id, c.lead_id, c.telefono, c.nombre_contacto, c.nombre_agenda,
+    c.id, c.numero_id, c.lead_id, c.telefono, c.es_grupo, c.nombre_contacto, c.nombre_agenda,
     c.no_leidos, c.ultimo_mensaje_en, c.ultimo_mensaje_en::text AS orden_fecha,
     c.ultimo_mensaje_preview, c.creado_en,
     c.modo, c.escalado_motivo, c.ia_sugerencia, c.ia_sugerencia_en,
@@ -44,6 +44,7 @@ type FilaResumen = {
   numero_id: number;
   lead_id: number | null;
   telefono: string;
+  es_grupo: boolean;
   nombre_contacto: string | null;
   nombre_agenda: string | null;
   no_leidos: number;
@@ -69,6 +70,7 @@ function mapearResumen(fila: FilaResumen): ConversacionResumen {
     leadId: fila.lead_id,
     numeroId: fila.numero_id,
     telefono: fila.telefono,
+    esGrupo: fila.es_grupo,
     nombreContacto: fila.nombre_contacto,
     nombreAgenda: fila.nombre_agenda,
     empresa: fila.empresa,
@@ -143,6 +145,7 @@ export async function listar(opciones: {
   if (opciones.filtro === 'asesor') {
     condiciones.push(`c.modo = 'manual' AND c.escalado_motivo IN ('palabra_clave', 'baja_confianza')`);
   }
+  if (opciones.filtro === 'grupos') condiciones.push('c.es_grupo');
 
   const busqueda = opciones.busqueda?.trim();
   if (busqueda) {
@@ -495,10 +498,10 @@ async function refrescarPreviewSiEsUltimo(conversacionId: number, mensajeId: num
   );
 }
 
-/** Reaccion de un lado del chat (emoji null = la quito). */
+/** Reaccion de un lado del chat o de un integrante del grupo (emoji null = la quito). */
 export async function aplicarReaccion(
   whatsappId: string,
-  quien: 'yo' | 'lead',
+  quien: string,
   emoji: string | null,
 ): Promise<MensajeCambiado | null> {
   const fila = await consultarUno<FilaMensaje & { conversacion_id: number }>(
@@ -572,6 +575,48 @@ export async function obtenerMensajeParaAccion(conversacionId: number, mensajeId
   );
   if (!fila) throw noEncontrado('Mensaje no encontrado');
   return { ...mapearMensaje(fila), mediaDescarga: fila.media_descarga, mediaArchivo: fila.media_archivo };
+}
+
+// ==================== Grupos ====================
+
+/**
+ * El nombre de un grupo (su asunto). Crea el chat si no existia, sin
+ * mensajes: no aparece en la lista hasta que alguien escriba. Devuelve el id
+ * si el nombre cambio (para avisar al panel).
+ */
+export async function guardarNombreGrupo(numeroId: number, jid: string, nombre: string): Promise<number | null> {
+  const fila = await consultarUno<{ id: number }>(
+    `INSERT INTO conversaciones (numero_id, telefono, nombre_agenda, modo)
+     VALUES ($1, $2, $3, 'manual')
+     ON CONFLICT (numero_id, telefono) DO UPDATE SET nombre_agenda = EXCLUDED.nombre_agenda
+       WHERE conversaciones.nombre_agenda IS DISTINCT FROM EXCLUDED.nombre_agenda
+     RETURNING id`,
+    [numeroId, jid, nombre],
+  );
+  return fila?.id ?? null;
+}
+
+/** Como guardo el usuario a este telefono en su agenda (para nombrar a los integrantes de un grupo). */
+export async function nombreEnAgenda(numeroId: number, telefono: string | null): Promise<string | null> {
+  if (!telefono) return null;
+  const fila = await consultarUno<{ nombre: string | null }>(
+    `SELECT COALESCE(c.nombre_agenda, l.empresa) AS nombre FROM conversaciones c
+     LEFT JOIN leads l ON l.id = c.lead_id
+     WHERE c.numero_id = $1 AND c.telefono = $2`,
+    [numeroId, telefono],
+  );
+  return fila?.nombre ?? null;
+}
+
+/** El nombre con que aparece un integrante en el grupo (su ultimo mensaje): para "Juan está escribiendo…". */
+export async function nombreDeParticipante(conversacionId: number, jid: string): Promise<string | null> {
+  const fila = await consultarUno<{ nombre: string | null }>(
+    `SELECT extra->'participante'->>'nombre' AS nombre FROM mensajes_conversacion
+     WHERE conversacion_id = $1 AND extra->'participante'->>'jid' = $2
+     ORDER BY creado_en DESC, id DESC LIMIT 1`,
+    [conversacionId, jid],
+  );
+  return fila?.nombre ?? null;
 }
 
 // ==================== Historial y agenda ====================
@@ -690,7 +735,13 @@ export async function guardarJidChat(conversacionId: number, jid: string): Promi
 /** Tope de mensajes a confirmar de una vez: un chat con cientos sin leer no necesita mas para quedar en azul. */
 const MAX_CONFIRMAR_LECTURA = 100;
 
-export type PendientesDeLectura = { numeroId: number; telefono: string; jid: string | null; ids: string[] };
+/** participante: en un grupo, quien escribio cada mensaje (WhatsApp lo pide para confirmar la lectura). */
+export type PendientesDeLectura = {
+  numeroId: number;
+  telefono: string;
+  jid: string | null;
+  mensajes: { id: string; participante: string | null }[];
+};
 
 /**
  * Los ultimos mensajes del lead que siguen sin leer (tantos como no_leidos),
@@ -703,8 +754,8 @@ export async function pendientesDeLectura(conversacionId: number): Promise<Pendi
     [conversacionId],
   );
   if (!conversacion || conversacion.no_leidos <= 0) return null;
-  const filas = await consultar<{ whatsapp_id: string }>(
-    `SELECT whatsapp_id FROM mensajes_conversacion
+  const filas = await consultar<{ whatsapp_id: string; participante: string | null }>(
+    `SELECT whatsapp_id, extra->'participante'->>'jid' AS participante FROM mensajes_conversacion
      WHERE conversacion_id = $1 AND autor = 'lead' AND whatsapp_id IS NOT NULL AND whatsapp_id NOT LIKE 'llamada-%'
      ORDER BY creado_en DESC, id DESC
      LIMIT $2`,
@@ -715,7 +766,7 @@ export async function pendientesDeLectura(conversacionId: number): Promise<Pendi
     numeroId: conversacion.numero_id,
     telefono: conversacion.telefono,
     jid: conversacion.jid_chat,
-    ids: filas.map((f) => f.whatsapp_id),
+    mensajes: filas.map((f) => ({ id: f.whatsapp_id, participante: f.participante })),
   };
 }
 

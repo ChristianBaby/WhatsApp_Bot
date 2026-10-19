@@ -41,7 +41,7 @@ async function emitirActualizacion(id: number) {
 }
 
 const esquemaLista = z.object({
-  filtro: z.enum(['todos', 'no_leidos', 'leads', 'asesor']).default('todos'),
+  filtro: z.enum(['todos', 'no_leidos', 'leads', 'asesor', 'grupos']).default('todos'),
   q: z.string().trim().max(100).optional(),
   cursor: z.string().max(200).optional(),
 });
@@ -285,8 +285,9 @@ rutasConversaciones.post(
   '/conversaciones/:id/modo',
   manejarAsync(async (req, res) => {
     const id = idDesdeParametro(req.params.id);
-    await obtenerConversacionOFallar(id);
+    const conversacion = await obtenerConversacionOFallar(id);
     const { modo } = esquemaModo.parse(req.body);
+    if (conversacion.esGrupo && modo === 'bot') throw solicitudInvalida('El bot no responde en grupos');
     await repo.cambiarModo(id, modo);
     res.json(await emitirActualizacion(id));
   }),

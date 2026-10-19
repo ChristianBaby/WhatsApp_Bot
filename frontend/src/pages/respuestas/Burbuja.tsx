@@ -3,14 +3,17 @@ import { formatearHora } from '../../lib/fecha';
 import type { MensajeConversacion } from '../../lib/types';
 import { ContenidoMensaje } from './ContenidoMensaje';
 import { MenuMensaje, type AccionesMensaje } from './MenuMensaje';
+import { colorDeParticipante } from './nombreChat';
 import { esEmojiGrande } from './TextoWhatsapp';
 import estilos from './DetalleConversacion.module.css';
 
 type Props = {
   conversacionId: number;
   mensaje: MensajeConversacion;
-  /** Como se llama el cliente en este chat (para la cita: "Juan" o "Tú"). */
-  nombreContacto: string;
+  /** En un grupo, cada mensaje ajeno lleva arriba el nombre de quien lo escribio. */
+  esGrupo: boolean;
+  /** Quien escribio un mensaje ("Tú", el cliente o el integrante del grupo): para la cita y el remitente. */
+  nombreAutor: (m: Pick<MensajeConversacion, 'autor' | 'extra'>) => string;
   /** El mensaje citado, si esta cargado en pantalla. */
   citado: MensajeConversacion | undefined;
   /** Se acaba de saltar a este mensaje desde una cita: se resalta un momento. */
@@ -29,12 +32,20 @@ function Checks({ mensaje }: { mensaje: MensajeConversacion }) {
 }
 
 /** Un mensaje del chat, como en WhatsApp: cita, reenviado, contenido, hora, checks y reacciones. */
-export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resaltado, onIrACita, onAbrirVisor, acciones }: Props) {
+/** Las reacciones juntas por emoji, como en WhatsApp: "👍 3 ❤️". */
+function resumirReacciones(reacciones: MensajeConversacion['reacciones']): string {
+  const cuenta = new Map<string, number>();
+  for (const emoji of Object.values(reacciones ?? {})) if (emoji) cuenta.set(emoji, (cuenta.get(emoji) ?? 0) + 1);
+  return [...cuenta].map(([emoji, n]) => (n > 1 ? `${emoji} ${n}` : emoji)).join(' ');
+}
+
+export function Burbuja({ conversacionId, mensaje, esGrupo, nombreAutor, citado, resaltado, onIrACita, onAbrirVisor, acciones }: Props) {
   const [verOriginal, setVerOriginal] = useState(false);
   const propio = mensaje.autor !== 'lead';
   const extra = mensaje.extra;
   const cita = extra?.cita;
-  const reacciones = Object.values(mensaje.reacciones ?? {}).filter(Boolean);
+  const reacciones = resumirReacciones(mensaje.reacciones);
+  const remitente = esGrupo && !propio ? extra?.participante : null;
 
   // Stickers y emojis solos van sin globo, como en WhatsApp.
   const sinGlobo =
@@ -43,7 +54,14 @@ export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resal
     (mensaje.tipo === 'sticker' || (mensaje.tipo === 'texto' && esEmojiGrande(mensaje.texto)));
 
   const autorCita = citado ? citado.autor : cita?.autor;
-  const nombreCita = autorCita === 'lead' ? nombreContacto : 'Tú';
+  // Si el mensaje citado no esta cargado, en un grupo no se sabe quien lo escribio.
+  const nombreCita = citado
+    ? nombreAutor(citado)
+    : autorCita === 'lead'
+      ? esGrupo
+        ? 'Participante'
+        : nombreAutor({ autor: 'lead', extra: null })
+      : 'Tú';
 
   const clases = [
     estilos.burbuja,
@@ -62,6 +80,12 @@ export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resal
         <div className={clases}>
           <MenuMensaje mensaje={mensaje} propio={propio} {...acciones} />
           {mensaje.autor === 'bot' && <div className={estilos.etiquetaBot}>🤖 Bot</div>}
+          {remitente && (
+            <div className={estilos.remitente} style={{ color: colorDeParticipante(remitente.jid) }}>
+              {nombreAutor(mensaje)}
+              {remitente.nombre && remitente.telefono && <span className={estilos.remitenteTelefono}>+{remitente.telefono}</span>}
+            </div>
+          )}
           {extra?.reenviado && (
             <div className={estilos.reenviado}>↪ {extra.reenviado === 'muchas' ? 'Reenviado muchas veces' : 'Reenviado'}</div>
           )}
@@ -95,14 +119,14 @@ export function Burbuja({ conversacionId, mensaje, nombreContacto, citado, resal
           </div>
         </div>
 
-        {reacciones.length > 0 && (
+        {reacciones && (
           <button
             type="button"
             className={`${estilos.reacciones} ${propio ? estilos.reaccionesYo : ''}`}
             title={mensaje.reacciones?.yo ? 'Clic para quitar tu reacción' : 'Reacciones'}
             onClick={() => mensaje.reacciones?.yo && acciones.onReaccionar(mensaje, null)}
           >
-            {reacciones.join(' ')}
+            {reacciones}
           </button>
         )}
       </div>

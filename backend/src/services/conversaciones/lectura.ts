@@ -15,7 +15,7 @@ export async function marcarLeidaYConfirmar(conversacionId: number): Promise<Con
   const pendientes = await repo.pendientesDeLectura(conversacionId);
   const actualizada = await repo.marcarLeida(conversacionId);
   if (pendientes) {
-    confirmarLectura(pendientes.numeroId, pendientes.telefono, pendientes.jid, pendientes.ids).catch((err: unknown) =>
+    confirmarLectura(pendientes.numeroId, pendientes.telefono, pendientes.jid, pendientes.mensajes).catch((err: unknown) =>
       log.warn({ err, conversacionId }, 'No se pudo mandar la confirmacion de lectura'),
     );
   }

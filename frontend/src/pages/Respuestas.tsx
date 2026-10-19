@@ -11,7 +11,7 @@ import type {
   FiltroConversaciones,
   MensajeConversacion,
   PaginaConversaciones,
-  PresenciaContacto,
+  PresenciaChat,
 } from '../lib/types';
 import { ListaConversaciones } from './respuestas/ListaConversaciones';
 import { DetalleConversacion } from './respuestas/DetalleConversacion';
@@ -31,6 +31,7 @@ function ordenar(lista: ConversacionResumen[]): ConversacionResumen[] {
 function cumpleFiltro(c: ConversacionResumen, filtro: FiltroConversaciones): boolean {
   if (filtro === 'no_leidos') return c.noLeidos > 0;
   if (filtro === 'leads') return c.leadId !== null;
+  if (filtro === 'grupos') return c.esGrupo;
   if (filtro === 'asesor') {
     return c.modo === 'manual' && (c.escaladoMotivo === 'palabra_clave' || c.escaladoMotivo === 'baja_confianza');
   }
@@ -51,7 +52,7 @@ export function Respuestas() {
   const [detalle, setDetalle] = useState<ConversacionDetalle | null>(null);
   const [mostrarFicha, setMostrarFicha] = useState(false);
   /** "escribiendo..." / "en linea" de cada chat, en vivo (no se guarda). */
-  const [presencias, setPresencias] = useState<Record<number, PresenciaContacto>>({});
+  const [presencias, setPresencias] = useState<Record<number, PresenciaChat>>({});
 
   // Cada consulta de la lista tiene un numero: si el usuario cambia de filtro
   // o busqueda antes de que llegue la respuesta anterior, esa se descarta.
@@ -177,14 +178,19 @@ export function Respuestas() {
       recargaPendienteRef.current = setTimeout(recargar, ESPERA_RECARGA_MS);
     },
     'conversacion:presencia': (datos) => {
-      const { conversacionId, estado } = datos as { conversacionId: number; estado: PresenciaContacto };
-      setPresencias((prev) => ({ ...prev, [conversacionId]: estado }));
+      const { conversacionId, ...presencia } = datos as PresenciaChat & { conversacionId: number };
+      setPresencias((prev) => ({ ...prev, [conversacionId]: { estado: presencia.estado, quien: presencia.quien ?? null } }));
     },
     'mensaje:nuevo': (datos) => {
       const { conversacionId, mensaje } = datos as { conversacionId: number; mensaje: MensajeConversacion };
-      // Si mando un mensaje, ya no esta escribiendo.
+      // Si mando un mensaje, ya no esta escribiendo (en un grupo, "en linea" no se muestra).
       if (mensaje.autor === 'lead') {
-        setPresencias((prev) => (prev[conversacionId] ? { ...prev, [conversacionId]: 'en_linea' } : prev));
+        setPresencias((prev) => {
+          const actual = prev[conversacionId];
+          if (!actual?.estado) return prev;
+          const estado = mensaje.extra?.participante ? null : 'en_linea';
+          return { ...prev, [conversacionId]: { estado, quien: null } };
+        });
       }
       setDetalle((prev) =>
         prev && prev.id === conversacionId && !prev.mensajes.some((m) => m.id === mensaje.id)

@@ -60,10 +60,18 @@ export type ExtraMensaje = {
   llamada?: { video: boolean; perdida: boolean } | null;
   /** Foto o video de "ver una vez": WhatsApp no lo entrega a dispositivos vinculados. */
   verUnaVez?: boolean;
+  /** Grupos: quien escribio el mensaje. */
+  participante?: Participante | null;
 };
 
-/** En un chat 1:1 reacciona cada lado una vez: { yo: '👍', lead: '❤️' }. */
-export type Reacciones = { yo?: string; lead?: string };
+/** Un integrante de un grupo. jid: como lo identifica WhatsApp (a el van las citas y los checks azules). */
+export type Participante = { jid: string; telefono: string | null; nombre: string | null };
+
+/**
+ * En un chat 1:1 reacciona cada lado una vez: { yo: '👍', lead: '❤️' }. En
+ * un grupo, cada integrante con su telefono: { yo: '👍', '51987654321': '❤️' }.
+ */
+export type Reacciones = { yo?: string; lead?: string; [participante: string]: string | undefined };
 
 export type EstadoEntrega = 'enviado' | 'entregado' | 'leido';
 
@@ -96,13 +104,15 @@ export type ExtrasMensaje = {
   creadoEn?: Date | null;
 };
 
-export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor';
+export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos';
 
 export type ConversacionResumen = {
   id: number;
   leadId: number | null;
   numeroId: number;
+  /** En un grupo, el jid completo del grupo ("...@g.us"). */
   telefono: string;
+  esGrupo: boolean;
   nombreContacto: string | null;
   nombreAgenda: string | null;
   empresa: string | null;

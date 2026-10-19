@@ -14,8 +14,9 @@ export class NumeroNoConectadoError extends Error {
   }
 }
 
+/** El jid de un chat: un telefono ("51987654321") o un grupo, que ya se guarda con su jid completo ("...@g.us"). */
 export function jidDeTelefono(telefono: string): string {
-  return `${telefono}@s.whatsapp.net`;
+  return telefono.includes('@') ? telefono : `${telefono}@s.whatsapp.net`;
 }
 
 function socketDeNumero(numeroId: number): WASocket {
@@ -79,13 +80,23 @@ export async function confirmarLectura(
   numeroId: number,
   telefono: string,
   jid: string | null,
-  ids: string[],
+  mensajes: { id: string; participante: string | null }[],
 ): Promise<boolean> {
   const sock = obtenerSocket(numeroId);
-  if (!sock || !ids.length) return false;
+  if (!sock || !mensajes.length) return false;
   const remoteJid = jid ?? jidDeTelefono(telefono);
-  await sock.readMessages(ids.map((id) => ({ remoteJid, id, fromMe: false })));
+  await sock.readMessages(
+    mensajes.map(({ id, participante }) => ({ remoteJid, id, fromMe: false, ...(participante ? { participant: participante } : {}) })),
+  );
   return true;
+}
+
+/** El nombre (asunto) de un grupo, preguntado a WhatsApp; null si no se pudo. */
+export async function nombreDeGrupo(numeroId: number, jid: string): Promise<string | null> {
+  const sock = obtenerSocket(numeroId);
+  if (!sock) return null;
+  const datos = await sock.groupMetadata(jid);
+  return datos.subject?.trim() || null;
 }
 
 export async function enviarMensaje(
@@ -156,9 +167,15 @@ export async function enviarTextoPanel(
   return enviado?.key.id ?? null;
 }
 
-/** La clave de WhatsApp de un mensaje guardado de este chat (para reaccionar, editar o eliminar). */
-export function claveDeMensaje(telefono: string, whatsappId: string, propio: boolean): WAMessageKey {
-  return { remoteJid: jidDeTelefono(telefono), id: whatsappId, fromMe: propio };
+/**
+ * La clave de WhatsApp de un mensaje guardado de este chat (para citar,
+ * reaccionar, editar o eliminar). En un grupo, el mensaje de otro lleva
+ * tambien quien lo escribio (participante).
+ */
+export function claveDeMensaje(telefono: string, whatsappId: string, propio: boolean, participante?: string | null): WAMessageKey {
+  const clave: WAMessageKey = { remoteJid: jidDeTelefono(telefono), id: whatsappId, fromMe: propio };
+  if (!propio && participante) clave.participant = participante;
+  return clave;
 }
 
 /** Reaccion propia a un mensaje (emoji vacio la quita). */

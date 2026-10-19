@@ -21,13 +21,13 @@ async function emitirConversacion(id: number): Promise<void> {
 export async function aplicarCambio(cambio: CambioMensaje): Promise<void> {
   let resultado: repo.MensajeCambiado | null;
   if (cambio.tipo === 'reaccion') {
-    resultado = await repo.aplicarReaccion(cambio.whatsappId, cambio.deMi ? 'yo' : 'lead', cambio.emoji);
+    resultado = await repo.aplicarReaccion(cambio.whatsappId, cambio.quien, cambio.emoji);
   } else if (cambio.tipo === 'editado') {
     resultado = await repo.aplicarEdicion(cambio.whatsappId, cambio.texto, cambio.leyenda);
   } else {
     resultado = await repo.marcarEliminado(cambio.whatsappId);
   }
-  // Un mensaje de un grupo o que no se guardo: no hay nada que actualizar.
+  // Un mensaje que no se guardo (estados, canales...): no hay nada que actualizar.
   if (!resultado) return;
 
   emitir(CANAL_SSE, 'mensaje:actualizado', resultado);

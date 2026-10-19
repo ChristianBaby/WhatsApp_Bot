@@ -8,7 +8,7 @@ import { crearSesion, type SesionBaileys } from './socket.js';
 import * as repo from './repositorio.js';
 import type { NumeroWhatsapp } from './repositorio.js';
 import { procesarMensaje } from '../conversaciones/mensajeEntrante.js';
-import { actualizarAgenda, importarHistorial } from '../conversaciones/historial.js';
+import { actualizarAgenda, actualizarGrupos, importarHistorial } from '../conversaciones/historial.js';
 import { aplicarCambio, registrarLlamada } from '../conversaciones/cambiosMensaje.js';
 import { alCambiarPresencia } from '../conversaciones/presencia.js';
 import * as conversacionesRepo from '../conversaciones/repositorio.js';
@@ -141,6 +141,7 @@ async function iniciar(numeroId: number): Promise<void> {
               numeroId,
               numeroEtiqueta: numero?.etiqueta ?? `Numero ${numeroId}`,
               telefono: mensaje.telefono,
+              participante: mensaje.participante,
               fromMe: mensaje.fromMe,
               texto: mensaje.texto,
               whatsappId: mensaje.whatsappId,
@@ -184,7 +185,12 @@ async function iniciar(numeroId: number): Promise<void> {
           log.warn({ err, numeroId }, 'No se pudo registrar una llamada'),
         );
       },
-      onPresencia: (jid, estado) => alCambiarPresencia(numeroId, jid, estado),
+      onPresencia: (jid, estado, participante) => alCambiarPresencia(numeroId, jid, estado, participante),
+      onGrupos: (grupos) => {
+        actualizarGrupos(numeroId, grupos).catch((err: unknown) =>
+          log.warn({ err, numeroId }, 'No se pudieron actualizar los nombres de los grupos'),
+        );
+      },
     });
     entrada.sesion = sesion;
   } catch (err) {

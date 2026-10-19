@@ -12,6 +12,7 @@ const FILTROS: { valor: FiltroConversaciones; etiqueta: string }[] = [
   { valor: 'no_leidos', etiqueta: 'No leídos' },
   { valor: 'leads', etiqueta: 'Leads' },
   { valor: 'asesor', etiqueta: 'Piden asesor' },
+  { valor: 'grupos', etiqueta: 'Grupos' },
 ];
 
 type Props = {
@@ -106,7 +107,9 @@ export function ListaConversaciones({
               className={`${estilos.item} ${c.id === seleccionadaId ? estilos.seleccionado : ''}`}
               onClick={() => onSeleccionar(c.id)}
             >
-              <span className={estilos.avatar}>{inicialesDeChat(nombre)}</span>
+              <span className={estilos.avatar} title={c.esGrupo ? 'Grupo' : undefined}>
+                {c.esGrupo ? '👥' : inicialesDeChat(nombre)}
+              </span>
               <span className={estilos.cuerpo}>
                 <span className={estilos.filaSuperior}>
                   <span className={estilos.empresa} style={{ fontWeight: c.noLeidos > 0 ? 800 : 600 }}>

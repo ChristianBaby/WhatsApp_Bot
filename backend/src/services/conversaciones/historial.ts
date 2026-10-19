@@ -1,7 +1,7 @@
 import { crearLogger } from '../../lib/logger.js';
 import { emitir } from '../../lib/sse.js';
 import * as leadsRepo from '../leads/repositorio.js';
-import type { ContactoAgenda, LoteHistorial } from '../whatsapp/socket.js';
+import { esJidDeGrupo, type ContactoAgenda, type GrupoWhatsapp, type LoteHistorial } from '../whatsapp/socket.js';
 import * as repo from './repositorio.js';
 
 const log = crearLogger('historial');
@@ -45,7 +45,12 @@ async function importar(numeroId: number, lote: LoteHistorial): Promise<void> {
   for (const m of lote.mensajes) {
     if (!m.whatsappId || vistos.has(m.whatsappId)) continue;
     vistos.add(m.whatsappId);
-    if (!m.fromMe && m.pushName) pushNames.set(m.telefono, m.pushName);
+    // En un grupo el nombre de WhatsApp es de quien escribio, no del chat.
+    if (!m.fromMe && m.pushName && !m.participante) pushNames.set(m.telefono, m.pushName);
+    const p = m.participante;
+    const extra = p
+      ? { ...m.extra, participante: { ...p, nombre: (p.telefono && agenda.get(p.telefono)?.nombreAgenda) || p.nombre } }
+      : m.extra;
 
     const lista = porTelefono.get(m.telefono) ?? [];
     lista.push({
@@ -56,7 +61,7 @@ async function importar(numeroId: number, lote: LoteHistorial): Promise<void> {
       tipo: m.tipo,
       media: m.media,
       mediaDescarga: m.mediaDescarga,
-      extra: m.extra,
+      extra,
       reacciones: m.reacciones,
     });
     porTelefono.set(m.telefono, lista);
@@ -66,7 +71,7 @@ async function importar(numeroId: number, lote: LoteHistorial): Promise<void> {
   for (const [telefono, mensajes] of porTelefono) {
     const contacto = agenda.get(telefono);
     const chat = chats.get(telefono);
-    const lead = await leadsRepo.buscarPorTelefono(telefono);
+    const lead = esJidDeGrupo(telefono) ? null : await leadsRepo.buscarPorTelefono(telefono);
     const conversacionId = await repo.asegurarConversacionHistorial({
       numeroId,
       telefono,
@@ -102,6 +107,20 @@ export async function actualizarAgenda(numeroId: number, contactos: ContactoAgen
     const id = await repo.actualizarNombreAgenda(numeroId, c.telefono, c.nombreAgenda);
     if (id) cambiados.push(id);
   }
+  await avisarCambiados(numeroId, cambiados);
+}
+
+/** Los nombres de los grupos del numero (al conectar, al entrar a uno o si lo renombran). */
+export async function actualizarGrupos(numeroId: number, grupos: GrupoWhatsapp[]): Promise<void> {
+  const cambiados: number[] = [];
+  for (const g of grupos) {
+    const id = await repo.guardarNombreGrupo(numeroId, g.jid, g.nombre);
+    if (id) cambiados.push(id);
+  }
+  await avisarCambiados(numeroId, cambiados);
+}
+
+async function avisarCambiados(numeroId: number, cambiados: number[]): Promise<void> {
   if (!cambiados.length) return;
 
   if (cambiados.length > MAX_EVENTOS_SUELTOS) {
@@ -110,6 +129,7 @@ export async function actualizarAgenda(numeroId: number, contactos: ContactoAgen
   }
   for (const id of cambiados) {
     const detalle = await repo.obtenerDetalle(id);
-    if (detalle) emitir(CANAL_SSE, 'conversacion:actualizada', detalle);
+    // Un grupo sin mensajes todavia no esta en la lista del panel.
+    if (detalle?.ultimoMensajeEn) emitir(CANAL_SSE, 'conversacion:actualizada', detalle);
   }
 }
