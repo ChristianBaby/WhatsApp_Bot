@@ -16,6 +16,8 @@ import { rutasReportes } from './routes/reportes.js';
 import { rutasResumen } from './routes/resumen.js';
 import { rutasContactos } from './routes/contactos.js';
 import { rutasConocimiento } from './routes/conocimiento.js';
+import { rutasCrm } from './routes/crm.js';
+import { anotarUsuario } from './services/crm/usuarios.js';
 import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandler.js';
 import { crearLogger } from './lib/logger.js';
 
@@ -79,6 +81,8 @@ export function crearApp() {
   app.get('/api/eventos', requiereTokenGateway, requiereTicketSSE, manejadorSSE);
 
   app.use('/api', requiereIdentidadGateway);
+  // Quien usa el panel queda anotado para poder asignarle chats (Etapa 4).
+  app.use('/api', anotarUsuario);
   app.use('/api', rutasNumeros);
   app.use('/api', rutasLeads);
   app.use('/api', rutasAdjuntos);
@@ -89,6 +93,7 @@ export function crearApp() {
   app.use('/api', rutasResumen);
   app.use('/api', rutasContactos);
   app.use('/api', rutasConocimiento);
+  app.use('/api', rutasCrm);
 
   // 404 solo para rutas de API; lo demas puede caer al panel.
   app.use('/api', manejadorNoEncontrado);

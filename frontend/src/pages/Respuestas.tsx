@@ -8,15 +8,17 @@ import type {
   ConversacionDetalle,
   ConversacionResumen,
   EstadoEntrega,
+  Etiqueta,
   FiltroConversaciones,
   MensajeConversacion,
   PaginaConversaciones,
   PresenciaChat,
+  Recordatorio,
 } from '../lib/types';
 import { ListaConversaciones } from './respuestas/ListaConversaciones';
 import { DetalleConversacion } from './respuestas/DetalleConversacion';
-import { FichaLead } from './respuestas/FichaLead';
 import estilos from './Respuestas.module.css';
+import crm from './respuestas/Crm.module.css';
 
 /** Los fijados arriba y despues los mas recientes primero (mismo orden que el backend). */
 function ordenar(lista: ConversacionResumen[]): ConversacionResumen[] {
@@ -35,7 +37,10 @@ function cumpleArchivo(c: ConversacionResumen, filtro: FiltroConversaciones, bus
 }
 
 /** Si un chat que llega en vivo (y no estaba en la lista) corresponde al filtro elegido. */
-function cumpleFiltro(c: ConversacionResumen, filtro: FiltroConversaciones): boolean {
+function cumpleFiltro(c: ConversacionResumen, filtro: FiltroConversaciones, yo: string | null, etiquetaId: number | null): boolean {
+  if (etiquetaId && !c.etiquetas.some((e) => e.id === etiquetaId)) return false;
+  if (filtro === 'mios') return Boolean(yo) && c.asignadoA?.id === yo;
+  if (filtro === 'recordatorios') return c.proximoRecordatorio !== null;
   if (filtro === 'no_leidos') return c.noLeidos > 0;
   if (filtro === 'leads') return c.leadId !== null;
   if (filtro === 'grupos') return c.esGrupo;
@@ -58,7 +63,13 @@ export function Respuestas() {
   const [busquedaAplicada, setBusquedaAplicada] = useState('');
   const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null);
   const [detalle, setDetalle] = useState<ConversacionDetalle | null>(null);
-  const [mostrarFicha, setMostrarFicha] = useState(false);
+  /** Sube cuando cambian notas, recordatorios o etiquetas del chat abierto: su ficha se refresca. */
+  const [versionCrm, setVersionCrm] = useState(0);
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+  const [etiquetaFiltro, setEtiquetaFiltro] = useState<number | null>(null);
+  const [yo, setYo] = useState<string | null>(null);
+  /** Recordatorios que vencieron mientras el panel estaba abierto. */
+  const [avisos, setAvisos] = useState<{ recordatorio: Recordatorio; conversacionId: number; nombre: string }[]>([]);
   /** "escribiendo..." / "en linea" de cada chat, en vivo (no se guarda). */
   const [presencias, setPresencias] = useState<Record<number, PresenciaChat>>({});
 
@@ -72,10 +83,11 @@ export function Respuestas() {
     (cursorPagina?: string) => {
       const params = new URLSearchParams({ filtro });
       if (busquedaAplicada) params.set('q', busquedaAplicada);
+      if (etiquetaFiltro) params.set('etiqueta', String(etiquetaFiltro));
       if (cursorPagina) params.set('cursor', cursorPagina);
       return `/conversaciones?${params.toString()}`;
     },
-    [filtro, busquedaAplicada],
+    [filtro, busquedaAplicada, etiquetaFiltro],
   );
 
   const recargar = useCallback(() => {
@@ -96,6 +108,14 @@ export function Respuestas() {
     setConversaciones(null);
     recargar();
   }, [recargar]);
+
+  useEffect(() => {
+    void api.get<{ etiquetas: Etiqueta[] }>('/etiquetas').then((r) => setEtiquetas(r.etiquetas)).catch(() => undefined);
+    void api
+      .get<{ yo: string | null }>('/usuarios-panel')
+      .then((r) => setYo(r.yo))
+      .catch(() => undefined);
+  }, []);
 
   // La busqueda se aplica cuando se deja de escribir, no en cada tecla.
   useEffect(() => {
@@ -179,7 +199,9 @@ export function Respuestas() {
         const existe = prev.some((x) => x.id === c.id);
         // Se archivo o desarchivo: sale de esta lista.
         if (existe && !cumpleArchivo(c, filtro, Boolean(busquedaAplicada))) return prev.filter((x) => x.id !== c.id);
-        if (!existe && (busquedaAplicada || !cumpleFiltro(c, filtro) || !cumpleArchivo(c, filtro, false))) return prev;
+        if (!existe && (busquedaAplicada || !cumpleFiltro(c, filtro, yo, etiquetaFiltro) || !cumpleArchivo(c, filtro, false))) {
+          return prev;
+        }
         return ordenar(existe ? prev.map((x) => (x.id === c.id ? c : x)) : [c, ...prev]);
       });
       setDetalle((prev) => (prev && prev.id === c.id ? { ...prev, ...c } : prev));
@@ -218,6 +240,21 @@ export function Respuestas() {
           ? { ...prev, mensajes: prev.mensajes.map((m) => (m.id === mensaje.id ? mensaje : m)) }
           : prev,
       );
+    },
+    'nota:cambio': (datos) => {
+      if ((datos as { conversacionId: number }).conversacionId === seleccionadaId) setVersionCrm((v) => v + 1);
+    },
+    'recordatorio:cambio': (datos) => {
+      if ((datos as { conversacionId: number }).conversacionId === seleccionadaId) setVersionCrm((v) => v + 1);
+    },
+    'etiquetas:actualizadas': (datos) => {
+      setEtiquetas(datos as Etiqueta[]);
+      setVersionCrm((v) => v + 1);
+    },
+    'recordatorio:vencido': (datos) => {
+      const aviso = datos as { recordatorio: Recordatorio; conversacionId: number; nombre: string };
+      setAvisos((prev) => [...prev.filter((a) => a.recordatorio.id !== aviso.recordatorio.id), aviso].slice(-4));
+      if (aviso.conversacionId === seleccionadaId) setVersionCrm((v) => v + 1);
     },
     'mensaje:estado': (datos) => {
       const { conversacionId, mensajeId, estado } = datos as {
@@ -258,6 +295,9 @@ export function Respuestas() {
             onFiltro={setFiltro}
             busqueda={busqueda}
             onBusqueda={setBusqueda}
+            etiquetas={etiquetas}
+            etiquetaFiltro={etiquetaFiltro}
+            onEtiquetaFiltro={setEtiquetaFiltro}
             hayMas={cursor !== null}
             cargandoMas={cargandoMas}
             onCargarMas={cargarMas}
@@ -267,7 +307,7 @@ export function Respuestas() {
           {detalle && detalle.id === seleccionadaId ? (
             <DetalleConversacion
               conversacion={detalle}
-              onVerFicha={() => setMostrarFicha(true)}
+              versionCrm={versionCrm}
               onCargarAnteriores={() => cargarAnteriores()}
               onCargarHasta={(id) => cargarAnteriores(id)}
               presencia={presencias[detalle.id] ?? null}
@@ -278,7 +318,31 @@ export function Respuestas() {
         </div>
       </Tarjeta>
 
-      {mostrarFicha && detalle && <FichaLead conversacion={detalle} onCerrar={() => setMostrarFicha(false)} />}
+      {avisos.length > 0 && (
+        <div className={crm.avisos} role="status">
+          {avisos.map((a) => (
+            <div key={a.recordatorio.id} className={crm.aviso}>
+              <strong>⏰ {a.nombre}</strong>
+              <span>{a.recordatorio.texto}</span>
+              <div className={crm.fila}>
+                <button
+                  type="button"
+                  className={crm.etiqueta}
+                  onClick={() => {
+                    setSeleccionadaId(a.conversacionId);
+                    setAvisos((prev) => prev.filter((x) => x !== a));
+                  }}
+                >
+                  Abrir chat
+                </button>
+                <button type="button" className={crm.etiqueta} onClick={() => setAvisos((prev) => prev.filter((x) => x !== a))}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

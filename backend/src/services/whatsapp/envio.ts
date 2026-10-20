@@ -116,6 +116,27 @@ export async function urlFotoDePerfil(numeroId: number, jid: string): Promise<st
   }
 }
 
+/** Crea, cambia o borra una etiqueta de WhatsApp Business (en el telefono tambien). */
+export async function editarEtiquetaWhatsapp(
+  numeroId: number,
+  etiqueta: { waId: string; nombre: string; color: number; borrada?: boolean },
+): Promise<void> {
+  const sock = socketDeNumero(numeroId);
+  await sock.addLabel(sock.user?.id ?? '', {
+    id: etiqueta.waId,
+    name: etiqueta.nombre,
+    color: etiqueta.color,
+    deleted: Boolean(etiqueta.borrada),
+  });
+}
+
+/** Pone o quita una etiqueta de WhatsApp Business en un chat. */
+export async function etiquetarChatWhatsapp(numeroId: number, jid: string, waId: string, puesta: boolean): Promise<void> {
+  const sock = socketDeNumero(numeroId);
+  if (puesta) await sock.addChatLabel(jid, waId);
+  else await sock.removeChatLabel(jid, waId);
+}
+
 /** El nombre (asunto) de un grupo, preguntado a WhatsApp; null si no se pudo. */
 export async function nombreDeGrupo(numeroId: number, jid: string): Promise<string | null> {
   const sock = obtenerSocket(numeroId);

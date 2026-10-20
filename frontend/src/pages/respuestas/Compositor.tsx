@@ -1,8 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { api, ErrorApi } from '../../lib/api';
-import type { MensajeConversacion } from '../../lib/types';
+import type { MensajeConversacion, RespuestaRapida } from '../../lib/types';
+import { ModalRapidas } from './ModalRapidas';
 import { SelectorEmojis } from './SelectorEmojis';
 import estilos from './Chat.module.css';
+import crm from './Crm.module.css';
 
 const MAX_ARCHIVO_BYTES = 16 * 1024 * 1024;
 /** WhatsApp corta las notas de voz en 15 minutos. */
@@ -21,7 +23,18 @@ type Props = {
   onCancelarRespuesta: () => void;
   editando: MensajeConversacion | null;
   onCancelarEdicion: () => void;
+  /** Para {nombre} en las respuestas rapidas. */
+  nombreCliente: string;
 };
+
+/** Cuantas respuestas rapidas se sugieren a la vez al escribir "/". */
+const MAX_SUGERENCIAS = 8;
+
+/** {nombre} -> el primer nombre del cliente (vacio si solo se conoce su numero). */
+function completarRapida(texto: string, nombreCliente: string): string {
+  const nombre = nombreCliente.startsWith('+') ? '' : (nombreCliente.trim().split(/\s+/)[0] ?? '');
+  return texto.replace(/\s?\{nombre\}/gi, (coincidencia) => (nombre ? coincidencia.replace(/\{nombre\}/i, nombre) : ''));
+}
 
 export type CompositorHandle = {
   /** Archivos soltados sobre el chat: quedan listos para enviar, con vista previa. */
@@ -47,10 +60,14 @@ function formatoGrabacion(): string | undefined {
 
 /** La caja de escribir del chat, como la de WhatsApp Web. */
 export const Compositor = forwardRef<CompositorHandle, Props>(function Compositor(
-  { conversacionId, nombreAutor, respondiendoA, onCancelarRespuesta, editando, onCancelarEdicion },
+  { conversacionId, nombreAutor, respondiendoA, onCancelarRespuesta, editando, onCancelarEdicion, nombreCliente },
   ref,
 ) {
   const [texto, setTexto] = useState('');
+  const [rapidas, setRapidas] = useState<RespuestaRapida[]>([]);
+  const [verRapidas, setVerRapidas] = useState(false);
+  const [sugerida, setSugerida] = useState(0);
+  const [sinSugerencias, setSinSugerencias] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emojis, setEmojis] = useState(false);
@@ -291,6 +308,30 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
   }
 
   const hayAlgoQueEnviar = Boolean(texto.trim()) || pendientes.length > 0;
+
+  function cargarRapidas() {
+    void api
+      .get<{ respuestas: RespuestaRapida[] }>('/respuestas-rapidas')
+      .then((r) => setRapidas(r.respuestas))
+      .catch(() => undefined);
+  }
+  useEffect(cargarRapidas, []);
+
+  // Escribir "/" al principio sugiere las respuestas rapidas, como en WhatsApp Business.
+  const buscandoRapida = !editando && !sinSugerencias && /^\/[^\n]*$/.test(texto);
+  const filtroRapida = texto.slice(1).trim().toLowerCase();
+  const sugerencias = buscandoRapida
+    ? rapidas
+        .filter((r) => r.atajo.includes(filtroRapida.replace(/\s+/g, '-')) || r.texto.toLowerCase().includes(filtroRapida))
+        .slice(0, MAX_SUGERENCIAS)
+    : [];
+
+  function usarRapida(r: RespuestaRapida) {
+    setTexto(completarRapida(r.texto, nombreCliente));
+    setVerRapidas(false);
+    setSugerida(0);
+    textoRef.current?.focus();
+  }
   const autorCitado = respondiendoA ? nombreAutor(respondiendoA) : '';
 
   return (
@@ -341,7 +382,25 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
           </button>
         </div>
       ) : (
-        <div className={estilos.filaCompositor}>
+        <div className={estilos.filaCompositor} style={{ position: 'relative' }}>
+          {sugerencias.length > 0 && (
+            <div className={crm.sugerencias} role="listbox">
+              {sugerencias.map((r, i) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="option"
+                  aria-selected={i === sugerida}
+                  className={`${crm.sugerencia} ${i === sugerida ? crm.sugerenciaActiva : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => usarRapida(r)}
+                >
+                  <span className={crm.sugerenciaAtajo}>/{r.atajo}</span>
+                  <span className={crm.sugerenciaTexto}>{r.texto}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <input
             ref={archivoRef}
             type="file"
@@ -375,6 +434,17 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
               📎
             </button>
           )}
+          {!editando && (
+            <button
+              type="button"
+              className={estilos.botonRedondo}
+              title="Respuestas rápidas (o escribe / en el chat)"
+              onClick={() => setVerRapidas(true)}
+              disabled={enviando}
+            >
+              ⚡
+            </button>
+          )}
           <textarea
             ref={textoRef}
             rows={1}
@@ -382,6 +452,8 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
             value={texto}
             onChange={(e) => {
               setTexto(e.target.value);
+              setSugerida(0);
+              if (!e.target.value.startsWith('/')) setSinSugerencias(false);
               alTeclear();
             }}
             onPaste={(e) => {
@@ -392,6 +464,24 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
               }
             }}
             onKeyDown={(e) => {
+              if (sugerencias.length) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const paso = e.key === 'ArrowDown' ? 1 : -1;
+                  setSugerida((s) => (s + paso + sugerencias.length) % sugerencias.length);
+                  return;
+                }
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                  e.preventDefault();
+                  usarRapida(sugerencias[sugerida] ?? sugerencias[0]!);
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setSinSugerencias(true);
+                  return;
+                }
+              }
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 void enviar();
@@ -428,6 +518,9 @@ export const Compositor = forwardRef<CompositorHandle, Props>(function Composito
         </div>
       )}
       {error && <div className={estilos.errorCompositor}>{error}</div>}
+      {verRapidas && (
+        <ModalRapidas respuestas={rapidas} onUsar={usarRapida} onCambio={cargarRapidas} onCerrar={() => setVerRapidas(false)} />
+      )}
     </div>
   );
 });

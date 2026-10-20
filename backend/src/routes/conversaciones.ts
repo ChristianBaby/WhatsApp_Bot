@@ -42,7 +42,11 @@ async function emitirActualizacion(id: number) {
 }
 
 const esquemaLista = z.object({
-  filtro: z.enum(['todos', 'no_leidos', 'leads', 'asesor', 'grupos', 'archivados']).default('todos'),
+  filtro: z
+    .enum(['todos', 'no_leidos', 'leads', 'asesor', 'grupos', 'archivados', 'mios', 'recordatorios'])
+    .default('todos'),
+  /** Solo los chats con esta etiqueta (se combina con el filtro). */
+  etiqueta: z.coerce.number().int().positive().optional(),
   q: z.string().trim().max(100).optional(),
   cursor: z.string().max(200).optional(),
 });
@@ -51,8 +55,17 @@ const esquemaLista = z.object({
 rutasConversaciones.get(
   '/conversaciones',
   manejarAsync(async (req, res) => {
-    const { filtro, q, cursor } = esquemaLista.parse(req.query);
-    res.json(await repo.listar({ filtro, busqueda: q, cursor, limite: CHATS_POR_PAGINA }));
+    const { filtro, q, cursor, etiqueta } = esquemaLista.parse(req.query);
+    res.json(
+      await repo.listar({
+        filtro,
+        busqueda: q,
+        cursor,
+        limite: CHATS_POR_PAGINA,
+        usuarioId: req.usuario?.id ?? null,
+        etiquetaId: etiqueta ?? null,
+      }),
+    );
   }),
 );
 

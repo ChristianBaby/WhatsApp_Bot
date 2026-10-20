@@ -2,20 +2,24 @@ import { useEffect, useRef } from 'react';
 import { Badge } from '../../components/ui/Badge';
 import { EstadoVacio } from '../../components/ui/EstadoVacio';
 import { formatearRelativo } from '../../lib/fecha';
-import type { ConversacionResumen, FiltroConversaciones } from '../../lib/types';
+import type { ConversacionResumen, Etiqueta, FiltroConversaciones } from '../../lib/types';
 import { infoEtapa } from './etapa';
 import { Avatar } from './Avatar';
 import { nombreDeChat } from './nombreChat';
 import estilos from './ListaConversaciones.module.css';
 import org from './Organizar.module.css';
+import crm from './Crm.module.css';
+import { colorEtiqueta } from './coloresEtiqueta';
 
 const FILTROS: { valor: FiltroConversaciones; etiqueta: string }[] = [
   { valor: 'todos', etiqueta: 'Todos' },
   { valor: 'no_leidos', etiqueta: 'No leídos' },
+  { valor: 'mios', etiqueta: 'Mis chats' },
   { valor: 'leads', etiqueta: 'Leads' },
   { valor: 'asesor', etiqueta: 'Piden asesor' },
   { valor: 'grupos', etiqueta: 'Grupos' },
   { valor: 'archivados', etiqueta: '🗄️ Archivados' },
+  { valor: 'recordatorios', etiqueta: '⏰ Recordatorios' },
 ];
 
 type Props = {
@@ -26,6 +30,9 @@ type Props = {
   onFiltro: (filtro: FiltroConversaciones) => void;
   busqueda: string;
   onBusqueda: (texto: string) => void;
+  etiquetas: Etiqueta[];
+  etiquetaFiltro: number | null;
+  onEtiquetaFiltro: (id: number | null) => void;
   hayMas: boolean;
   cargandoMas: boolean;
   onCargarMas: () => void;
@@ -39,6 +46,9 @@ export function ListaConversaciones({
   onFiltro,
   busqueda,
   onBusqueda,
+  etiquetas,
+  etiquetaFiltro,
+  onEtiquetaFiltro,
   hayMas,
   cargandoMas,
   onCargarMas,
@@ -82,6 +92,21 @@ export function ListaConversaciones({
               {f.etiqueta}
             </button>
           ))}
+          {etiquetas.length > 0 && (
+            <select
+              className={crm.selectorEtiqueta}
+              value={etiquetaFiltro ?? ''}
+              title="Filtrar por etiqueta"
+              onChange={(e) => onEtiquetaFiltro(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">🏷️ Etiqueta</option>
+              {etiquetas.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -132,6 +157,29 @@ export function ListaConversaciones({
                 {etapa && (
                   <span className={estilos.etiquetas}>
                     <Badge tono={etapa.tono}>{etapa.etiqueta}</Badge>
+                  </span>
+                )}
+                {(c.etiquetas.length > 0 || c.asignadoA || c.proximoRecordatorio) && (
+                  <span className={crm.chipsLista}>
+                    {c.proximoRecordatorio && (
+                      <span
+                        className={new Date(c.proximoRecordatorio).getTime() <= Date.now() ? crm.vencido : crm.chipLista}
+                        title="Recordatorio pendiente"
+                      >
+                        ⏰
+                      </span>
+                    )}
+                    {c.etiquetas.map((e) => (
+                      <span key={e.id} className={crm.chipLista}>
+                        <span className={crm.puntoEtiqueta} style={{ background: colorEtiqueta(e.color) }} />
+                        {e.nombre}
+                      </span>
+                    ))}
+                    {c.asignadoA && (
+                      <span className={crm.asignadoLista} title={`Asignado a ${c.asignadoA.email ?? c.asignadoA.id}`}>
+                        👤 {(c.asignadoA.email ?? c.asignadoA.id).split('@')[0]}
+                      </span>
+                    )}
                   </span>
                 )}
               </span>

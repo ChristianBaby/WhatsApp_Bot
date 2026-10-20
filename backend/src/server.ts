@@ -8,6 +8,7 @@ import { logger } from './lib/logger.js';
 import * as gestorWhatsapp from './services/whatsapp/gestor.js';
 import * as motorPublicaciones from './services/publicaciones/motor.js';
 import * as limpiezaArchivos from './services/conversaciones/limpiezaArchivos.js';
+import * as recordatorios from './services/crm/recordatorios.js';
 
 /** Margen para que el contenedor anterior se apague antes de reabrir las sesiones (ver iniciar()). */
 const ESPERA_REANUDAR_MS = 30_000;
@@ -40,6 +41,8 @@ async function iniciar(): Promise<void> {
   motorPublicaciones.iniciarMotor();
   // Que los archivos de los chats no llenen el disco del servidor.
   limpiezaArchivos.iniciarLimpieza();
+  // Avisa los recordatorios de los chats cuando vencen.
+  recordatorios.iniciarRecordatorios();
 
   const app = crearApp();
   const servidor = app.listen(env.PORT, () => {
@@ -57,6 +60,7 @@ async function iniciar(): Promise<void> {
     servidor.close();
     motorPublicaciones.detenerMotor();
     limpiezaArchivos.detenerLimpieza();
+    recordatorios.detenerRecordatorios();
     gestorWhatsapp.apagarTodo();
 
     await cerrarPool().catch(() => undefined);

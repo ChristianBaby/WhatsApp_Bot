@@ -247,7 +247,35 @@ export type MensajeConversacion = {
   destacado: boolean;
 };
 
-export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos' | 'archivados';
+export type FiltroConversaciones =
+  | 'todos'
+  | 'no_leidos'
+  | 'leads'
+  | 'asesor'
+  | 'grupos'
+  | 'archivados'
+  | 'mios'
+  | 'recordatorios';
+
+// --- CRM del chat (Etapa 4) ---
+
+/** color: indice de la paleta de etiquetas de WhatsApp (0-19, ver coloresEtiqueta.ts). */
+export type EtiquetaChat = { id: number; nombre: string; color: number };
+export type Etiqueta = EtiquetaChat & { chats: number };
+export type FichaCliente = { nombre: string | null; empresa: string | null; correo: string | null };
+export type UsuarioPanel = { id: string; email: string | null; rol: string | null; ultimoAcceso: string };
+export type NotaInterna = { id: number; texto: string; autorId: string | null; autorEmail: string | null; creadoEn: string };
+export type RespuestaRapida = { id: number; atajo: string; texto: string };
+export type Recordatorio = {
+  id: number;
+  conversacionId: number;
+  texto: string;
+  venceEn: string;
+  creadoPorEmail: string | null;
+  avisadoEn: string | null;
+  hechoEn: string | null;
+  creadoEn: string;
+};
 
 /** Pestañas de la info del chat. */
 export type TipoGaleria = 'media' | 'documentos' | 'enlaces';
@@ -285,6 +313,11 @@ export type ConversacionResumen = {
   iaSugerencia: string | null;
   iaSugerenciaEn: string | null;
   creadoEn: string;
+  asignadoA: { id: string; email: string | null } | null;
+  ficha: FichaCliente;
+  etiquetas: EtiquetaChat[];
+  /** El recordatorio pendiente mas proximo (vencido si ya paso). */
+  proximoRecordatorio: string | null;
 };
 
 export type ConversacionDetalle = ConversacionResumen & {

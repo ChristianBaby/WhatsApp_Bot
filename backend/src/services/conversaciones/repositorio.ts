@@ -6,6 +6,7 @@ import type {
   ConversacionResumen,
   EscaladoMotivo,
   EstadoEntrega,
+  EtiquetaChat,
   ExtraMensaje,
   ExtrasMensaje,
   FiltroConversaciones,
@@ -29,6 +30,13 @@ const SELECT_RESUMEN = `
     c.ultimo_mensaje_preview, c.creado_en,
     c.modo, c.escalado_motivo, c.ia_sugerencia, c.ia_sugerencia_en,
     l.empresa, l.rubro, l.etapa_pipeline, l.notas,
+    c.asignado_a, u.email AS asignado_email, c.ficha_nombre, c.ficha_empresa, c.ficha_correo,
+    COALESCE((
+      SELECT json_agg(json_build_object('id', e.id, 'nombre', e.nombre, 'color', e.color) ORDER BY lower(e.nombre))
+      FROM conversacion_etiquetas ce JOIN etiquetas e ON e.id = ce.etiqueta_id
+      WHERE ce.conversacion_id = c.id
+    ), '[]'::json) AS etiquetas,
+    (SELECT MIN(r.vence_en) FROM recordatorios r WHERE r.conversacion_id = c.id AND r.hecho_en IS NULL) AS proximo_recordatorio,
     (
       SELECT p.nombre FROM publicacion_destinatarios pd
       JOIN publicaciones p ON p.id = pd.publicacion_id
@@ -37,6 +45,7 @@ const SELECT_RESUMEN = `
     ) AS campana_nombre
   FROM conversaciones c
   LEFT JOIN leads l ON l.id = c.lead_id
+  LEFT JOIN usuarios_panel u ON u.id = c.asignado_a
 `;
 
 type FilaResumen = {
@@ -64,6 +73,13 @@ type FilaResumen = {
   etapa_pipeline: string | null;
   notas: string | null;
   campana_nombre: string | null;
+  asignado_a: string | null;
+  asignado_email: string | null;
+  ficha_nombre: string | null;
+  ficha_empresa: string | null;
+  ficha_correo: string | null;
+  etiquetas: EtiquetaChat[];
+  proximo_recordatorio: string | null;
 };
 
 function mapearResumen(fila: FilaResumen): ConversacionResumen {
@@ -89,6 +105,10 @@ function mapearResumen(fila: FilaResumen): ConversacionResumen {
     iaSugerencia: fila.ia_sugerencia,
     iaSugerenciaEn: fila.ia_sugerencia_en,
     creadoEn: fila.creado_en,
+    asignadoA: fila.asignado_a ? { id: fila.asignado_a, email: fila.asignado_email } : null,
+    ficha: { nombre: fila.ficha_nombre, empresa: fila.ficha_empresa, correo: fila.ficha_correo },
+    etiquetas: fila.etiquetas,
+    proximoRecordatorio: fila.proximo_recordatorio,
   };
 }
 
@@ -134,6 +154,10 @@ export async function listar(opciones: {
   busqueda?: string | null;
   cursor?: string | null;
   limite: number;
+  /** Quien mira la lista (para "Mis chats"). */
+  usuarioId?: string | null;
+  /** Solo los chats con esta etiqueta. */
+  etiquetaId?: number | null;
 }): Promise<PaginaConversaciones> {
   const params: unknown[] = [];
   const param = (valor: unknown) => {
@@ -153,6 +177,15 @@ export async function listar(opciones: {
     condiciones.push(`c.modo = 'manual' AND c.escalado_motivo IN ('palabra_clave', 'baja_confianza')`);
   }
   if (opciones.filtro === 'grupos') condiciones.push('c.es_grupo');
+  if (opciones.filtro === 'mios') condiciones.push(`c.asignado_a = ${param(opciones.usuarioId ?? '')}`);
+  if (opciones.filtro === 'recordatorios') {
+    condiciones.push('EXISTS (SELECT 1 FROM recordatorios r WHERE r.conversacion_id = c.id AND r.hecho_en IS NULL)');
+  }
+  if (opciones.etiquetaId) {
+    condiciones.push(
+      `EXISTS (SELECT 1 FROM conversacion_etiquetas ce WHERE ce.conversacion_id = c.id AND ce.etiqueta_id = ${param(opciones.etiquetaId)})`,
+    );
+  }
 
   const busqueda = opciones.busqueda?.trim();
   if (busqueda) {
@@ -160,6 +193,7 @@ export async function listar(opciones: {
     const digitos = busqueda.replace(/\D/g, '');
     condiciones.push(
       `(c.nombre_agenda ILIKE ${patron} OR c.nombre_contacto ILIKE ${patron} OR l.empresa ILIKE ${patron}
+        OR c.ficha_nombre ILIKE ${patron} OR c.ficha_empresa ILIKE ${patron}
         ${digitos.length >= 3 ? `OR c.telefono LIKE ${param(`%${digitos}%`)}` : ''})`,
     );
   }

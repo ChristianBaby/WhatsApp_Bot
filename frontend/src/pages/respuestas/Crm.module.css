@@ -1,0 +1,361 @@
+/* Etapa 4: ficha del cliente, etiquetas, recordatorios, notas y respuestas rapidas. */
+
+.cabeceraFicha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 14px;
+}
+
+.nombreFicha {
+  font-weight: 700;
+  color: var(--texto-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.detalleFicha {
+  font-size: var(--texto-nano);
+  color: var(--texto-tenue);
+}
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--borde-fila);
+}
+
+.tituloSeccion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--texto-menor);
+  font-weight: 700;
+  color: var(--texto-fuerte);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--texto-nano);
+  color: var(--texto-suave);
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fila > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ok {
+  color: var(--exito);
+  font-size: var(--texto-menor);
+}
+
+.error {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+  border-radius: var(--radio-control);
+  padding: 8px 10px;
+  font-size: var(--texto-menor);
+  margin-bottom: 8px;
+}
+
+.ayuda {
+  font-size: var(--texto-nano);
+  color: var(--texto-tenue);
+}
+
+.lead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--texto-menor);
+  color: var(--texto-suave);
+  margin-top: 4px;
+}
+
+/* ---------- Etiquetas ---------- */
+
+.etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid;
+  background: transparent;
+  color: var(--texto-fuerte);
+  border-radius: 12px;
+  padding: 2px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Puesta: fondo del color de la etiqueta (son colores claros: texto oscuro en los dos temas). */
+.etiquetaPuesta {
+  color: #1b1b1b;
+  font-weight: 600;
+}
+
+.puntoEtiqueta {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.filaEtiqueta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.nombreEtiqueta {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--texto-fuerte);
+}
+
+.peligro {
+  color: var(--peligro);
+}
+
+.editorEtiqueta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.paleta {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+}
+
+.muestra {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.muestraElegida {
+  border-color: var(--texto-fuerte);
+}
+
+/* ---------- Recordatorios ---------- */
+
+.recordatorio {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--texto-menor);
+  color: var(--texto-fuerte);
+}
+
+.recordatorio input[type='checkbox'] {
+  margin-top: 3px;
+}
+
+.recordatorioTexto {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hecho .recordatorioTexto > div:first-child {
+  text-decoration: line-through;
+  color: var(--texto-tenue);
+}
+
+.vencido {
+  font-size: var(--texto-nano);
+  color: var(--peligro);
+  font-weight: 600;
+}
+
+.atajos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* ---------- Notas ---------- */
+
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.nota {
+  background: var(--alerta-fondo);
+  border-radius: var(--radio-control);
+  padding: 8px 10px;
+}
+
+.notaCabecera {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--texto-nano);
+  color: var(--texto-suave);
+  margin-bottom: 3px;
+}
+
+.notaTexto {
+  font-size: var(--texto-menor);
+  color: var(--texto-fuerte);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Lista de chats ---------- */
+
+.chipsLista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.chipLista {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--texto-suave);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asignadoLista {
+  font-size: 10.5px;
+  color: var(--texto-tenue);
+}
+
+.selectorEtiqueta {
+  border: 1px solid var(--borde-control);
+  background: transparent;
+  color: var(--texto-suave);
+  border-radius: 14px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  max-width: 150px;
+}
+
+/* ---------- Respuestas rapidas (en el compositor) ---------- */
+
+.sugerencias {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  box-shadow: var(--sombra-modal);
+  padding: 4px;
+  z-index: 25;
+}
+
+.sugerencia {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--texto-fuerte);
+}
+
+.sugerenciaActiva,
+.sugerencia:hover {
+  background: var(--fondo-neutro);
+}
+
+.sugerenciaAtajo {
+  font-weight: 700;
+  font-size: var(--texto-menor);
+  color: var(--acento);
+}
+
+.sugerenciaTexto {
+  font-size: var(--texto-nano);
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filaRapida {
+  border-bottom: 1px solid var(--borde-fila);
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- Aviso de recordatorio vencido ---------- */
+
+.avisos {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.aviso {
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--alerta);
+  border-radius: 10px;
+  box-shadow: var(--sombra-modal);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--texto-fuerte);
+  font-size: var(--texto-menor);
+}

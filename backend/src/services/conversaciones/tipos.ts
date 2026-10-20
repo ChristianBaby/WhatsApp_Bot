@@ -106,7 +106,21 @@ export type ExtrasMensaje = {
   creadoEn?: Date | null;
 };
 
-export type FiltroConversaciones = 'todos' | 'no_leidos' | 'leads' | 'asesor' | 'grupos' | 'archivados';
+export type FiltroConversaciones =
+  | 'todos'
+  | 'no_leidos'
+  | 'leads'
+  | 'asesor'
+  | 'grupos'
+  | 'archivados'
+  | 'mios'
+  | 'recordatorios';
+
+/** color: indice de la paleta de etiquetas de WhatsApp (0-19). */
+export type EtiquetaChat = { id: number; nombre: string; color: number };
+
+/** Ficha del cliente: lo que el equipo anota de el (sirve tambien si no es lead). */
+export type FichaCliente = { nombre: string | null; empresa: string | null; correo: string | null };
 
 export type ConversacionResumen = {
   id: number;
@@ -134,6 +148,12 @@ export type ConversacionResumen = {
   iaSugerencia: string | null;
   iaSugerenciaEn: string | null;
   creadoEn: string;
+  /** Asesor a cargo del chat. */
+  asignadoA: { id: string; email: string | null } | null;
+  ficha: FichaCliente;
+  etiquetas: EtiquetaChat[];
+  /** El recordatorio pendiente mas proximo (vencido si ya paso). */
+  proximoRecordatorio: string | null;
 };
 
 export type ConversacionDetalle = ConversacionResumen & {

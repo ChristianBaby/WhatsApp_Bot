@@ -93,7 +93,15 @@ type CallbacksSesion = {
   onGrupos: (grupos: GrupoWhatsapp[]) => void;
   /** Se fijo/desfijo o archivo/desarchivo un chat (en el telefono, o el eco de lo hecho en el panel). */
   onEstadoChats: (chats: ({ telefono: string; jid: string } & EstadoChat)[]) => void;
+  /** Al conectar: si la cuenta es WhatsApp Business (solo ahi hay etiquetas). */
+  onBusiness: (esBusiness: boolean) => void;
+  /** Una etiqueta de WhatsApp Business se creo, cambio o borro (en el telefono o el eco del panel). */
+  onEtiqueta: (etiqueta: EtiquetaWhatsapp) => void;
+  /** A un chat se le puso o quito una etiqueta. */
+  onEtiquetaChat: (cambio: { telefono: string; waId: string; puesta: boolean }) => void;
 };
+
+export type EtiquetaWhatsapp = { waId: string; nombre: string; color: number; borrada: boolean };
 
 /** Lo que llega sin tocar queda undefined (no cambia). */
 export type EstadoChat = { fijadoEn?: Date | null; archivado?: boolean };
@@ -799,6 +807,14 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
 
   sock.ev.on('connection.update', ({ connection }) => {
     if (connection !== 'open') return;
+    // WhatsApp Business: la app del telefono es "smba"/"smbi", o la cuenta tiene perfil de empresa.
+    const plataforma = sock.authState.creds.platform ?? '';
+    const propio = sock.user?.id ? `${soloTelefono(sock.user.id)}@s.whatsapp.net` : null;
+    void (async () => {
+      if (plataforma.startsWith('smb')) return true;
+      if (!propio) return false;
+      return Boolean(await sock.getBusinessProfile(propio).catch(() => null));
+    })().then((esBusiness) => callbacks.onBusiness(esBusiness));
     sock
       .groupFetchAllParticipating()
       .then((grupos) => avisarGrupos(Object.values(grupos)))
@@ -822,6 +838,26 @@ export async function crearSesion(numeroId: number, callbacks: CallbacksSesion):
   }
   sock.ev.on('chats.update', avisarEstadoChats);
   sock.ev.on('chats.upsert', avisarEstadoChats);
+
+  // Etiquetas de WhatsApp Business (llegan con la sincronizacion del telefono).
+  sock.ev.on('labels.edit', (etiqueta) => {
+    if (!etiqueta.id) return;
+    callbacks.onEtiqueta({
+      waId: String(etiqueta.id),
+      nombre: etiqueta.name?.trim() || `Etiqueta ${etiqueta.id}`,
+      color: Number(etiqueta.color) || 0,
+      borrada: Boolean(etiqueta.deleted),
+    });
+  });
+  sock.ev.on('labels.association', ({ association, type }) => {
+    if (association.type !== 'label_jid') return;
+    const jid = association.chatId;
+    void (async () => (esJidDeGrupo(jid) ? jid : await telefonoDesdeJid(jid, null, { esperarMapeo: false })))()
+      .then((telefono) => {
+        if (telefono) callbacks.onEtiquetaChat({ telefono, waId: String(association.labelId), puesta: type === 'add' });
+      })
+      .catch((err: unknown) => logBaileys.warn({ err }, 'No se pudo leer una etiqueta de chat'));
+  });
 
   // Llamadas entrantes: suenan aca tambien (como en WhatsApp Web). Se guarda
   // una sola entrada en el chat cuando la llamada termina: atendida o perdida.

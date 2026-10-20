@@ -9,6 +9,8 @@ import { BuscarEnChat } from './BuscarEnChat';
 import { Burbuja } from './Burbuja';
 import { InfoChat } from './InfoChat';
 import { Compositor, type CompositorHandle } from './Compositor';
+import { colorEtiqueta } from './coloresEtiqueta';
+import { FichaChat } from './FichaChat';
 import type { AccionesMensaje } from './MenuMensaje';
 import { ModalReenviar } from './ModalReenviar';
 import { ETAPA_INFO, infoEtapa } from './etapa';
@@ -16,10 +18,12 @@ import { nombreDeAutor, nombreDeChat } from './nombreChat';
 import { Visor } from './Visor';
 import estilos from './DetalleConversacion.module.css';
 import org from './Organizar.module.css';
+import crm from './Crm.module.css';
 
 type Props = {
   conversacion: ConversacionDetalle;
-  onVerFicha: () => void;
+  /** Sube cuando cambian notas, recordatorios o etiquetas de este chat (la ficha se refresca). */
+  versionCrm: number;
   /** Trae la pagina de mensajes anterior a la mas vieja que se ve. */
   onCargarAnteriores: () => Promise<void>;
   /** Trae todos los mensajes anteriores hasta este (para saltar a uno viejo). */
@@ -58,14 +62,14 @@ function etiquetaDia(iso: string): string {
 /** Cuanto queda resaltado el mensaje al que se salta desde una cita. */
 const RESALTADO_MS = 1600;
 
-export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnteriores, onCargarHasta, presencia }: Props) {
+export function DetalleConversacion({ conversacion, versionCrm, onCargarAnteriores, onCargarHasta, presencia }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [cargandoAnteriores, setCargandoAnteriores] = useState(false);
   const [visorId, setVisorId] = useState<number | null>(null);
   const [resaltadoId, setResaltadoId] = useState<number | null>(null);
   /** Panel lateral abierto: la lupa o la info del chat. */
-  const [panel, setPanel] = useState<'buscar' | 'info' | null>(null);
+  const [panel, setPanel] = useState<'buscar' | 'info' | 'ficha' | null>(null);
   /** Mensaje viejo al que se quiere saltar, mientras se cargan los mensajes hasta el. */
   const saltoPendienteRef = useRef<number | null>(null);
   const [respondiendoA, setRespondiendoA] = useState<MensajeConversacion | null>(null);
@@ -259,6 +263,8 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
   const esGrupo = conversacion.esGrupo;
   const nombreAutor = (m: Pick<MensajeConversacion, 'autor' | 'extra'>) => nombreDeAutor(m, nombre, esGrupo);
   const presente = textoPresencia(presencia);
+  const recordatorioPendiente = conversacion.proximoRecordatorio;
+  const recordatorioVencido = Boolean(recordatorioPendiente && new Date(recordatorioPendiente).getTime() <= Date.now());
 
   async function marcarVenta() {
     if (!window.confirm(`¿Marcar "${nombre}" como venta concretada?`)) return;
@@ -308,6 +314,24 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
             {conversacion.rubro && ` · Rubro: ${conversacion.rubro}`}
           </div>
           {conversacion.campanaNombre && <div className={estilos.campana}>Campaña: {conversacion.campanaNombre}</div>}
+          {(conversacion.etiquetas.length > 0 || conversacion.asignadoA || recordatorioPendiente) && (
+            <div className={crm.chipsLista}>
+              {recordatorioPendiente && (
+                <span className={recordatorioVencido ? crm.vencido : crm.chipLista}>
+                  ⏰ {recordatorioVencido ? 'Recordatorio vencido' : 'Recordatorio pendiente'}
+                </span>
+              )}
+              {conversacion.asignadoA && (
+                <span className={crm.chipLista}>👤 {conversacion.asignadoA.email ?? conversacion.asignadoA.id}</span>
+              )}
+              {conversacion.etiquetas.map((e) => (
+                <span key={e.id} className={crm.chipLista}>
+                  <span className={crm.puntoEtiqueta} style={{ background: colorEtiqueta(e.color) }} />
+                  {e.nombre}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className={org.accionesEncabezado}>
           <button
@@ -336,6 +360,14 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
           </button>
           <button
             type="button"
+            className={`${org.botonIcono} ${panel === 'ficha' ? org.botonActivo : ''}`}
+            title="Ficha: datos, etiquetas, asignar, recordatorios y notas"
+            onClick={() => setPanel(panel === 'ficha' ? null : 'ficha')}
+          >
+            👤
+          </button>
+          <button
+            type="button"
             className={`${org.botonIcono} ${panel === 'info' ? org.botonActivo : ''}`}
             title="Info, archivos y destacados"
             onClick={() => setPanel(panel === 'info' ? null : 'info')}
@@ -355,6 +387,9 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
           onIr={(m) => void irAMensaje(m)}
           onCerrar={() => setPanel(null)}
         />
+      )}
+      {panel === 'ficha' && (
+        <FichaChat conversacion={conversacion} nombre={nombre} version={versionCrm} onCerrar={() => setPanel(null)} />
       )}
       {panel === 'info' && (
         <InfoChat
@@ -486,6 +521,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
         ref={compositorRef}
         conversacionId={conversacion.id}
         nombreAutor={nombreAutor}
+        nombreCliente={nombre}
         respondiendoA={respondiendoA}
         onCancelarRespuesta={() => setRespondiendoA(null)}
         editando={editando}
@@ -499,7 +535,7 @@ export function DetalleConversacion({ conversacion, onVerFicha, onCargarAnterior
 
       {esLead && (
         <div className={estilos.acciones}>
-          <Boton variante="secundario" onClick={onVerFicha}>
+          <Boton variante="secundario" onClick={() => setPanel('ficha')}>
             Ver ficha del lead
           </Boton>
           {conversacion.etapaPipeline !== 'venta_concretada' && (

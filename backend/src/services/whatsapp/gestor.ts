@@ -12,6 +12,7 @@ import { actualizarAgenda, actualizarGrupos, importarHistorial } from '../conver
 import { aplicarCambio, registrarLlamada } from '../conversaciones/cambiosMensaje.js';
 import { alCambiarPresencia } from '../conversaciones/presencia.js';
 import { aplicarDesdeTelefono } from '../conversaciones/organizar.js';
+import * as etiquetas from '../crm/etiquetas.js';
 import * as conversacionesRepo from '../conversaciones/repositorio.js';
 import { registrarEstadoEntrega } from '../publicaciones/repositorio.js';
 
@@ -191,6 +192,21 @@ async function iniciar(numeroId: number): Promise<void> {
         aplicarDesdeTelefono(numeroId, chats).catch((err: unknown) =>
           log.warn({ err, numeroId }, 'No se pudo aplicar el fijado/archivado del telefono'),
         );
+      },
+      onBusiness: (esBusiness) => {
+        etiquetas
+          .marcarBusiness(numeroId, esBusiness)
+          .catch((err: unknown) => log.warn({ err, numeroId }, 'No se pudo guardar si el numero es Business'));
+      },
+      onEtiqueta: (etiqueta) => {
+        etiquetas
+          .alCambiarEtiqueta(numeroId, etiqueta)
+          .catch((err: unknown) => log.warn({ err, numeroId }, 'No se pudo sincronizar una etiqueta del telefono'));
+      },
+      onEtiquetaChat: (cambio) => {
+        etiquetas
+          .alEtiquetarChat(numeroId, cambio)
+          .catch((err: unknown) => log.warn({ err, numeroId }, 'No se pudo sincronizar la etiqueta de un chat'));
       },
       onGrupos: (grupos) => {
         actualizarGrupos(numeroId, grupos).catch((err: unknown) =>
