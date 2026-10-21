@@ -1,6 +1,5 @@
 /* ============================================================
-   Estilos base del panel. Replican el comportamiento del bloque
-   <helmet><style> de la maquetacion.
+   Estilos base del panel.
    ============================================================ */
 
 @import './tokens.css';
@@ -20,7 +19,7 @@ body,
 html {
   /* Le dice al navegador que dibuje sus propios controles (scrollbars,
      el calendario de <input type="date">, etc.) en oscuro o claro segun
-     el tema — sin esto quedarian siempre claros aunque el resto no. */
+     el tema. */
   color-scheme: light;
 }
 
@@ -31,15 +30,17 @@ html[data-tema='oscuro'] {
 body {
   margin: 0;
   font-family: var(--fuente-cuerpo);
+  font-size: var(--texto-cuerpo);
+  font-feature-settings: 'cv11', 'ss01';
   color: var(--texto);
   background: var(--fondo-app);
   -webkit-font-smoothing: antialiased;
-  /* Transicion suave al alternar el tema, no un salto brusco de color. */
+  -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-/* Imagenes (logo, adjuntos de campanas...) se atenuan un poco en oscuro
-   para no deslumbrar contra el fondo oscuro que las rodea. */
+/* Imagenes (adjuntos de campanas, fotos de chat...) se atenuan un poco en
+   oscuro para no deslumbrar contra el fondo que las rodea. */
 img {
   filter: var(--filtro-imagen);
 }
@@ -48,6 +49,7 @@ h1,
 h2,
 h3 {
   font-family: var(--fuente-titulo);
+  letter-spacing: -0.015em;
   margin: 0;
 }
 
@@ -77,8 +79,40 @@ textarea {
   color: inherit;
 }
 
+/* Base de los controles de formulario. :where() deja la especificidad en
+   cero: cualquier clase de un modulo sigue mandando sobre esto. */
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']), select, textarea) {
+  background-color: var(--fondo-panel);
+  color: var(--texto);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']), select, textarea):hover:not(:disabled) {
+  border-color: var(--texto-placeholder);
+}
+
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']), select, textarea):focus {
+  outline: none;
+  border-color: var(--acento);
+  box-shadow: var(--anillo-foco);
+}
+
+:where(select) {
+  cursor: pointer;
+}
+
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'] {
+  accent-color: var(--acento);
+}
+
 ::placeholder {
   color: var(--texto-placeholder);
+}
+
+::selection {
+  background: var(--acento-borde);
 }
 
 /* Foco visible solo cuando se navega con teclado. */
@@ -87,17 +121,43 @@ textarea {
   outline-offset: 2px;
 }
 
-/* Barra de scroll fina, igual que en la maquetacion. */
-.scroll::-webkit-scrollbar {
+/* Barra de scroll fina. */
+.scroll::-webkit-scrollbar,
+.scroll *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.scroll::-webkit-scrollbar-thumb {
+.scroll::-webkit-scrollbar-thumb,
+.scroll *::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-.scroll::-webkit-scrollbar-track {
+.scroll::-webkit-scrollbar-track,
+.scroll *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Entrada suave de cada pantalla al navegar. */
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

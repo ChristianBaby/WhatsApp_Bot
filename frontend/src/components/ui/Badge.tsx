@@ -8,7 +8,7 @@ const TONOS: Record<TonoBadge, { fondo: string; color: string }> = {
   exito: { fondo: 'var(--exito-fondo)', color: 'var(--exito)' },
   alerta: { fondo: 'var(--alerta-fondo)', color: 'var(--alerta)' },
   info: { fondo: 'var(--info-fondo)', color: 'var(--info)' },
-  neutro: { fondo: 'var(--fondo-neutro)', color: 'var(--texto-tenue-2)' },
+  neutro: { fondo: 'var(--fondo-sutil-2)', color: 'var(--texto-suave)' },
   peligro: { fondo: 'var(--peligro-fondo)', color: 'var(--peligro)' },
 };
 

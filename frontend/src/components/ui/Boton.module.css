@@ -4,13 +4,25 @@
   justify-content: center;
   gap: 7px;
   white-space: nowrap;
-  border: none;
-  font-weight: 700;
-  transition: filter 0.12s ease, background 0.12s ease;
+  border: 1px solid transparent;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.06s ease;
 }
 
-.base:hover:not(:disabled) {
-  filter: brightness(0.96);
+.base:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.base:focus-visible {
+  outline: none;
+  box-shadow: var(--anillo-foco);
 }
 
 /* --- Variantes --- */
@@ -18,38 +30,57 @@
 .primario {
   background: var(--acento);
   color: var(--texto-sobre-acento);
-  padding: 10px 16px;
+  padding: 9px 16px;
   border-radius: var(--radio-boton);
-  font-size: var(--texto-cuerpo);
+  font-size: var(--texto-control);
+  box-shadow: var(--sombra-boton);
+}
+
+.primario:hover:not(:disabled) {
+  background: var(--acento-hover);
 }
 
 .secundario {
   background: var(--fondo-panel);
   color: var(--texto-medio);
-  border: 1px solid var(--borde-control);
+  border-color: var(--borde-control);
   padding: 8px 14px;
   border-radius: var(--radio-control);
   font-size: var(--texto-control);
-  font-weight: 600;
+  box-shadow: var(--sombra-pill);
+}
+
+.secundario:hover:not(:disabled) {
+  background: var(--fondo-hover);
+  border-color: var(--texto-placeholder);
+  color: var(--texto-fuerte);
 }
 
 .peligro {
   background: var(--peligro-fondo);
   color: var(--peligro);
-  border: 1px solid var(--peligro-borde);
+  border-color: var(--peligro-borde);
   padding: 8px 14px;
   border-radius: var(--radio-control);
   font-size: var(--texto-control);
-  font-weight: 600;
+}
+
+.peligro:hover:not(:disabled) {
+  background: var(--peligro);
+  border-color: var(--peligro);
+  color: #ffffff;
 }
 
 .texto {
   background: transparent;
   color: var(--acento);
-  padding: 6px 4px;
+  padding: 7px 8px;
   border-radius: var(--radio-control);
   font-size: var(--texto-control);
-  font-weight: 600;
+}
+
+.texto:hover:not(:disabled) {
+  background: var(--acento-suave);
 }
 
 .ancho {

@@ -5,7 +5,7 @@
      de los items de grid) y el hilo del chat nunca muestra su scroll: los
      mensajes de abajo quedaban cortados sin poder desplazarse. */
   grid-template-rows: minmax(0, 1fr);
-  height: calc(100vh - 170px);
+  height: calc(100vh - var(--alto-topbar) - 136px);
   min-height: 460px;
   overflow: hidden;
 }

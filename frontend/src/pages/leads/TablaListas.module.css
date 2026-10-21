@@ -1,24 +1,31 @@
 .encabezado {
   display: grid;
-  grid-template-columns: 1fr 100px 70px 80px minmax(320px, auto);
+  grid-template-columns: minmax(200px, 1fr) 100px 80px 90px 440px;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 11px 18px;
   font-size: var(--texto-nano);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--texto-tenue);
+  background: var(--fondo-sutil);
   border-bottom: 1px solid var(--borde-fila);
 }
 
 .fila {
   display: grid;
-  grid-template-columns: 1fr 100px 70px 80px minmax(320px, auto);
+  grid-template-columns: minmax(200px, 1fr) 100px 80px 90px 440px;
   gap: 8px;
   align-items: center;
-  padding: 13px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--borde-fila);
   font-size: var(--texto-cuerpo);
+  font-variant-numeric: tabular-nums;
+  transition: background 0.1s ease;
+}
+
+.fila:hover {
+  background: var(--fondo-hover);
 }
 
 .fila:last-child {
@@ -26,7 +33,8 @@
 }
 
 .nombre {
-  font-weight: 700;
+  font-weight: 650;
+  color: var(--texto-fuerte);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

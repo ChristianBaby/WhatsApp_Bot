@@ -3,6 +3,7 @@ import { EncabezadoPagina } from '../components/ui/EncabezadoPagina';
 import { EstadoVacio } from '../components/ui/EstadoVacio';
 import { Boton } from '../components/ui/Boton';
 import { Tarjeta } from '../components/ui/Tarjeta';
+import { Icono } from '../components/ui/Icono';
 import { useSSE } from '../hooks/useSSE';
 import { api } from '../lib/api';
 import type { NumeroWhatsapp } from '../lib/types';
@@ -57,13 +58,14 @@ export function Conexion() {
   }
 
   return (
-    <div style={{ maxWidth: 680 }}>
+    <div className={estilos.pagina}>
       <EncabezadoPagina
         titulo="Conexión de WhatsApp"
         descripcion="Puedes vincular varios números y repartir tus campañas entre ellos."
         acciones={
           <Boton onClick={() => void vincularNuevoNumero()} disabled={vinculando}>
-            {vinculando ? 'Vinculando…' : '+ Vincular número'}
+            <Icono nombre="mas" tamano={16} />
+            {vinculando ? 'Vinculando…' : 'Vincular número'}
           </Boton>
         }
       />
@@ -77,10 +79,30 @@ export function Conexion() {
       {numeros !== null && numeros.length === 0 && (
         <Tarjeta>
           <EstadoVacio
+            icono="telefono"
             titulo="Todavía no hay números vinculados"
             detalle="Vincula tu primer número de WhatsApp para empezar a enviar campañas. Podrás renombrarlo en cualquier momento."
           />
         </Tarjeta>
+      )}
+
+      {numeros !== null && numeros.length > 0 && (
+        <div className={estilos.resumen}>
+          {[
+            { etiqueta: 'Números vinculados', valor: numeros.length, tono: 'acento' },
+            { etiqueta: 'Conectados ahora', valor: numeros.filter((n) => n.estado === 'conectado').length, tono: 'exito' },
+            {
+              etiqueta: 'Con auto-respuestas',
+              valor: numeros.filter((n) => n.autoRespuestasActivo).length,
+              tono: 'violeta',
+            },
+          ].map((r) => (
+            <div className={estilos.resumenItem} key={r.etiqueta} data-tono={r.tono}>
+              <span className={estilos.resumenValor}>{r.valor}</span>
+              <span className={estilos.resumenEtiqueta}>{r.etiqueta}</span>
+            </div>
+          ))}
+        </div>
       )}
 
       {numeros !== null && numeros.length > 0 && (

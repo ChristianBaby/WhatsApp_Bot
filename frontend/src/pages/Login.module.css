@@ -1,39 +1,177 @@
 .pantalla {
+  display: grid;
+  grid-template-columns: minmax(380px, 1fr) minmax(420px, 1fr);
+  min-height: 100vh;
+  background: var(--fondo-app);
+}
+
+/* --- Panel de marca --- */
+
+.marca {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 48px;
+  color: #ffffff;
+  overflow: hidden;
+  background:
+    radial-gradient(70% 60% at 100% 0%, rgba(42, 157, 244, 0.35) 0%, transparent 60%),
+    radial-gradient(60% 60% at 0% 100%, rgba(31, 95, 209, 0.45) 0%, transparent 60%),
+    linear-gradient(160deg, #0f2b5c 0%, #0a1f44 55%, #061430 100%);
+}
+
+/* Anillo decorativo que recuerda la orbita del logo. */
+.marca::after {
+  content: '';
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  right: -220px;
+  bottom: -180px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 60px rgba(255, 255, 255, 0.02),
+    0 0 0 120px rgba(255, 255, 255, 0.015);
+  pointer-events: none;
+}
+
+.marcaArriba {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.logoCaja {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: var(--fondo-app);
+  box-shadow: 0 6px 20px -6px rgba(42, 157, 244, 0.7);
+}
+
+.logoSimbolo {
+  width: 32px;
+  height: 32px;
+  filter: none;
+}
+
+.marcaNombre {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.marcaProducto {
+  font-weight: 500;
+  color: #8fc8f8;
+}
+
+.marcaCentro {
+  position: relative;
+  z-index: 1;
+  max-width: 460px;
+}
+
+.marcaTitulo {
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  margin: 0 0 14px 0;
+}
+
+.marcaTexto {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #b9c6dd;
+  margin: 0 0 28px 0;
+}
+
+.beneficios {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.beneficios li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e3eaf6;
+}
+
+.beneficioIcono {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #8fc8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.marcaPie {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  color: #7f91b2;
+}
+
+/* --- Formulario --- */
+
+.lado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
 }
 
 .tarjeta {
   width: 100%;
-  max-width: 360px;
-  background: var(--fondo-panel);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio-tarjeta);
-  padding: 32px 30px;
+  max-width: 400px;
 }
 
 .logo {
-  display: flex;
-  flex-direction: column;
+  display: none;
   align-items: center;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 28px;
 }
 
-.logoImg {
-  height: 48px;
-  width: auto;
+.logoTexto {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--texto-fuerte);
+}
+
+.titulo {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--texto-fuerte);
+  margin: 0 0 6px 0;
 }
 
 .subtitulo {
-  font-size: var(--texto-nano);
-  color: var(--texto-tenue);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-top: 8px;
+  font-size: var(--texto-cuerpo);
+  color: var(--texto-suave);
+  margin: 0 0 26px 0;
 }
 
 .campo {
@@ -43,16 +181,17 @@
 .etiqueta {
   display: block;
   font-size: var(--texto-control);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--texto-medio);
   margin-bottom: 6px;
 }
 
 .input {
   width: 100%;
-  padding: 10px 12px;
+  height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--borde-control);
-  border-radius: var(--radio-control);
+  border-radius: 10px;
   font-size: var(--texto-base);
   font-family: inherit;
 }
@@ -63,15 +202,40 @@
   gap: 8px;
   font-size: var(--texto-control);
   color: var(--texto-medio);
-  margin-bottom: 16px;
+  margin: 4px 0 20px 0;
   cursor: pointer;
 }
 
 .error {
   background: var(--peligro-fondo);
   color: var(--peligro);
-  border-radius: var(--radio-control);
-  padding: 9px 12px;
+  border: 1px solid var(--peligro-borde);
+  border-radius: 10px;
+  padding: 10px 12px;
   font-size: var(--texto-menor);
   margin-bottom: 16px;
+}
+
+/* El boton de ingresar, un poco mas alto que el resto del panel. */
+.tarjeta button[type='submit'] {
+  height: 44px;
+  font-size: var(--texto-base);
+}
+
+@media (max-width: 900px) {
+  .pantalla {
+    grid-template-columns: 1fr;
+  }
+
+  .marca {
+    display: none;
+  }
+
+  .logo {
+    display: flex;
+  }
+
+  .logo .logoCaja {
+    box-shadow: inset 0 0 0 1px var(--borde), var(--sombra-elevada);
+  }
 }

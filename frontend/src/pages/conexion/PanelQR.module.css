@@ -8,11 +8,12 @@
 }
 
 .marco {
-  width: 160px;
-  height: 160px;
-  border-radius: 10px;
-  background: var(--fondo-sutil);
+  width: 168px;
+  height: 168px;
+  border-radius: 14px;
+  background: #ffffff;
   border: 1px solid var(--borde);
+  box-shadow: 0 0 0 4px var(--acento-suave);
   display: flex;
   align-items: center;
   justify-content: center;

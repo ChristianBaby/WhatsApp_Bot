@@ -41,13 +41,14 @@ export function Dropzone({ onArchivo, disabled }: Props) {
       tabIndex={0}
       style={{ cursor: disabled ? 'default' : 'pointer' }}
     >
-      <Icono nombre="subir" tamano={30} color="var(--texto-tenue)" />
+      <span className={estilos.iconoSubir}>
+        <Icono nombre="subir" tamano={22} color="var(--acento)" />
+      </span>
       <div className={estilos.texto}>Arrastra tu archivo aquí o haz clic para subir</div>
       <div className={estilos.ayuda}>
         Formatos aceptados: {EXTENSIONES_ACEPTADAS.join(', ')} — columnas obligatorias: teléfono, empresa
       </div>
       <Boton
-        variante="secundario"
         disabled={disabled}
         onClick={(e) => {
           // Evita que el clic tambien dispare el onClick del contenedor

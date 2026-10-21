@@ -66,6 +66,7 @@ export function Burbuja({ conversacionId, mensaje, esGrupo, nombreAutor, citado,
   const clases = [
     estilos.burbuja,
     propio ? estilos.burbujaYo : estilos.burbujaLead,
+    mensaje.autor === 'bot' ? estilos.burbujaBot : '',
     sinGlobo ? estilos.burbujaSinGlobo : '',
     resaltado ? estilos.burbujaResaltada : '',
   ].join(' ');

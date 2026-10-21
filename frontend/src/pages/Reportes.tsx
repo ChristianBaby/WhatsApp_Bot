@@ -3,6 +3,7 @@ import { EncabezadoPagina } from '../components/ui/EncabezadoPagina';
 import { EstadoVacio } from '../components/ui/EstadoVacio';
 import { Tarjeta } from '../components/ui/Tarjeta';
 import { Boton } from '../components/ui/Boton';
+import { Icono, type NombreIcono } from '../components/ui/Icono';
 import { api } from '../lib/api';
 import { formatearFecha } from '../lib/fecha';
 import type { CampanaResumen, DatosReportes } from '../lib/types';
@@ -15,8 +16,8 @@ const COLOR_ETAPA: Record<string, string> = {
   Contactados: 'var(--embudo-nuevo)',
   Leyeron: 'var(--embudo-contactado)',
   Respondieron: 'var(--acento)',
-  Interesados: 'var(--exito)',
-  'Venta concretada': 'var(--exito-fuerte)',
+  Interesados: 'var(--violeta)',
+  'Venta concretada': 'var(--exito-punto)',
 };
 
 const ETIQUETA_ESTADO: Record<string, string> = {
@@ -106,7 +107,8 @@ export function Reportes() {
               ))}
             </select>
             <Boton variante="secundario" onClick={() => descargar(rutaExportar())}>
-              ⬇ Exportar Excel
+              <Icono nombre="descargar" tamano={15} />
+              Exportar Excel
             </Boton>
           </div>
         }
@@ -118,54 +120,71 @@ export function Reportes() {
         </Tarjeta>
       ) : (
         <>
-          {errorDescarga && <p style={{ color: 'var(--peligro)', fontSize: 13 }}>{errorDescarga}</p>}
+          {errorDescarga && <p className={estilos.error}>{errorDescarga}</p>}
 
           <div className={estilos.tarjetasKpi}>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Mensajes enviados</div>
-              <div className={estilos.kpiValor}>{datos.kpis.mensajesEnviados}</div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Leídos</div>
-              <div className={estilos.kpiValor}>
-                {datos.kpis.leidos} <span className={estilos.kpiSub}>{datos.kpis.tasaLectura}%</span>
+            {[
+              {
+                etiqueta: 'Mensajes enviados',
+                valor: datos.kpis.mensajesEnviados,
+                icono: 'publicaciones',
+                tono: 'acento',
+              },
+              { etiqueta: 'Entregados', valor: datos.kpis.entregados, icono: 'checkDoble', tono: 'celeste' },
+              {
+                etiqueta: 'Leídos',
+                valor: datos.kpis.leidos,
+                sub: `${datos.kpis.tasaLectura}%`,
+                icono: 'ojo',
+                tono: 'violeta',
+              },
+              {
+                etiqueta: 'Respondieron',
+                valor: datos.kpis.respondieron,
+                sub: `${datos.kpis.tasaRespuesta}%`,
+                icono: 'responder',
+                tono: 'turquesa',
+              },
+              {
+                etiqueta: 'Tiempo de respuesta',
+                valor: formatearMinutos(datos.kpis.tiempoRespuestaMinutos),
+                icono: 'reloj',
+                tono: 'ambar',
+              },
+              { etiqueta: 'Pidieron baja', valor: datos.kpis.bajas, icono: 'baja', tono: 'rosa' },
+              { etiqueta: 'Ventas concretadas', valor: datos.kpis.ventasConcretadas, icono: 'trofeo', tono: 'exito' },
+              {
+                etiqueta: 'Tasa de conversión',
+                valor: `${datos.kpis.tasaConversion}%`,
+                icono: 'tendencia',
+                tono: 'acento',
+              },
+            ].map((k) => (
+              <div className={estilos.kpi} key={k.etiqueta} data-tono={k.tono}>
+                <div className={estilos.kpiCabecera}>
+                  <span className={estilos.kpiLabel}>{k.etiqueta}</span>
+                  <span className={estilos.kpiIcono}>
+                    <Icono nombre={k.icono as NombreIcono} tamano={17} />
+                  </span>
+                </div>
+                <div className={estilos.kpiValor}>
+                  {typeof k.valor === 'number' ? k.valor.toLocaleString('es-PE') : k.valor}
+                  {k.sub && <span className={estilos.kpiTasa}>{k.sub}</span>}
+                </div>
               </div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Respondieron</div>
-              <div className={estilos.kpiValor}>
-                {datos.kpis.respondieron} <span className={estilos.kpiSub}>{datos.kpis.tasaRespuesta}%</span>
-              </div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Tiempo de respuesta</div>
-              <div className={estilos.kpiValor}>{formatearMinutos(datos.kpis.tiempoRespuestaMinutos)}</div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Pidieron baja</div>
-              <div className={estilos.kpiValor}>{datos.kpis.bajas}</div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Entregados</div>
-              <div className={estilos.kpiValor}>{datos.kpis.entregados}</div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Ventas concretadas</div>
-              <div className={estilos.kpiValor}>{datos.kpis.ventasConcretadas}</div>
-            </div>
-            <div className={estilos.kpi}>
-              <div className={estilos.kpiLabel}>Tasa de conversión</div>
-              <div className={estilos.kpiValor}>{datos.kpis.tasaConversion}%</div>
-            </div>
+            ))}
           </div>
           <div className={estilos.notaKpi}>
-            Una respuesta cuenta para la campaña a la que responde (hasta 30 días después del envío). Entregados y leídos
-            se registran para los envíos hechos desde esta actualización.
+            Una respuesta cuenta para la campaña a la que responde (hasta 30 días después del envío). Entregados y
+            leídos se registran para los envíos hechos desde esta actualización.
           </div>
 
           <div className={estilos.filaDos}>
             <Tarjeta>
-              <div className={estilos.tituloPanel}>Embudo del pipeline</div>
+              <div className={estilos.tituloPanel}>
+                <Icono nombre="embudo" tamano={16} color="var(--acento)" />
+                Embudo del pipeline
+              </div>
               {datos.embudo.every((e) => e.valor === 0) ? (
                 <EstadoVacio
                   titulo="Sin envíos en este periodo"
@@ -175,8 +194,17 @@ export function Reportes() {
                 datos.embudo.map((e) => (
                   <div className={estilos.embudoFila} key={e.etapa}>
                     <div className={estilos.embudoEncabezado}>
-                      <span>{e.etapa}</span>
-                      <span className={estilos.embudoValor}>{e.valor}</span>
+                      <span className={estilos.embudoEtapa}>
+                        <span
+                          className={estilos.embudoPunto}
+                          style={{ background: COLOR_ETAPA[e.etapa] ?? 'var(--acento)' }}
+                        />
+                        {e.etapa}
+                      </span>
+                      <span className={estilos.embudoValor}>
+                        {e.valor.toLocaleString('es-PE')}
+                        <span className={estilos.embudoPct}>{e.pct}%</span>
+                      </span>
                     </div>
                     <div className={estilos.embudoBarraFondo}>
                       <div
@@ -194,7 +222,10 @@ export function Reportes() {
 
             <div className={estilos.columnaDerecha}>
               <Tarjeta>
-                <div className={estilos.tituloPanel}>Leads por rubro</div>
+                <div className={estilos.tituloPanel}>
+                  <Icono nombre="leads" tamano={16} color="var(--acento)" />
+                  Leads por rubro
+                </div>
                 {datos.porRubro.length === 0 ? (
                   <EstadoVacio titulo="Sin datos todavía" />
                 ) : (
@@ -210,7 +241,10 @@ export function Reportes() {
               </Tarjeta>
 
               <Tarjeta>
-                <div className={estilos.tituloPanel}>Auto-responder</div>
+                <div className={estilos.tituloPanel}>
+                  <Icono nombre="auto" tamano={16} color="var(--acento)" />
+                  Auto-responder
+                </div>
                 <div className={estilos.filaAutoResp}>
                   <span>🤖 Atendidas por el bot</span>
                   <span className={estilos.autoRespValor}>{datos.autoResponder.atendidasPorBot}</span>
@@ -231,7 +265,7 @@ export function Reportes() {
 
           <Tarjeta sinPadding>
             {datos.campanas.length === 0 ? (
-              <div style={{ padding: 20 }}>
+              <div>
                 <EstadoVacio
                   titulo="Todavía no hay campañas en este periodo"
                   detalle="Cuando arranque una publicación aparecerá aquí con sus resultados en vivo."
@@ -239,6 +273,7 @@ export function Reportes() {
               </div>
             ) : (
               <>
+                <div className={estilos.tablaTitulo}>Campañas del periodo</div>
                 <div className={estilos.tablaEncabezado}>
                   <div>Campaña</div>
                   <div>Fecha</div>

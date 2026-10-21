@@ -1,8 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { Icono, type NombreIcono } from '../components/ui/Icono';
-import { SECCIONES, type SeccionId } from '../lib/rutas';
-import { useTema } from '../hooks/useTema';
-import type { Usuario } from '../hooks/useAuth';
+import { GRUPOS, SECCIONES, type SeccionId } from '../lib/rutas';
 import estilos from './Sidebar.module.css';
 
 /**
@@ -30,110 +28,112 @@ const ICONOS: Record<SeccionId, NombreIcono> = {
 
 type Props = {
   indicadores: IndicadoresSidebar;
-  usuario: Usuario | null;
-  onCerrarSesion: () => void;
+  compacto: boolean;
+  onAlternarCompacto: () => void;
 };
 
-export function Sidebar({ indicadores, usuario, onCerrarSesion }: Props) {
-  const {
-    hayNumeroConectado,
-    publicacionesEnCurso,
-    respuestasNoLeidas,
-    autoRespuestasActivas,
-    textoPie,
-  } = indicadores;
-  const { tema, alternar } = useTema();
+export function Sidebar({ indicadores, compacto, onAlternarCompacto }: Props) {
+  const { hayNumeroConectado, publicacionesEnCurso, respuestasNoLeidas, autoRespuestasActivas, textoPie } = indicadores;
 
-  const nombreMostrado = usuario?.nombre || usuario?.email || '';
+  /** El indicador a la derecha de cada item (o en la esquina del icono, si esta compacto). */
+  function indicador(id: SeccionId) {
+    if (id === 'respuestas' && respuestasNoLeidas > 0) {
+      return (
+        <span className={`${estilos.contador} ${estilos.contadorAlerta}`} title="Chats sin leer">
+          {respuestasNoLeidas > 99 ? '99+' : respuestasNoLeidas}
+        </span>
+      );
+    }
+    if (id === 'publicaciones' && publicacionesEnCurso > 0) {
+      return (
+        <span className={`${estilos.contador} ${estilos.contadorVivo}`} title="Publicaciones enviándose ahora">
+          {publicacionesEnCurso}
+        </span>
+      );
+    }
+    if (id === 'conexion') {
+      return (
+        <span
+          className={estilos.punto}
+          style={{ background: hayNumeroConectado ? 'var(--exito-punto)' : 'var(--alerta-punto)' }}
+          title={hayNumeroConectado ? 'Hay al menos un número conectado' : 'Ningún número conectado'}
+        />
+      );
+    }
+    if (id === 'auto') {
+      return (
+        <span
+          className={estilos.punto}
+          style={{ background: autoRespuestasActivas ? 'var(--exito-punto)' : 'var(--sidebar-texto-tenue)' }}
+          title={autoRespuestasActivas ? 'Auto-responder activado' : 'Auto-responder desactivado'}
+        />
+      );
+    }
+    return null;
+  }
 
   return (
-    <aside className={estilos.sidebar}>
+    <aside className={`${estilos.sidebar} ${compacto ? estilos.compacto : ''}`}>
       <div className={estilos.marca}>
-        <img src="/logo.png" alt="Universoft Systems" className={estilos.logo} />
-        <span className={estilos.subtitulo}>Bot de WhatsApp</span>
+        <span className={estilos.logoCaja}>
+          <img src="/logo-simbolo.png" alt="" className={estilos.logo} />
+        </span>
+        <span className={estilos.marcaTexto}>
+          <span className={estilos.marcaNombre}>Universoft</span>
+          <span className={estilos.marcaProducto}>CRM · WhatsApp</span>
+        </span>
       </div>
 
-      <nav className={estilos.nav}>
-        {SECCIONES.map((seccion) => (
-          <NavLink
-            key={seccion.id}
-            to={seccion.ruta}
-            className={({ isActive }) => `${estilos.item} ${isActive ? estilos.activo : ''}`}
-          >
-            {({ isActive }) => (
-              <>
-                <Icono
-                  nombre={ICONOS[seccion.id]}
-                  color={isActive ? 'var(--acento)' : 'var(--texto-tenue)'}
-                />
+      <nav className={`${estilos.nav} scroll`} aria-label="Secciones">
+        {GRUPOS.map((grupo) => (
+          <div className={estilos.grupo} key={grupo}>
+            <div className={estilos.grupoTitulo}>{grupo}</div>
+            {SECCIONES.filter((s) => s.grupo === grupo).map((seccion) => (
+              <NavLink
+                key={seccion.id}
+                to={seccion.ruta}
+                title={compacto ? seccion.etiqueta : undefined}
+                className={({ isActive }) => `${estilos.item} ${isActive ? estilos.activo : ''}`}
+              >
+                <span className={estilos.iconoCaja}>
+                  <Icono nombre={ICONOS[seccion.id]} tamano={19} />
+                </span>
                 <span className={estilos.etiqueta}>{seccion.etiqueta}</span>
-
-                {seccion.id === 'conexion' && hayNumeroConectado && (
-                  <span
-                    className={estilos.punto}
-                    style={{ background: 'var(--exito-punto)' }}
-                    title="Hay al menos un numero conectado"
-                  />
-                )}
-
-                {seccion.id === 'publicaciones' && (
-                  <span
-                    className={estilos.contador}
-                    style={{
-                      background: publicacionesEnCurso > 0 ? 'var(--exito-fondo)' : 'var(--fondo-neutro)',
-                      color: publicacionesEnCurso > 0 ? 'var(--exito)' : 'var(--texto-tenue-2)',
-                    }}
-                    title="Publicaciones enviandose ahora"
-                  >
-                    {publicacionesEnCurso}
-                  </span>
-                )}
-
-                {seccion.id === 'respuestas' && respuestasNoLeidas > 0 && (
-                  <span className={estilos.noLeidos} title="Chats sin leer">
-                    {respuestasNoLeidas}
-                  </span>
-                )}
-
-                {seccion.id === 'auto' && (
-                  <span
-                    className={estilos.punto}
-                    style={{
-                      background: autoRespuestasActivas ? 'var(--exito-punto)' : 'var(--inactivo)',
-                    }}
-                    title={autoRespuestasActivas ? 'Auto-responder activado' : 'Auto-responder desactivado'}
-                  />
-                )}
-              </>
-            )}
-          </NavLink>
+                {indicador(seccion.id)}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 
       <div className={estilos.pie}>
-        <span
-          className={estilos.piePunto}
-          style={{ background: hayNumeroConectado ? 'var(--exito-punto)' : 'var(--alerta-punto)' }}
-        />
-        <span className={estilos.pieTexto}>{textoPie}</span>
+        <div className={estilos.estado} title={compacto ? textoPie : undefined}>
+          <span className={estilos.estadoIcono}>
+            <Icono nombre="telefono" tamano={15} />
+            <span
+              className={estilos.estadoPunto}
+              style={{ background: hayNumeroConectado ? 'var(--exito-punto)' : 'var(--alerta-punto)' }}
+            />
+          </span>
+          <span className={estilos.estadoTexto}>
+            <span className={estilos.estadoTitulo}>{textoPie}</span>
+            <span className={estilos.estadoDetalle}>
+              {hayNumeroConectado ? 'Listo para enviar y recibir' : 'Vincula un número en Conexión'}
+            </span>
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className={estilos.botonCompacto}
+          onClick={onAlternarCompacto}
+          aria-label={compacto ? 'Expandir menú' : 'Contraer menú'}
+          title={compacto ? 'Expandir menú' : 'Contraer menú'}
+        >
+          <Icono nombre={compacto ? 'expandir' : 'colapsar'} tamano={16} />
+          <span className={estilos.etiqueta}>Contraer menú</span>
+        </button>
       </div>
-
-      <button
-        className={estilos.botonTema}
-        onClick={alternar}
-        title={tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-        aria-label={tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      >
-        <Icono nombre={tema === 'oscuro' ? 'sol' : 'luna'} color="var(--texto-tenue)" tamano={16} />
-        <span className={estilos.botonTemaTexto}>
-          {tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro'}
-        </span>
-      </button>
-
-      <button className={estilos.filaUsuario} onClick={onCerrarSesion} title="Cerrar sesión">
-        <span className={estilos.usuarioTexto}>{nombreMostrado}</span>
-        <span className={estilos.cerrarSesionTexto}>Cerrar sesión</span>
-      </button>
     </aside>
   );
 }

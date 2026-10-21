@@ -1,0 +1,38 @@
+.tituloSeccion {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--texto-seccion);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--texto-fuerte);
+  margin-bottom: 12px;
+}
+
+.resumenSeccion {
+  font-size: var(--texto-menor);
+  font-weight: 500;
+  color: var(--texto-tenue);
+}
+
+.aviso {
+  font-size: var(--texto-control);
+  color: var(--texto-suave);
+  margin: 12px 0 0 0;
+  padding: 10px 14px;
+  border-radius: var(--radio-control);
+  background: var(--fondo-sutil-2);
+  border: 1px solid var(--borde);
+}
+
+.avisoError {
+  color: var(--peligro);
+  background: var(--peligro-fondo);
+  border-color: var(--peligro-borde);
+}
+
+.avisoExito {
+  color: var(--exito);
+  background: var(--exito-fondo);
+  border-color: var(--exito-borde);
+}

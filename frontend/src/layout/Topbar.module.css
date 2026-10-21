@@ -1,0 +1,275 @@
+.barra {
+  height: var(--alto-topbar);
+  min-height: var(--alto-topbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px 0 32px;
+  background: color-mix(in srgb, var(--fondo-panel) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--borde);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* --- Migas --- */
+
+.migas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--texto-control);
+}
+
+.migaRaiz {
+  color: var(--texto-tenue);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.separador {
+  color: var(--borde-control);
+}
+
+.migaActual {
+  color: var(--texto-fuerte);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* --- Derecha --- */
+
+.derecha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radio-chip);
+  font-size: var(--texto-micro);
+  font-weight: 600;
+  border: 1px solid transparent;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.estadoOk {
+  background: var(--exito-fondo);
+  color: var(--exito);
+  border-color: var(--exito-borde);
+}
+
+.estadoAviso {
+  background: var(--alerta-fondo);
+  color: var(--alerta);
+  border-color: color-mix(in srgb, var(--alerta-punto) 35%, transparent);
+}
+
+.estadoPunto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.botonIcono {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--texto-suave);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.botonIcono:hover {
+  background: var(--fondo-sutil-2);
+  color: var(--texto-fuerte);
+}
+
+.burbuja {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--radio-chip);
+  background: var(--peligro-punto);
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--fondo-panel);
+}
+
+.divisor {
+  width: 1px;
+  height: 26px;
+  background: var(--borde);
+  margin: 0 6px;
+}
+
+/* --- Cuenta --- */
+
+.cuenta {
+  position: relative;
+}
+
+.botonCuenta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.botonCuenta:hover,
+.botonCuenta[aria-expanded='true'] {
+  background: var(--fondo-sutil-2);
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--degradado-marca);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatarGrande {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+
+.cuentaTexto {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  max-width: 170px;
+}
+
+.cuentaNombre {
+  font-size: var(--texto-control);
+  font-weight: 600;
+  color: var(--texto-fuerte);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cuentaRol {
+  font-size: 11px;
+  color: var(--texto-tenue);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 260px;
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow: var(--sombra-elevada);
+  padding: 6px;
+  animation: entrar 0.14s ease;
+}
+
+.menuCabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 12px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--borde-fila);
+}
+
+.menuDatos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.menuCorreo {
+  font-size: var(--texto-micro);
+  color: var(--texto-tenue);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--texto-medio);
+  font-size: var(--texto-control);
+  font-weight: 500;
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: var(--fondo-sutil-2);
+  color: var(--texto-fuerte);
+}
+
+.menuPeligro:hover {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+@media (max-width: 900px) {
+  .barra {
+    padding: 0 16px;
+  }
+
+  .migaRaiz,
+  .separador,
+  .cuentaTexto {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .estado {
+    display: none;
+  }
+}

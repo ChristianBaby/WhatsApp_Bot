@@ -1,7 +1,14 @@
 .tarjeta {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  position: relative;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.tarjeta:hover {
+  border-color: var(--acento-borde);
+  box-shadow: var(--sombra-elevada);
 }
 
 .encabezado {
@@ -14,6 +21,8 @@
 .nombre {
   font-size: var(--texto-seccion);
   font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--texto-fuerte);
 }
 
 .detalle {
@@ -38,7 +47,7 @@
 }
 
 .barraFondo {
-  height: 7px;
+  height: 8px;
   background: var(--fondo-neutro);
   border-radius: 20px;
   overflow: hidden;
@@ -46,16 +55,25 @@
 
 .barraRelleno {
   height: 100%;
-  background: var(--acento);
+  background: linear-gradient(90deg, var(--acento) 0%, var(--celeste) 100%);
   border-radius: 20px;
   transition: width 0.3s ease;
 }
 
 .resumenFinal {
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: var(--texto-menor);
   color: var(--texto-medio);
+}
+
+.resumenFinal > span {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--fondo-sutil-2);
+  border: 1px solid var(--borde-fila);
+  font-weight: 500;
 }
 
 .motivoPausa {
@@ -70,4 +88,6 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde-fila);
 }

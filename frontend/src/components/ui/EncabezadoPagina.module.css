@@ -3,17 +3,20 @@
   justify-content: space-between;
   align-items: flex-end;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
 }
 
 .titulo {
   font-size: var(--texto-h1);
   font-weight: 700;
-  margin: 0 0 4px 0;
+  letter-spacing: -0.025em;
+  color: var(--texto-fuerte);
+  margin: 0 0 5px 0;
 }
 
 .descripcion {
-  font-size: var(--texto-base);
+  font-size: var(--texto-cuerpo);
   color: var(--texto-suave);
   margin: 0;
 }
@@ -22,4 +25,5 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }

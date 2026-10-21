@@ -40,7 +40,10 @@
 }
 
 .encabezado {
-  padding: 8px 0;
+  padding: 9px 8px;
+  margin-top: 4px;
+  border-radius: 8px;
+  background: var(--fondo-sutil-2);
   font-size: var(--texto-nano);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -50,7 +53,7 @@
 }
 
 .fila {
-  padding: 8px 0;
+  padding: 9px 8px;
   font-size: var(--texto-menor);
   border-bottom: 1px solid var(--borde-fila);
 }

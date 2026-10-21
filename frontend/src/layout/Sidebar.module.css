@@ -1,188 +1,371 @@
+/* Sidebar navy de marca (igual en los dos temas), al estilo de los CRMs:
+   bloque de marca arriba, secciones agrupadas y estado del canal abajo. */
+
 .sidebar {
   width: var(--ancho-sidebar);
   min-width: var(--ancho-sidebar);
-  background: var(--fondo-panel);
-  border-right: 1px solid var(--borde);
+  height: 100vh;
+  background:
+    radial-gradient(120% 60% at 0% 0%, #1f5fd133 0%, transparent 60%),
+    linear-gradient(180deg, var(--sidebar-fondo-2) 0%, var(--sidebar-fondo) 100%);
+  border-right: 1px solid var(--sidebar-borde);
+  color: var(--sidebar-texto);
   display: flex;
   flex-direction: column;
-  padding: 20px 14px;
+  padding: 16px 12px 14px 12px;
+  transition: width 0.2s ease, min-width 0.2s ease;
+  position: relative;
+  z-index: 20;
 }
+
+/* --- Marca --- */
 
 .marca {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 2px 8px 20px 8px;
+  align-items: center;
+  gap: 11px;
+  padding: 4px 6px 18px 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--sidebar-borde);
+  min-height: 58px;
+}
+
+.logoCaja {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px -4px rgba(42, 157, 244, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 .logo {
-  height: 50px;
-  width: auto;
+  width: 30px;
+  height: 30px;
   display: block;
+  /* El logo va siempre sobre su recuadro blanco: no se atenua en oscuro. */
+  filter: none;
 }
 
-.subtitulo {
-  font-size: var(--texto-nano);
-  color: var(--texto-tenue);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-top: 6px;
+.marcaTexto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
 }
+
+.marcaNombre {
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.marcaProducto {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--sidebar-texto-tenue);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* --- Navegacion --- */
 
 .nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.grupo {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
+.grupoTitulo {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sidebar-texto-tenue);
+  padding: 10px 12px 6px 12px;
+  white-space: nowrap;
+}
+
 .item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
+  gap: 11px;
+  padding: 8px 10px;
   border-radius: var(--radio-nav);
-  border: none;
-  background: transparent;
-  color: var(--texto-nav);
+  color: var(--sidebar-texto);
+  font-size: var(--texto-base);
   font-weight: 500;
-  width: 100%;
-  text-align: left;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .item:hover {
-  background: var(--fondo-sutil-2);
+  background: var(--sidebar-hover);
+  color: #ffffff;
+  opacity: 1;
 }
 
-.item.activo,
-.item.activo:hover {
-  background: var(--acento-suave);
-  color: var(--acento);
-  font-weight: 700;
+.item.activo {
+  background: var(--sidebar-activo);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Barra celeste a la izquierda del item activo. */
+.item.activo::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--sidebar-indicador);
+}
+
+.iconoCaja {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--sidebar-texto-tenue);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.item:hover .iconoCaja {
+  color: #ffffff;
+}
+
+.item.activo .iconoCaja {
+  background: linear-gradient(135deg, var(--acento) 0%, var(--celeste) 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px -4px rgba(42, 157, 244, 0.7);
 }
 
 .etiqueta {
-  font-family: var(--fuente-titulo);
-  font-size: var(--texto-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- Indicadores a la derecha de cada item --- */
 
 .punto {
   margin-left: auto;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.contador {
-  margin-left: auto;
-  font-size: var(--texto-nano);
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: var(--radio-chip);
-}
-
-.noLeidos {
-  margin-left: auto;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: var(--radio-chip);
-  background: var(--peligro-punto);
-  color: var(--texto-sobre-acento);
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* --- Pie: estado de conexion --- */
-
-.pie {
-  margin-top: auto;
-  padding: 12px 10px;
-  border-radius: 10px;
-  background: var(--fondo-sutil-2);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.piePunto {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  box-shadow: 0 0 0 3px #ffffff10;
 }
 
-.pieTexto {
-  font-size: var(--texto-micro);
-  color: var(--texto-pie);
-  font-weight: 600;
-}
-
-/* --- Alternar tema claro/oscuro --- */
-
-.botonTema {
+.contador {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radio-chip);
+  font-size: 11px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  width: 100%;
-  text-align: left;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.botonTema:hover {
-  background: var(--fondo-sutil-2);
+.contadorAlerta {
+  background: var(--peligro-punto);
+  color: #ffffff;
 }
 
-.botonTemaTexto {
-  font-size: var(--texto-micro);
-  color: var(--texto-tenue);
-  font-weight: 600;
+.contadorVivo {
+  background: #22c55e;
+  color: #052e16;
 }
 
-.filaUsuario {
+/* --- Pie: estado del canal + contraer --- */
+
+.pie {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--sidebar-borde);
+}
+
+.estado {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  width: 100%;
-  text-align: left;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff0a;
+  border: 1px solid var(--sidebar-borde);
 }
 
-.filaUsuario:hover {
-  background: var(--fondo-sutil-2);
+.estadoIcono {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #ffffff10;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.filaUsuario:hover .cerrarSesionTexto {
-  color: var(--peligro);
+.estadoPunto {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--sidebar-fondo);
 }
 
-.usuarioTexto {
-  font-size: var(--texto-micro);
-  color: var(--texto-tenue);
+.estadoTexto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.estadoTitulo {
+  font-size: 12.5px;
   font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.estadoDetalle {
+  font-size: 11px;
+  color: var(--sidebar-texto-tenue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.botonCompacto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sidebar-texto-tenue);
+  font-size: var(--texto-menor);
+  font-weight: 500;
+  text-align: left;
   white-space: nowrap;
 }
 
-.cerrarSesionTexto {
-  font-size: 11px;
-  color: var(--texto-tenue);
-  font-weight: 600;
-  flex-shrink: 0;
+.botonCompacto:hover {
+  background: var(--sidebar-hover);
+  color: #ffffff;
+}
+
+/* ============================================================
+   Modo compacto: solo iconos (el usuario lo elige, o pantallas
+   angostas). Los textos se ocultan y los contadores pasan a la
+   esquina del icono.
+   ============================================================ */
+
+.compacto {
+  width: var(--ancho-sidebar-compacto);
+  min-width: var(--ancho-sidebar-compacto);
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.compacto .marca {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.compacto .marcaTexto,
+.compacto .etiqueta,
+.compacto .estadoTexto {
+  display: none;
+}
+
+.compacto .grupoTitulo {
+  font-size: 0;
+  padding: 6px 0;
+  margin: 4px 12px;
+  border-top: 1px solid var(--sidebar-borde);
+}
+
+.compacto .grupo:first-child .grupoTitulo {
+  border-top: none;
+  margin-top: 0;
+}
+
+.compacto .item {
+  justify-content: center;
+  padding: 7px 0;
+}
+
+.compacto .item.activo::before {
+  left: -10px;
+}
+
+.compacto .punto,
+.compacto .contador {
+  position: absolute;
+  margin: 0;
+}
+
+.compacto .punto {
+  top: 7px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 2px var(--sidebar-fondo);
+}
+
+.compacto .contador {
+  top: 1px;
+  right: 2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-size: 9.5px;
+  box-shadow: 0 0 0 2px var(--sidebar-fondo);
+}
+
+.compacto .estado {
+  justify-content: center;
+  padding: 8px 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.compacto .botonCompacto {
+  justify-content: center;
 }

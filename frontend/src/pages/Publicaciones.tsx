@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { EncabezadoPagina } from '../components/ui/EncabezadoPagina';
 import { Boton } from '../components/ui/Boton';
+import { Segmentado } from '../components/ui/Segmentado';
+import { Icono } from '../components/ui/Icono';
 import { Cola } from './publicaciones/Cola';
 import { NuevaPublicacion } from './publicaciones/NuevaPublicacion';
 import estilos from './Publicaciones.module.css';
@@ -32,23 +34,23 @@ export function Publicaciones() {
         titulo="Publicaciones"
         descripcion="Crea campañas y revisa la cola de envíos."
         acciones={
-          subVista === 'cola' ? <Boton onClick={irANueva}>+ Nueva publicación</Boton> : undefined
+          subVista === 'cola' ? <Boton onClick={irANueva}>
+              <Icono nombre="mas" tamano={16} />
+              Nueva publicación
+            </Boton> : undefined
         }
       />
 
       <div className={estilos.pestanas}>
-        <button
-          className={`${estilos.pestana} ${subVista === 'cola' ? estilos.activa : ''}`}
-          onClick={volverALaCola}
-        >
-          Cola de campañas
-        </button>
-        <button
-          className={`${estilos.pestana} ${subVista === 'nueva' ? estilos.activa : ''}`}
-          onClick={irANueva}
-        >
-          {publicacionEditando ? 'Editando publicación' : 'Nueva publicación'}
-        </button>
+        <Segmentado<SubVista>
+          etiqueta="Vista de publicaciones"
+          valor={subVista}
+          onCambio={(v) => (v === 'cola' ? volverALaCola() : irANueva())}
+          opciones={[
+            { valor: 'cola', etiqueta: 'Cola de campañas' },
+            { valor: 'nueva', etiqueta: publicacionEditando ? 'Editando publicación' : 'Nueva publicación' },
+          ]}
+        />
       </div>
 
       {subVista === 'cola' && <Cola onEditar={editar} />}

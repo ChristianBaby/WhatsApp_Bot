@@ -13,9 +13,9 @@
 }
 
 .icono {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,11 +31,14 @@
 .nombre {
   font-size: var(--texto-seccion);
   font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--texto-fuerte);
 }
 
 .telefono {
   font-weight: 500;
-  color: var(--texto-tenue-2);
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
 }
 
 .detalle {
@@ -66,9 +69,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 14px;
-  padding-top: 14px;
+  margin: 16px -22px -20px -22px;
+  padding: 12px 22px;
   border-top: 1px solid var(--borde-fila);
+  background: var(--fondo-sutil);
+  border-radius: 0 0 var(--radio-tarjeta) var(--radio-tarjeta);
 }
 
 .autoRespuestasTexto {

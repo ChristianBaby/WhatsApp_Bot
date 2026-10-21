@@ -3,6 +3,7 @@
   border: 1px solid var(--borde);
   border-radius: var(--radio-tarjeta);
   padding: var(--padding-tarjeta);
+  box-shadow: var(--sombra-tarjeta);
 }
 
 .sinPadding {

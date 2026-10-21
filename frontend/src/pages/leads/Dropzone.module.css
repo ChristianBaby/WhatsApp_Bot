@@ -4,10 +4,12 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 40px 24px;
-  border: 1.5px dashed var(--borde-control);
+  padding: 36px 24px;
+  border: 1.5px dashed var(--acento-borde);
   border-radius: var(--radio-tarjeta);
-  background: var(--fondo-sutil);
+  background:
+    radial-gradient(60% 120% at 50% 0%, var(--acento-suave) 0%, transparent 70%),
+    var(--fondo-panel);
   text-align: center;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
@@ -19,8 +21,8 @@
 
 .texto {
   font-size: var(--texto-base);
-  font-weight: 600;
-  color: var(--texto-medio);
+  font-weight: 650;
+  color: var(--texto-fuerte);
   margin-top: 6px;
 }
 
@@ -32,4 +34,17 @@
 
 .inputOculto {
   display: none;
+}
+
+.iconoSubir {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra-elevada);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
 }

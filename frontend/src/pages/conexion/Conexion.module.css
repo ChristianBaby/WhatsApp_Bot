@@ -1,5 +1,63 @@
+.pagina {
+  max-width: 920px;
+}
+
 .lista {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.resumen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  margin-bottom: 16px;
+}
+
+.resumenItem {
+  --tono: var(--acento);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--fondo-panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.resumenItem[data-tono='exito'] {
+  --tono: var(--exito);
+}
+
+.resumenItem[data-tono='violeta'] {
+  --tono: var(--violeta);
+}
+
+.resumenValor {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--tono);
+  background: color-mix(in srgb, var(--tono) 12%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.resumenEtiqueta {
+  font-size: var(--texto-control);
+  font-weight: 600;
+  color: var(--texto-medio);
+}
+
+@media (max-width: 640px) {
+  .resumen {
+    grid-template-columns: 1fr;
+  }
 }

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Boton } from '../components/ui/Boton';
 import { EncabezadoPagina } from '../components/ui/EncabezadoPagina';
 import { EstadoVacio } from '../components/ui/EstadoVacio';
 import { Tarjeta } from '../components/ui/Tarjeta';
+import { Segmentado } from '../components/ui/Segmentado';
 import { api, ErrorApi } from '../lib/api';
 import type { ListaLeads, PrevisualizacionLista } from '../lib/types';
 import { Dropzone } from './leads/Dropzone';
 import { NoContactar } from './leads/NoContactar';
 import { PrevisualizacionCarga } from './leads/PrevisualizacionCarga';
 import { TablaListas } from './leads/TablaListas';
+import estilos from './leads/Leads.module.css';
 
 type Pestana = 'listas' | 'no_contactar';
 
@@ -84,17 +85,15 @@ export function Leads() {
         titulo="Leads"
         descripcion="Sube y administra tus listas de contactos."
         acciones={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Boton variante={pestana === 'listas' ? 'primario' : 'secundario'} onClick={() => setPestana('listas')}>
-              Listas
-            </Boton>
-            <Boton
-              variante={pestana === 'no_contactar' ? 'primario' : 'secundario'}
-              onClick={() => setPestana('no_contactar')}
-            >
-              No contactar
-            </Boton>
-          </div>
+          <Segmentado<Pestana>
+            etiqueta="Vista de leads"
+            valor={pestana}
+            onCambio={setPestana}
+            opciones={[
+              { valor: 'listas', etiqueta: 'Listas', contador: listas?.length },
+              { valor: 'no_contactar', etiqueta: 'No contactar' },
+            ]}
+          />
         }
       />
 
@@ -118,13 +117,21 @@ export function Leads() {
             <Dropzone onArchivo={(a) => void alSubirArchivo(a)} disabled={analizando} />
           )}
 
-          {analizando && <p style={{ color: 'var(--texto-suave)', fontSize: 13 }}>Leyendo el archivo…</p>}
-          {error && <p style={{ color: 'var(--peligro)', fontSize: 13 }}>{error}</p>}
-          {aviso && <p style={{ color: 'var(--exito)', fontSize: 13 }}>{aviso}</p>}
+          {analizando && <p className={estilos.aviso}>Leyendo el archivo…</p>}
+          {error && <p className={`${estilos.aviso} ${estilos.avisoError}`}>{error}</p>}
+          {aviso && <p className={`${estilos.aviso} ${estilos.avisoExito}`}>{aviso}</p>}
 
           {!previsualizacion && (
             <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 10 }}>Listas cargadas</div>
+              <div className={estilos.tituloSeccion}>
+                Listas cargadas
+                {listas && listas.length > 0 && (
+                  <span className={estilos.resumenSeccion}>
+                    {listas.length} {listas.length === 1 ? 'lista' : 'listas'} ·{' '}
+                    {listas.reduce((t, l) => t + l.validas, 0).toLocaleString('es-PE')} contactos válidos
+                  </span>
+                )}
+              </div>
 
               {listas === null && (
                 <Tarjeta>

@@ -1,181 +1,245 @@
 /* ============================================================
-   Design tokens — extraidos valor por valor de la maquetacion
-   (docs/Main-html/Main.dc.html) para el modo claro, mas su
-   equivalente en modo oscuro. Esta es la unica fuente de verdad
-   del estilo: ningun componente escribe un color o un tamano a
-   mano — todo pasa por una variable de aca.
+   Design tokens — Universoft CRM.
+   Unica fuente de verdad del estilo: ningun componente escribe un
+   color o un tamano a mano, todo pasa por una variable de aca.
+
+   Paleta: la marca manda. El azul del logo (--acento) y el navy
+   profundo (--marca-*) son los protagonistas; el celeste los
+   acompana en estados activos y detalles. Los colores de apoyo
+   (violeta, turquesa, ambar, rosa) solo aparecen en pequenas dosis
+   — iconos de KPIs, etapas del pipeline, etiquetas — para que el
+   panel se lea rapido sin competir con la marca.
 
    El tema activo lo decide el atributo data-tema en <html>, que
-   pone un script inline en index.html ANTES del primer render
-   (localStorage si el usuario eligio a mano, si no
-   prefers-color-scheme) — asi nunca hay parpadeo blanco al cargar.
+   pone un script inline en index.html ANTES del primer render.
    Ver hooks/useTema.ts para el lado de React.
    ============================================================ */
 
 :root {
   /* --- Marca --- */
-  --acento: #2b6cd4;
-  /* El mockup usa accent + '1a' (10% alfa) para el fondo del nav activo. */
-  --acento-suave: #2b6cd41a;
+  --marca-950: #061430;
+  --marca-900: #0a1f44;
+  --marca-800: #0f2b5c;
+  --marca-700: #163a78;
+  --acento: #1f5fd1;
+  --acento-hover: #184eb0;
+  --acento-fuerte: #143f8f;
+  --acento-suave: #1f5fd114;
+  --acento-borde: #1f5fd140;
+  --celeste: #2a9df4;
+  --celeste-suave: #e8f4fe;
+  --celeste-texto: #0b6bb8;
+  --degradado-marca: linear-gradient(135deg, #0f2b5c 0%, #1f5fd1 60%, #2a9df4 100%);
+
+  /* --- Colores de apoyo (dosis pequenas) --- */
+  --violeta: #7048e8;
+  --violeta-suave: #f1edfe;
+  --turquesa: #0e9f8e;
+  --turquesa-suave: #e5f7f4;
+  --ambar: #d97706;
+  --ambar-suave: #fff5e5;
+  --rosa: #e0365c;
+  --rosa-suave: #fdecf0;
 
   /* --- Superficies --- */
-  --fondo-app: #f5f6f8;
+  --fondo-app: #f3f6fb;
   --fondo-panel: #ffffff;
-  --fondo-sutil: #fafbfc;
-  --fondo-sutil-2: #f8f9fb;
-  --fondo-neutro: #eef0f3;
+  --fondo-sutil: #f8fafd;
+  --fondo-sutil-2: #f1f5fb;
+  --fondo-neutro: #eaeff6;
+  --fondo-hover: #f4f7fc;
 
   /* --- Bordes --- */
-  --borde: #e6e8ec;
-  --borde-control: #e2e4e9;
-  --borde-fila: #f1f2f5;
+  --borde: #e2e8f1;
+  --borde-control: #d5dde8;
+  --borde-fila: #edf1f7;
 
   /* --- Texto --- */
-  --texto: #1e2532;
-  --texto-fuerte: #0b1120;
-  --texto-medio: #374151;
-  --texto-medio-2: #4b5563;
-  --texto-suave: #6b7280;
-  --texto-tenue: #8b93a1;
-  --texto-tenue-2: #9aa1ac;
+  --texto: #1a2333;
+  --texto-fuerte: #0a1222;
+  --texto-medio: #323e52;
+  --texto-medio-2: #465266;
+  --texto-suave: #5d6a7e;
+  --texto-tenue: #7e8a9c;
+  --texto-tenue-2: #939eaf;
   --texto-nav: #475269;
-  --texto-placeholder: #94a3b8;
+  --texto-placeholder: #9aa5b5;
   --texto-pie: #5b6472;
-  /* Texto sobre un fondo de --acento solido (botones primarios): blanco
-     funciona bien en los dos temas, se deja como variable por prolijidad. */
   --texto-sobre-acento: #ffffff;
 
+  /* --- Sidebar (navy de marca en los dos temas) --- */
+  --sidebar-fondo: #0a1f44;
+  --sidebar-fondo-2: #0d2550;
+  --sidebar-borde: #ffffff12;
+  --sidebar-texto: #b9c6dd;
+  --sidebar-texto-tenue: #7f91b2;
+  --sidebar-hover: #ffffff0d;
+  --sidebar-activo: #ffffff17;
+  --sidebar-indicador: #2a9df4;
+
   /* --- Estados (fondo / texto) --- */
-  --exito: #16a34a;
-  --exito-fondo: #ecfdf3;
-  --exito-fuerte: #15803d;
+  --exito: #12924a;
+  --exito-fondo: #e9f8ef;
+  --exito-fuerte: #0d7a3d;
   --exito-punto: #22c55e;
-  --exito-borde: #bbf0d3;
+  --exito-borde: #bde9cf;
 
   --alerta: #b45309;
-  --alerta-fondo: #fffbeb;
+  --alerta-fondo: #fff7e8;
   --alerta-punto: #f59e0b;
 
-  --info: #4338ca;
-  --info-fondo: #eef2ff;
+  --info: #1f5fd1;
+  --info-fondo: #eaf1fd;
 
-  --peligro: #dc2626;
-  --peligro-fondo: #fef2f2;
-  --peligro-borde: #fecaca;
+  --peligro: #d42a2a;
+  --peligro-fondo: #fdf0f0;
+  --peligro-borde: #f7cccc;
   --peligro-punto: #ef4444;
 
-  --inactivo: #c6cad3;
-  --apagado: #d7dae1;
+  --inactivo: #c3cad6;
+  --apagado: #cfd6e1;
 
   /* --- Graficos (embudo de Reportes) --- */
-  --embudo-nuevo: #94a3b8;
-  --embudo-contactado: #60a5fa;
+  --embudo-nuevo: #9fb3d1;
+  --embudo-contactado: #2a9df4;
 
   /* --- Varios --- */
-  --scrollbar-thumb: #d8dce3;
+  --scrollbar-thumb: #cfd7e3;
+  --velo-modal: rgba(6, 20, 48, 0.5);
 
   /* --- Tipografia --- */
-  --fuente-titulo: 'Sora', system-ui, sans-serif;
-  --fuente-cuerpo: 'Manrope', system-ui, sans-serif;
+  --fuente-titulo: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-cuerpo: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --texto-h1: 21px;
-  --texto-seccion: 14.5px;
-  --texto-base: 13.5px;
-  --texto-cuerpo: 13px;
-  --texto-control: 12.5px;
-  --texto-menor: 12px;
-  --texto-micro: 11.5px;
-  --texto-nano: 10.5px;
+  --texto-h1: 22px;
+  --texto-seccion: 15px;
+  --texto-base: 14px;
+  --texto-cuerpo: 13.5px;
+  --texto-control: 13px;
+  --texto-menor: 12.5px;
+  --texto-micro: 12px;
+  --texto-nano: 11px;
 
   /* --- Geometria --- */
-  --radio-tarjeta: 12px;
-  --radio-boton: 8px;
-  --radio-control: 7px;
-  --radio-nav: 9px;
-  --radio-chip: 20px;
+  --radio-tarjeta: 14px;
+  --radio-boton: 9px;
+  --radio-control: 9px;
+  --radio-nav: 10px;
+  --radio-chip: 999px;
 
-  --ancho-sidebar: 240px;
-  --padding-contenido: 28px 36px 60px 36px;
+  --ancho-sidebar: 252px;
+  --ancho-sidebar-compacto: 76px;
+  --alto-topbar: 64px;
+  --padding-contenido: 26px 32px 40px 32px;
   --padding-tarjeta: 20px 22px;
 
   /* --- Sombras --- */
-  --sombra-pill: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --sombra-modal: 0 20px 60px rgba(11, 17, 32, 0.22);
+  --sombra-pill: 0 1px 2px rgba(16, 24, 40, 0.08);
+  --sombra-tarjeta: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --sombra-elevada: 0 10px 30px -8px rgba(15, 43, 92, 0.18), 0 2px 6px rgba(15, 43, 92, 0.06);
+  --sombra-boton: 0 1px 2px rgba(16, 24, 40, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --sombra-modal: 0 24px 64px rgba(6, 20, 48, 0.28);
+  --anillo-foco: 0 0 0 3px #1f5fd133;
 
   /* --- Imagenes --- */
   --filtro-imagen: none;
 }
 
 /* ============================================================
-   Modo oscuro. Gris oscuro profundo (nunca negro puro) con grises
-   progresivamente mas claros para la elevacion de tarjetas/modales,
-   texto blanco roto (no #fff, evita fatiga visual) y los colores de
-   estado desaturados/aclarados para mantener buen contraste sobre
-   fondo oscuro (WCAG AA).
+   Modo oscuro: navy de marca en vez de gris neutro, asi el panel
+   sigue sintiendose Universoft. La elevacion se marca con navys
+   progresivamente mas claros; texto blanco roto para no cansar.
    ============================================================ */
 :root[data-tema='oscuro'] {
   /* --- Marca --- */
-  --acento: #6798eb;
-  --acento-suave: #6798eb26;
+  --acento: #4c8bf5;
+  --acento-hover: #6a9ff7;
+  --acento-fuerte: #8db6fa;
+  --acento-suave: #4c8bf51f;
+  --acento-borde: #4c8bf55c;
+  --celeste: #4cb3f7;
+  --celeste-suave: #4cb3f71f;
+  --celeste-texto: #7cc8fa;
 
-  /* --- Superficies (elevacion: mas claro = "mas arriba") --- */
-  --fondo-app: #121212;
-  --fondo-panel: #1e1e1e;
-  --fondo-sutil: #242424;
-  --fondo-sutil-2: #262626;
-  --fondo-neutro: #2a2a2c;
+  /* --- Colores de apoyo --- */
+  --violeta: #a08cf5;
+  --violeta-suave: #a08cf51f;
+  --turquesa: #3dd0bc;
+  --turquesa-suave: #3dd0bc1a;
+  --ambar: #f5b14a;
+  --ambar-suave: #f5b14a1a;
+  --rosa: #f47592;
+  --rosa-suave: #f475921a;
+
+  /* --- Superficies --- */
+  --fondo-app: #0a1120;
+  --fondo-panel: #111a2c;
+  --fondo-sutil: #142036;
+  --fondo-sutil-2: #17243c;
+  --fondo-neutro: #1c2a44;
+  --fondo-hover: #16223a;
 
   /* --- Bordes --- */
-  --borde: #2f2f31;
-  --borde-control: #3a3a3d;
-  --borde-fila: #2a2a2c;
+  --borde: #1f2d47;
+  --borde-control: #2a3a58;
+  --borde-fila: #1a2740;
 
-  /* --- Texto (blanco roto, no #fff puro) --- */
-  --texto: #e0e0e0;
-  --texto-fuerte: #f5f5f5;
-  --texto-medio: #cbcbcb;
-  --texto-medio-2: #b3b3b3;
-  --texto-suave: #9a9a9a;
-  --texto-tenue: #838388;
-  --texto-tenue-2: #8f8f94;
+  /* --- Texto --- */
+  --texto: #e3e9f3;
+  --texto-fuerte: #f5f8fc;
+  --texto-medio: #c9d3e3;
+  --texto-medio-2: #b0bdd1;
+  --texto-suave: #98a6bd;
+  --texto-tenue: #7d8ba3;
+  --texto-tenue-2: #8794aa;
   --texto-nav: #b7bac4;
-  --texto-placeholder: #6e6e72;
+  --texto-placeholder: #63718a;
   --texto-pie: #a0a0a5;
   --texto-sobre-acento: #ffffff;
 
-  /* --- Estados: fondo oscuro y desaturado, texto claro para contraste --- */
+  /* --- Sidebar --- */
+  --sidebar-fondo: #070f1f;
+  --sidebar-fondo-2: #0a1529;
+  --sidebar-borde: #ffffff0f;
+
+  /* --- Estados --- */
   --exito: #4ade80;
-  --exito-fondo: #16321f;
+  --exito-fondo: #12301f;
   --exito-fuerte: #6ee89a;
   --exito-punto: #22c55e;
-  --exito-borde: #235233;
+  --exito-borde: #1f5235;
 
   --alerta: #fbbf24;
-  --alerta-fondo: #3a2e10;
+  --alerta-fondo: #33270e;
   --alerta-punto: #f59e0b;
 
-  --info: #a5b4fc;
-  --info-fondo: #242660;
+  --info: #8db6fa;
+  --info-fondo: #182c52;
 
   --peligro: #f87171;
-  --peligro-fondo: #3a1616;
-  --peligro-borde: #5c2323;
+  --peligro-fondo: #351719;
+  --peligro-borde: #5c2326;
   --peligro-punto: #ef4444;
 
-  --inactivo: #55555a;
-  --apagado: #3a3a3e;
+  --inactivo: #3b4a66;
+  --apagado: #33415c;
 
   /* --- Graficos --- */
-  --embudo-nuevo: #7c8894;
-  --embudo-contactado: #7cb4fb;
+  --embudo-nuevo: #5d7398;
+  --embudo-contactado: #4cb3f7;
 
   /* --- Varios --- */
-  --scrollbar-thumb: #3a3a3e;
+  --scrollbar-thumb: #2c3b58;
+  --velo-modal: rgba(2, 6, 16, 0.66);
 
-  /* --- Sombras: mas fuertes, la superficie clara ya hace de elevacion --- */
-  --sombra-pill: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --sombra-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
+  /* --- Sombras --- */
+  --sombra-pill: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-tarjeta: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --sombra-elevada: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --sombra-boton: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sombra-modal: 0 24px 64px rgba(0, 0, 0, 0.65);
+  --anillo-foco: 0 0 0 3px #4c8bf540;
 
-  /* --- Imagenes: se atenuan un poco para no deslumbrar sobre fondo oscuro --- */
-  --filtro-imagen: brightness(0.88) contrast(1.03);
+  /* --- Imagenes --- */
+  --filtro-imagen: brightness(0.9) contrast(1.03);
 }
