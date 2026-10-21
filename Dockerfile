@@ -1,30 +1,10 @@
 # ============================================================
-#  Imagen de produccion: panel (Vite) + API (Express) en un
-#  solo contenedor, como espera Coolify.
+#  Imagen de produccion: API (Express). El panel ya no va aqui:
+#  vive en el dashboard (frontend_universoft, /dashboard/admin/whatsapp)
+#  y la API redirige las URLs viejas del panel hacia alla.
 # ============================================================
 
-# ---------- 1. Panel web ----------
-FROM node:22-alpine AS panel
-
-WORKDIR /build/frontend
-COPY frontend/package*.json ./
-# --include=dev: Coolify pone NODE_ENV=production en el entorno de build
-# (el ambiente se llama "production"), y con eso "npm ci" solo se salta las
-# devDependencies — que es justo donde vive TypeScript/Vite, necesarios
-# para compilar (no para correr, esta etapa nunca llega a produccion).
-RUN npm ci --include=dev
-COPY frontend/ ./
-# Vite incrusta la URL del Gateway en el bundle al compilar, y frontend/.env
-# no viaja al repo: llega como build arg (en Coolify, "Build Variable").
-# Sin ella el panel quedaria apuntando a localhost:8080, asi que se falla
-# el build con un mensaje claro en vez de desplegar un panel roto.
-ARG VITE_GATEWAY_URL
-RUN test -n "$VITE_GATEWAY_URL" || (echo "ERROR: falta la build variable VITE_GATEWAY_URL (URL publica del Api_gateway)" && exit 1)
-ENV VITE_GATEWAY_URL=$VITE_GATEWAY_URL
-RUN npm run build
-
-
-# ---------- 2. Backend compilado ----------
+# ---------- 1. Backend compilado ----------
 FROM node:22-alpine AS backend
 
 WORKDIR /build/backend
@@ -34,7 +14,7 @@ COPY backend/ ./
 RUN npm run build
 
 
-# ---------- 3. Dependencias de produccion ----------
+# ---------- 2. Dependencias de produccion ----------
 FROM node:22-alpine AS deps
 
 WORKDIR /deps
@@ -42,7 +22,7 @@ COPY backend/package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 
-# ---------- 4. Imagen final ----------
+# ---------- 3. Imagen final ----------
 FROM node:22-alpine AS runtime
 
 # tini maneja bien las senales: sin el, un SIGTERM mataria el proceso de
@@ -57,7 +37,6 @@ WORKDIR /app
 COPY --from=deps    /deps/node_modules          ./backend/node_modules
 COPY --from=backend /build/backend/dist         ./backend/dist
 COPY --from=backend /build/backend/package.json ./backend/package.json
-COPY --from=panel   /build/frontend/dist        ./frontend/dist
 
 # tsc no copia los .sql: el runner de migraciones los necesita junto al codigo.
 COPY backend/src/db/migrations ./backend/dist/db/migrations

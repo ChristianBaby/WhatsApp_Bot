@@ -1,6 +1,4 @@
 import express from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import { manejadorSSE } from './lib/sse.js';
 import { requiereIdentidadGateway, requiereTokenGateway } from './middleware/identidadGateway.js';
@@ -22,7 +20,16 @@ import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandl
 import { crearLogger } from './lib/logger.js';
 
 const log = crearLogger('http');
-const aqui = path.dirname(fileURLToPath(import.meta.url));
+/** Rutas del panel Vite retirado -> seccion del CRM en el dashboard. */
+const SECCIONES_PANEL_VIEJO: Record<string, string> = {
+  '/respuestas': '/chats',
+  '/leads': '/leads',
+  '/publicaciones': '/publicaciones',
+  '/reportes': '/reportes',
+  '/auto-respuestas': '/auto-respuestas',
+  '/conexion': '/conexion',
+  '/configuracion': '/configuracion',
+};
 
 export function crearApp() {
   const app = express();
@@ -95,19 +102,16 @@ export function crearApp() {
   app.use('/api', rutasConocimiento);
   app.use('/api', rutasCrm);
 
-  // 404 solo para rutas de API; lo demas puede caer al panel.
+  // 404 solo para rutas de API; lo demas redirige al panel del dashboard.
   app.use('/api', manejadorNoEncontrado);
 
-  // --- Panel web ---
-  // En produccion el backend sirve el build de Vite. En desarrollo el panel
-  // corre aparte en :5173 y hace proxy hacia aqui.
-  if (env.esProd) {
-    const distPanel = path.resolve(aqui, '..', '..', 'frontend', 'dist');
-    app.use(express.static(distPanel, { index: false, maxAge: '1h' }));
-    app.get(/^(?!\/api|\/webhooks).*/, (_req, res) => {
-      res.sendFile(path.join(distPanel, 'index.html'));
-    });
-  }
+  // --- Panel web (retirado) ---
+  // El panel vive ahora en el dashboard (frontend_universoft, /dashboard/admin/whatsapp).
+  // Los enlaces y favoritos del panel viejo redirigen a la seccion equivalente.
+  app.get(/^(?!\/api|\/webhooks).*/, (req, res) => {
+    const seccion = SECCIONES_PANEL_VIEJO[req.path.replace(/\/+$/, '')] ?? '';
+    res.redirect(301, `${env.PANEL_URL.replace(/\/+$/, '')}${seccion}`);
+  });
 
   app.use(manejadorErrores);
 

@@ -38,12 +38,12 @@ docker compose up -d postgres
 # 3. Backend  (aplica migraciones solo)
 cd backend && npm install && npm run dev
 
-# 4. Panel    (en otra terminal)
-cd frontend && npm install && npm run dev
 ```
 
-- Panel: http://localhost:5173
 - API: http://localhost:3000/api/health
+- Panel: es el módulo **WhatsApp CRM** de `frontend_universoft` (`/dashboard/admin/whatsapp`),
+  ver `frontend_universoft/docs/WHATSAPP_CRM_MIGRACION.md`. Cualquier otra ruta de esta API
+  (fuera de `/api` y `/webhooks`) redirige ahí (variable `PANEL_URL`).
 
 > El PostgreSQL del proyecto usa el puerto **5433** en tu PC, porque el 5432 ya
 > lo ocupa un PostgreSQL instalado en Windows. Dentro de Docker sigue siendo 5432.
@@ -68,12 +68,7 @@ docker compose up --build     # app + postgres, igual que en el VPS
 │       ├── middleware/   Manejo central de errores
 │       ├── routes/       Endpoints HTTP
 │       └── services/     Lógica de negocio
-├── frontend/             Panel web (React + Vite)
-│   └── src/
-│       ├── components/   Componentes reutilizables
-│       ├── layout/       Sidebar y armazón
-│       ├── pages/        Las 7 secciones del panel
-│       └── styles/       Design tokens extraídos de la maquetación
+├── frontend/             Panel Vite RETIRADO (solo referencia histórica, ver frontend/RETIRADO.md)
 ├── docs/                 Maquetación de referencia
 ├── docker-compose.yml    app + postgres
 └── Dockerfile            Imagen de producción
@@ -86,12 +81,10 @@ docker compose up --build     # app + postgres, igual que en el VPS
 - **Idioma:** nombres de tablas, columnas, funciones y variables en español, sin
   tildes ni ñ (SQL y varias herramientas no las manejan bien en identificadores).
   Los textos que ve el usuario sí llevan tildes.
-- **Estilos:** todo color, tamaño y radio sale de `frontend/src/styles/tokens.css`.
+- **Estilos del panel:** viven en `frontend_universoft/src/features/whatsapp-crm/styles/whatsapp-crm.css`.
   Ningún componente escribe un valor a mano.
-- **Modo oscuro:** paleta completa (`:root[data-tema='oscuro']` en `tokens.css`),
-  con detección automática de `prefers-color-scheme` y toggle manual persistido
-  en `localStorage` (botón sol/luna en el sidebar). Cualquier color nuevo debe
-  agregarse como token en ambas paletas, nunca a mano en un componente.
+- **Modo oscuro:** lo decide el tema del dashboard (`.dashboard-dark-content`). Cualquier
+  color nuevo se agrega como token en las dos paletas de `whatsapp-crm.css`.
 - **Migraciones:** numeradas y nunca se editan una vez aplicadas. Para cambiar el
   esquema se agrega un archivo nuevo.
 - **Datos persistentes:** `auth_sessions/`, `uploads/` y el volumen de Postgres

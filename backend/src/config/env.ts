@@ -21,6 +21,9 @@ const esquema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   APP_URL: z.string().url().default('http://localhost:3000'),
+  // El panel ya no se sirve desde aqui: vive en el dashboard (frontend_universoft).
+  // Las URLs viejas del panel (botscrapt.universoftsystems.com/...) redirigen a esta raiz.
+  PANEL_URL: z.string().url().default('https://app.universoftsystems.com/dashboard/admin/whatsapp'),
 
   POSTGRES_USER: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1),
