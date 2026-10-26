@@ -41,8 +41,8 @@ cd backend && npm install && npm run dev
 ```
 
 - API: http://localhost:3000/api/health
-- Panel: es el módulo **WhatsApp CRM** de `frontend_universoft` (`/dashboard/admin/whatsapp`),
-  ver `frontend_universoft/docs/WHATSAPP_CRM_MIGRACION.md`. Cualquier otra ruta de esta API
+- Panel: vive en `frontend_universoft` (`src/panel/`, en http://localhost:3001 con `npm run dev`).
+  Cualquier otra ruta de esta API
   (fuera de `/api` y `/webhooks`) redirige ahí (variable `PANEL_URL`).
 
 > El PostgreSQL del proyecto usa el puerto **5433** en tu PC, porque el 5432 ya
@@ -81,10 +81,10 @@ docker compose up --build     # app + postgres, igual que en el VPS
 - **Idioma:** nombres de tablas, columnas, funciones y variables en español, sin
   tildes ni ñ (SQL y varias herramientas no las manejan bien en identificadores).
   Los textos que ve el usuario sí llevan tildes.
-- **Estilos del panel:** viven en `frontend_universoft/src/features/whatsapp-crm/styles/whatsapp-crm.css`.
+- **Estilos del panel:** todo color, tamaño y radio sale de `frontend_universoft/src/panel/styles/tokens.css`.
   Ningún componente escribe un valor a mano.
-- **Modo oscuro:** lo decide el tema del dashboard (`.dashboard-dark-content`). Cualquier
-  color nuevo se agrega como token en las dos paletas de `whatsapp-crm.css`.
+- **Modo oscuro:** paleta completa (`:root[data-tema='oscuro']` en `tokens.css`), con toggle
+  sol/luna en la barra superior. Cualquier color nuevo se agrega como token en las dos paletas.
 - **Migraciones:** numeradas y nunca se editan una vez aplicadas. Para cambiar el
   esquema se agrega un archivo nuevo.
 - **Datos persistentes:** `auth_sessions/`, `uploads/` y el volumen de Postgres

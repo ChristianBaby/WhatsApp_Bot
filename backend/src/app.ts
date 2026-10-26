@@ -20,17 +20,6 @@ import { manejadorErrores, manejadorNoEncontrado } from './middleware/errorHandl
 import { crearLogger } from './lib/logger.js';
 
 const log = crearLogger('http');
-/** Rutas del panel Vite retirado -> seccion del CRM en el dashboard. */
-const SECCIONES_PANEL_VIEJO: Record<string, string> = {
-  '/respuestas': '/chats',
-  '/leads': '/leads',
-  '/publicaciones': '/publicaciones',
-  '/reportes': '/reportes',
-  '/auto-respuestas': '/auto-respuestas',
-  '/conexion': '/conexion',
-  '/configuracion': '/configuracion',
-};
-
 export function crearApp() {
   const app = express();
 
@@ -102,15 +91,14 @@ export function crearApp() {
   app.use('/api', rutasConocimiento);
   app.use('/api', rutasCrm);
 
-  // 404 solo para rutas de API; lo demas redirige al panel del dashboard.
+  // 404 solo para rutas de API; lo demas redirige al panel.
   app.use('/api', manejadorNoEncontrado);
 
-  // --- Panel web (retirado) ---
-  // El panel vive ahora en el dashboard (frontend_universoft, /dashboard/admin/whatsapp).
-  // Los enlaces y favoritos del panel viejo redirigen a la seccion equivalente.
+  // --- Panel web ---
+  // El panel vive en frontend_universoft (app.universoftsystems.com), con las
+  // mismas rutas que tenia aqui: los enlaces viejos redirigen a la misma ruta alla.
   app.get(/^(?!\/api|\/webhooks).*/, (req, res) => {
-    const seccion = SECCIONES_PANEL_VIEJO[req.path.replace(/\/+$/, '')] ?? '';
-    res.redirect(301, `${env.PANEL_URL.replace(/\/+$/, '')}${seccion}`);
+    res.redirect(301, `${env.PANEL_URL.replace(/\/+$/, '')}${req.path}`);
   });
 
   app.use(manejadorErrores);

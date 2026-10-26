@@ -6,7 +6,7 @@ import { noAutenticado } from '../lib/errors.js';
 declare global {
   namespace Express {
     interface Request {
-      usuario?: { id: string; email?: string; rol?: string };
+      usuario?: { id: string; email?: string };
     }
   }
 }
@@ -44,7 +44,6 @@ export const requiereIdentidadGateway: RequestHandler = (req, _res, next) => {
   req.usuario = {
     id,
     email: req.header('x-user-email') || undefined,
-    rol: req.header('x-user-role') || undefined,
   };
   next();
 };
