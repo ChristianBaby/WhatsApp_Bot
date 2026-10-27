@@ -1,3 +1,5 @@
+import type { FiltroLeads } from '../leads/filtros.js';
+
 export type EstadoPublicacion = 'borrador' | 'programada' | 'en_curso' | 'pausada' | 'completada' | 'cancelada';
 /** excluido: no se le envia (baja, cliente, con asesor, contactado hace poco, repetido); el motivo queda en motivo_fallo. */
 export type EstadoDestinatario = 'pendiente' | 'enviado' | 'sin_whatsapp' | 'fallido' | 'excluido';
@@ -7,6 +9,8 @@ export type Publicacion = {
   id: number;
   nombre: string;
   listaId: number;
+  /** Solo los leads de la lista que cumplen este filtro; null = toda la lista. */
+  filtroLeads: FiltroLeads | null;
   variantesMensaje: string[];
   adjuntoRuta: string | null;
   adjuntoTipo: TipoAdjunto | null;
@@ -58,6 +62,7 @@ export type ConfigEnvio = {
 export type DatosCreacionPublicacion = {
   nombre: string;
   listaId: number;
+  filtroLeads: FiltroLeads | null;
   variantesMensaje: string[];
   adjuntoRuta: string | null;
   adjuntoTipo: TipoAdjunto | null;

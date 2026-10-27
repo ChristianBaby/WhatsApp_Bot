@@ -7,6 +7,7 @@ import { estaBloqueado } from '../services/contactos/contactos.js';
 import * as repo from '../services/publicaciones/repositorio.js';
 import * as motor from '../services/publicaciones/motor.js';
 import { construirMensajePrueba, simularDryRun } from '../services/publicaciones/previsualizacion.js';
+import { esquemaFiltroLeads, filtroVacio } from '../services/leads/filtros.js';
 import * as leadsRepo from '../services/leads/repositorio.js';
 import * as numerosGestor from '../services/whatsapp/gestor.js';
 import { enviarMensaje, existeAdjunto, verificarEnWhatsapp } from '../services/whatsapp/envio.js';
@@ -35,6 +36,8 @@ async function validarListaYNumeros(listaId: number, numeroIds: number[]): Promi
 const camposComunes = {
   nombre: z.string().trim().min(1, 'El nombre no puede estar vacio').max(150),
   listaId: z.number().int().positive(),
+  // Solo parte de la lista (prioridad, web, categoria, zona...); vacio = toda.
+  filtroLeads: esquemaFiltroLeads.nullable().default(null).transform((f) => (filtroVacio(f) ? null : f)),
   variantesMensaje: z
     .array(z.string().trim().min(1))
     .min(1, 'Escribe al menos una variante del mensaje')
@@ -146,6 +149,8 @@ rutasPublicaciones.post(
 
 const esquemaDryRun = z.object({
   listaId: z.number().int().positive(),
+  // Solo parte de la lista (prioridad, web, categoria, zona...); vacio = toda.
+  filtroLeads: esquemaFiltroLeads.nullable().default(null).transform((f) => (filtroVacio(f) ? null : f)),
   variantesMensaje: z.array(z.string().trim().min(1)).min(1),
   catalogoUrl: z.string().trim().nullable().default(null),
   numeroIds: z.array(z.number().int().positive()).min(1),

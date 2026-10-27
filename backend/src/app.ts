@@ -27,7 +27,8 @@ export function crearApp() {
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
-  app.use(express.json({ limit: '2mb' }));
+  // 10mb: confirmar una lista grande reenvia todas sus filas (un export de Apify de 5.000 negocios ronda 4mb).
+  app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
   // Log de cada request (sin ruido de estaticos ni del latido de SSE).

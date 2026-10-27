@@ -8,6 +8,7 @@ import type {
   ListaLeads,
   MotivoExclusion,
 } from './tipos.js';
+import { condicionFiltro, type FiltroLeads } from './filtros.js';
 
 type FilaListaLeads = {
   id: number;
@@ -81,15 +82,15 @@ type FilaLeadGestion = {
 
 export async function listarLeadsDeLista(
   listaId: number,
-  opciones: { buscar: string | null; pagina: number; tamano: number },
+  opciones: { buscar: string | null; pagina: number; tamano: number; filtro?: FiltroLeads | null },
 ): Promise<{ total: number; leads: LeadGestion[] }> {
   const buscar = opciones.buscar ? `%${opciones.buscar}%` : null;
-  const condicion = `l.lista_id = $1 AND ($2::text IS NULL OR l.empresa ILIKE $2 OR l.telefono LIKE $2 OR l.rubro ILIKE $2)`;
+  const params: unknown[] = [listaId, buscar];
+  const condicion = `l.lista_id = $1 AND ($2::text IS NULL OR l.empresa ILIKE $2 OR l.telefono LIKE $2 OR l.rubro ILIKE $2)
+    AND ${condicionFiltro(opciones.filtro, params)}`;
+  const n = params.length;
 
-  const total = await consultarUno<{ total: number }>(
-    `SELECT COUNT(*)::int AS total FROM leads l WHERE ${condicion}`,
-    [listaId, buscar],
-  );
+  const total = await consultarUno<{ total: number }>(`SELECT COUNT(*)::int AS total FROM leads l WHERE ${condicion}`, params);
   const filas = await consultar<FilaLeadGestion>(
     `SELECT l.id, l.telefono, l.empresa, l.rubro, l.datos_extra, l.etapa_pipeline,
        EXISTS (SELECT 1 FROM contactos_bloqueados b WHERE b.telefono = l.telefono) AS bloqueado,
@@ -97,8 +98,8 @@ export async function listarLeadsDeLista(
        EXISTS (SELECT 1 FROM publicacion_destinatarios pd WHERE pd.lead_id = l.id) AS tiene_historial
      FROM leads l WHERE ${condicion}
      ORDER BY l.id ASC
-     LIMIT $3 OFFSET $4`,
-    [listaId, buscar, opciones.tamano, (opciones.pagina - 1) * opciones.tamano],
+     LIMIT ${n + 1} OFFSET ${n + 2}`,
+    [...params, opciones.tamano, (opciones.pagina - 1) * opciones.tamano],
   );
 
   return {
@@ -364,6 +365,8 @@ export async function obtenerExcluidos(listaId: number): Promise<LeadExcluido[]>
 
 type DatosCreacionLista = {
   nombre: string;
+  /** Rubro elegido al subir: se aplica a las filas que no traen el suyo. */
+  rubro?: string | null;
   nombreArchivoOriginal: string;
   columnasExtra: string[];
   filasValidas: FilaValida[];
@@ -392,7 +395,7 @@ export async function crear(datos: DatosCreacionLista): Promise<ListaLeads> {
       cliente,
       'leads',
       ['lista_id', 'telefono', 'empresa', 'rubro', 'datos_extra'],
-      filasValidas.map((f) => [lista.id, f.telefono, f.empresa, f.rubro, JSON.stringify(f.datosExtra)]),
+      filasValidas.map((f) => [lista.id, f.telefono, f.empresa, f.rubro ?? datos.rubro ?? null, JSON.stringify(f.datosExtra)]),
     );
 
     await insertarEnBloque(

@@ -3,7 +3,7 @@
  * archivo -> validacion/normalizacion -> persistencia.
  */
 
-export type MotivoExclusion = 'sin_telefono' | 'telefono_invalido' | 'sin_empresa' | 'duplicado';
+export type MotivoExclusion = 'sin_telefono' | 'telefono_invalido' | 'sin_empresa' | 'duplicado' | 'cerrado';
 
 export type FilaValida = {
   filaNumero: number;
@@ -27,6 +27,10 @@ export type ResumenValidacion = {
 };
 
 export type ResultadoValidacion = {
+  /** 'apify': export de Google Maps Scraper tal cual; 'planilla': cualquier otra. */
+  formato: 'apify' | 'planilla';
+  /** El archivo trae rubro; si no, se elige al confirmar la carga (uno para toda la lista). */
+  traeRubro: boolean;
   resumen: ResumenValidacion;
   columnasExtra: string[];
   filasValidas: FilaValida[];

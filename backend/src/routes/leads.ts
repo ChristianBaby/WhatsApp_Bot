@@ -10,12 +10,16 @@ import { validarArchivo } from '../services/leads/validacion.js';
 import * as archivos from '../services/leads/archivos.js';
 import * as repo from '../services/leads/repositorio.js';
 import * as nichos from '../services/ia/nichos.js';
+import { filtroDeQuery } from '../services/leads/filtros.js';
+import { generarPlantilla } from '../services/leads/plantilla.js';
+import { resumenDeLista } from '../services/leads/resumen.js';
 
 export const rutasLeads = Router();
 
 const subida = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB: de sobra para 50-200 contactos (3.2)
+  // 16MB: un export de Apify trae cientos de columnas (horarios, accesibilidad...): ~1MB cada 1.000 negocios.
+  limits: { fileSize: 16 * 1024 * 1024 },
   fileFilter: (_req, archivo, cb) => {
     const extension = archivo.originalname.toLowerCase().split('.').pop();
     if (extension === 'csv' || extension === 'xlsx') return cb(null, true);
@@ -66,7 +70,7 @@ const esquemaFilaValida = z.object({
 
 const esquemaFilaInvalida = z.object({
   filaNumero: z.number().int().positive(),
-  motivo: z.enum(['sin_telefono', 'telefono_invalido', 'sin_empresa', 'duplicado']),
+  motivo: z.enum(['sin_telefono', 'telefono_invalido', 'sin_empresa', 'duplicado', 'cerrado']),
   datoReferencia: z.string(),
 });
 
@@ -76,6 +80,8 @@ const esquemaConfirmacion = z.object({
   nombreArchivoOriginal: z.string().min(1),
   archivoToken: z.string().nullable().optional(),
   nichoId: z.number().int().positive().nullable().optional(),
+  // Rubro de toda la lista, para los leads cuyo archivo no lo trae (ej. el export de Apify).
+  rubro: z.string().trim().max(100).nullable().optional().transform((v) => v || null),
   columnasExtra: z.array(z.string()),
   filasValidas: z.array(esquemaFilaValida).max(5000),
   filasInvalidas: z.array(esquemaFilaInvalida).max(5000),
@@ -109,6 +115,27 @@ rutasLeads.get(
   '/listas-leads',
   manejarAsync(async (_req, res) => {
     res.json(await repo.listar());
+  }),
+);
+
+// Plantilla .xlsx para armar una lista a mano (antes que /listas-leads/:id).
+rutasLeads.get(
+  '/listas-leads/plantilla',
+  manejarAsync(async (_req, res) => {
+    const libro = await generarPlantilla();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="plantilla_leads_universoft.xlsx"');
+    await libro.xlsx.write(res);
+    res.end();
+  }),
+);
+
+// Dashboard de la lista (con ?filtro={...} se calcula sobre los leads que lo cumplen).
+rutasLeads.get(
+  '/listas-leads/:id/resumen',
+  manejarAsync(async (req, res) => {
+    const lista = await listaDesdeParametro(req.params.id);
+    res.json(await resumenDeLista(lista.id, filtroDeQuery(req.query.filtro)));
   }),
 );
 
@@ -221,6 +248,7 @@ rutasLeads.get(
 
 const esquemaBusqueda = z.object({
   buscar: z.string().trim().max(100).optional(),
+  filtro: z.string().max(4000).optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   tamano: z.coerce.number().int().min(1).max(200).default(50),
 });
@@ -229,8 +257,8 @@ rutasLeads.get(
   '/listas-leads/:id/leads',
   manejarAsync(async (req, res) => {
     const lista = await listaDesdeParametro(req.params.id);
-    const { buscar, pagina, tamano } = esquemaBusqueda.parse(req.query);
-    res.json(await repo.listarLeadsDeLista(lista.id, { buscar: buscar || null, pagina, tamano }));
+    const { buscar, pagina, tamano, filtro } = esquemaBusqueda.parse(req.query);
+    res.json(await repo.listarLeadsDeLista(lista.id, { buscar: buscar || null, pagina, tamano, filtro: filtroDeQuery(filtro) }));
   }),
 );
 

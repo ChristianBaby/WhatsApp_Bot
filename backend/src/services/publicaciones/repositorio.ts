@@ -1,5 +1,6 @@
 import { consultar, consultarUno, insertarEnBloque, transaccion } from '../../db/pool.js';
 import { noEncontrado } from '../../lib/errors.js';
+import { condicionFiltro, type FiltroLeads } from '../leads/filtros.js';
 import type {
   DatosCreacionPublicacion,
   EstadoDestinatario,
@@ -13,6 +14,7 @@ type FilaPublicacion = {
   id: number;
   nombre: string;
   lista_id: number;
+  filtro_leads: FiltroLeads | null;
   variantes_mensaje: string[];
   adjunto_ruta: string | null;
   adjunto_tipo: TipoAdjunto | null;
@@ -41,6 +43,7 @@ function mapear(fila: FilaPublicacion): Publicacion {
     id: fila.id,
     nombre: fila.nombre,
     listaId: fila.lista_id,
+    filtroLeads: fila.filtro_leads,
     variantesMensaje: fila.variantes_mensaje,
     adjuntoRuta: fila.adjunto_ruta,
     adjuntoTipo: fila.adjunto_tipo,
@@ -139,8 +142,8 @@ export async function crear(datos: DatosCreacionPublicacion): Promise<Publicacio
     `INSERT INTO publicaciones
        (nombre, lista_id, variantes_mensaje, adjunto_ruta, adjunto_tipo, adjunto_nombre_original,
         catalogo_url, numero_ids, programada_para, pausa_min_segundos, pausa_max_segundos,
-        tamano_lote, pausa_entre_lotes_minutos, horario_inicio, horario_fin, max_mensajes, estado)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        tamano_lote, pausa_entre_lotes_minutos, horario_inicio, horario_fin, max_mensajes, estado, filtro_leads)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      RETURNING *`,
     [
       datos.nombre,
@@ -160,6 +163,7 @@ export async function crear(datos: DatosCreacionPublicacion): Promise<Publicacio
       datos.horarioFin,
       datos.maxMensajes,
       datos.estado,
+      datos.filtroLeads ? JSON.stringify(datos.filtroLeads) : null,
     ],
   );
   return mapear(fila!);
@@ -170,6 +174,7 @@ type CambiosEditables = Partial<Omit<DatosCreacionPublicacion, 'estado'>>;
 const COLUMNAS_EDITABLES: Record<keyof CambiosEditables, string> = {
   nombre: 'nombre',
   listaId: 'lista_id',
+  filtroLeads: 'filtro_leads',
   variantesMensaje: 'variantes_mensaje',
   adjuntoRuta: 'adjunto_ruta',
   adjuntoTipo: 'adjunto_tipo',
@@ -195,7 +200,10 @@ export async function actualizar(id: number, cambios: CambiosEditables): Promise
   }
 
   const asignaciones = claves.map((clave, i) => `${COLUMNAS_EDITABLES[clave]} = $${i + 2}`);
-  const valores = claves.map((clave) => cambios[clave]);
+  // JSONB: el filtro va como texto JSON (null = toda la lista).
+  const valores = claves.map((clave) =>
+    clave === 'filtroLeads' ? (cambios.filtroLeads ? JSON.stringify(cambios.filtroLeads) : null) : cambios[clave],
+  );
 
   const fila = await consultarUno<FilaPublicacion>(
     `UPDATE publicaciones SET ${asignaciones.join(', ')} WHERE id = $1 RETURNING *`,
@@ -290,11 +298,14 @@ async function clasificarCandidatos(
   publicacionId: number,
   listaId: number,
   diasSinRecontactar: number,
+  filtro: FiltroLeads | null,
 ): Promise<{ leadId: number; motivo: string | null }[]> {
+  // Los que no cumplen el filtro de la campana ni siquiera son candidatos.
+  const params: unknown[] = [publicacionId, diasSinRecontactar, listaId];
   const candidatos = await consultar<FilaCandidato>(
     `SELECT l.id AS lead_id, l.telefono, l.etapa_pipeline, ${CONDICIONES_CANDIDATO}
-     FROM leads l WHERE l.lista_id = $3 ORDER BY l.id`,
-    [publicacionId, diasSinRecontactar, listaId],
+     FROM leads l WHERE l.lista_id = $3 AND ${condicionFiltro(filtro, params)} ORDER BY l.id`,
+    params,
   );
 
   const telefonosVistos = new Set<string>();
@@ -310,8 +321,9 @@ async function clasificarCandidatos(
 export async function resumirExclusiones(
   listaId: number,
   diasSinRecontactar: number,
+  filtro: FiltroLeads | null = null,
 ): Promise<{ enviables: number[]; excluidosPorMotivo: Record<string, number> }> {
-  const clasificados = await clasificarCandidatos(0, listaId, diasSinRecontactar);
+  const clasificados = await clasificarCandidatos(0, listaId, diasSinRecontactar, filtro);
   const excluidosPorMotivo: Record<string, number> = {};
   const enviables: number[] = [];
   for (const c of clasificados) {
@@ -326,8 +338,9 @@ export async function generarDestinatarios(
   listaId: number,
   numeroIds: number[],
   diasSinRecontactar: number,
+  filtro: FiltroLeads | null = null,
 ): Promise<{ total: number; excluidos: number }> {
-  const clasificados = await clasificarCandidatos(publicacionId, listaId, diasSinRecontactar);
+  const clasificados = await clasificarCandidatos(publicacionId, listaId, diasSinRecontactar, filtro);
   if (clasificados.length === 0) return { total: 0, excluidos: 0 };
 
   let enviables = 0;

@@ -114,12 +114,17 @@ function bloque(titulo: string, contenido: string): string {
   return `===== ${titulo} =====\n${contenido.trim() || '(sin datos)'}\n`;
 }
 
+// Datos internos del lead que no le sirven a la IA para conversar (y la prioridad no debe filtrarse al cliente).
+const DATOS_INTERNOS = new Set(['prioridad', 'maps']);
+
 function armarPrompt(ctx: ContextoAutoResponder): string {
   const datosLead = ctx.lead
     ? [
         `Empresa: ${ctx.lead.empresa}`,
         ctx.lead.rubro ? `Rubro: ${ctx.lead.rubro}` : '',
-        ...Object.entries(ctx.lead.datosExtra).map(([k, v]) => `${k}: ${v}`),
+        ...Object.entries(ctx.lead.datosExtra)
+          .filter(([k]) => !DATOS_INTERNOS.has(k))
+          .map(([k, v]) => `${k}: ${v}`),
       ]
         .filter(Boolean)
         .join('\n')

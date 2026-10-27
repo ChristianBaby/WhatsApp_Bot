@@ -1,7 +1,7 @@
 import { parse as parseCsv } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import { solicitudInvalida } from '../../lib/errors.js';
-import { CANDIDATOS_EMPRESA, CANDIDATOS_TELEFONO, encontrarColumna } from './columnas.js';
+import { esHojaDeLeads } from './columnas.js';
 
 /**
  * Lee un CSV o XLSX y lo deja como filas crudas (encabezado -> texto),
@@ -9,7 +9,8 @@ import { CANDIDATOS_EMPRESA, CANDIDATOS_TELEFONO, encontrarColumna } from './col
  * el usuario ve en su planilla (fila 1 = encabezados, fila 2 = primer dato).
  */
 
-export type FilaCruda = { filaNumero: number; valores: Record<string, string> };
+/** enlaces: el link de las celdas que lo tienen ("Ver en Maps" -> la URL), por encabezado. */
+export type FilaCruda = { filaNumero: number; valores: Record<string, string>; enlaces: Record<string, string> };
 
 export type ArchivoParseado = {
   encabezados: string[];
@@ -46,10 +47,16 @@ function parsearCsv(buffer: Buffer): ArchivoParseado {
     encabezados.forEach((encabezado, i) => {
       valores[encabezado] = (fila[i] ?? '').trim();
     });
-    return { filaNumero: indice + 2, valores };
+    return { filaNumero: indice + 2, valores, enlaces: {} };
   });
 
   return { encabezados, filas };
+}
+
+/** El hipervinculo de una celda de Excel, si lo tiene. */
+function enlaceDeCelda(valor: unknown): string {
+  if (valor && typeof valor === 'object' && 'hyperlink' in valor) return String((valor as { hyperlink: unknown }).hyperlink ?? '').trim();
+  return '';
 }
 
 function encabezadosDeHoja(hoja: ExcelJS.Worksheet): string[] {
@@ -70,9 +77,7 @@ function elegirMejorHoja(libro: ExcelJS.Workbook): ExcelJS.Worksheet {
   let mejor: { hoja: ExcelJS.Worksheet; filas: number } | null = null;
 
   for (const hoja of libro.worksheets) {
-    const encabezados = encabezadosDeHoja(hoja);
-    const calza = encontrarColumna(encabezados, CANDIDATOS_TELEFONO) && encontrarColumna(encabezados, CANDIDATOS_EMPRESA);
-    if (calza && (!mejor || hoja.rowCount > mejor.filas)) {
+    if (esHojaDeLeads(encabezadosDeHoja(hoja)) && (!mejor || hoja.rowCount > mejor.filas)) {
       mejor = { hoja, filas: hoja.rowCount };
     }
   }
@@ -100,14 +105,19 @@ async function parsearXlsx(buffer: Buffer): Promise<ArchivoParseado> {
     if (numeroFila === 1) return; // encabezados
 
     const valores: Record<string, string> = {};
+    const enlaces: Record<string, string> = {};
     let tieneAlgunDato = false;
     encabezados.forEach((encabezado, i) => {
-      const texto = limpiarCelda(fila.getCell(i + 1).value);
+      if (!encabezado) return;
+      const celda = fila.getCell(i + 1).value;
+      const texto = limpiarCelda(celda);
       if (texto) tieneAlgunDato = true;
       valores[encabezado] = texto;
+      const enlace = enlaceDeCelda(celda);
+      if (enlace) enlaces[encabezado] = enlace;
     });
 
-    if (tieneAlgunDato) filas.push({ filaNumero: numeroFila, valores });
+    if (tieneAlgunDato) filas.push({ filaNumero: numeroFila, valores, enlaces });
   });
 
   return { encabezados, filas };

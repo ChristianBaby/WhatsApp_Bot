@@ -233,6 +233,7 @@ async function iniciarPublicacion(pub: Publicacion): Promise<Publicacion> {
       pub.listaId,
       pub.numeroIds,
       await diasSinRecontactar(),
+      pub.filtroLeads,
     );
     log.info({ publicacionId: pub.id, total, excluidos }, 'Destinatarios generados');
   }

@@ -1,4 +1,5 @@
 import * as leadsRepo from '../leads/repositorio.js';
+import type { FiltroLeads } from '../leads/filtros.js';
 import * as configRepo from '../configuracion/repositorio.js';
 import { resumirExclusiones } from './repositorio.js';
 import { DATOS_PLACEHOLDER_MUESTRA, datosPlaceholderDeLead, elegirVariante, sustituirPlaceholders } from './plantilla.js';
@@ -47,6 +48,7 @@ async function resolverRitmo(overrides: ParametrosRitmo) {
 export async function simularDryRun(
   datos: {
     listaId: number;
+    filtroLeads: FiltroLeads | null;
     variantesMensaje: string[];
     catalogoUrl: string | null;
     numeroIds: number[];
@@ -55,7 +57,7 @@ export async function simularDryRun(
   // Mismas exclusiones que la campana real: si no, la simulacion prometia
   // enviar (y tardar) mas de lo que despues hacia.
   const dias = Number((await configRepo.obtenerValor<number>('dias_sin_recontactar')) ?? 30);
-  const { enviables, excluidosPorMotivo } = await resumirExclusiones(datos.listaId, dias);
+  const { enviables, excluidosPorMotivo } = await resumirExclusiones(datos.listaId, dias, datos.filtroLeads);
   const idsEnviables = new Set(enviables);
   const leads = (await leadsRepo.listarPorLista(datos.listaId)).filter((l) => idsEnviables.has(l.id));
   const ritmo = await resolverRitmo(datos);
